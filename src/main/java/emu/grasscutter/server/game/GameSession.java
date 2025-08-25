@@ -17,8 +17,8 @@ import lombok.Setter;
 import lombok.val;
 import org.anime_game_servers.core.base.Version;
 import org.anime_game_servers.multi_proto.core.interfaces.PacketIdProvider;
-import org.anime_game_servers.multi_proto.gi.packet_id.PacketIds;
 import org.anime_game_servers.multi_proto.gi.utils.VersionIdentify;
+import org.anime_game_servers.multi_proto.runtime.ProtoLoader;
 
 import java.io.File;
 import java.net.InetSocketAddress;
@@ -44,7 +44,7 @@ public class GameSession implements GameSessionManager.KcpChannel {
     private int lastClientSeq = 10;
     @Getter private Version version = Version.DEFAULT;
     @Getter private boolean isTemporaryVersion = true;
-    @Getter private PacketIdProvider packageIdProvider = PacketIds.getMapper(version);
+    @Getter private PacketIdProvider packageIdProvider = ProtoLoader.INSTANCE.getPacketMapper(version);
 
     public GameSession(GameServer server) {
         this.server = server;
@@ -163,8 +163,8 @@ public class GameSession implements GameSessionManager.KcpChannel {
     }
 
     public void updateVersion(Version version, boolean isTemporaryVersion) {
-        this.packageIdProvider = PacketIds.getMapper(version);
         this.version = version;
+        this.packageIdProvider = ProtoLoader.INSTANCE.getPacketMapper(version);;
         this.isTemporaryVersion = isTemporaryVersion;
     }
 
@@ -174,8 +174,6 @@ public class GameSession implements GameSessionManager.KcpChannel {
         Crypto.xor(bytes, useSecretKey() ? Crypto.ENCRYPT_KEY : Crypto.DISPATCH_KEY);
         ByteBuf packet = Unpooled.wrappedBuffer(bytes);
 
-        // Log
-        //logPacket(packet);
         // Handle
         try {
             boolean allDebug = DEBUG_MODE_INFO.logPackets == ServerDebugMode.ALL;
@@ -244,7 +242,7 @@ public class GameSession implements GameSessionManager.KcpChannel {
                     default -> { /* nothing to log */}
                 }
 
-                // Handle
+                    // Handle packet
                 getServer().getPacketHandler().handle(this, opcode, header, payload);
             }
         } catch (Exception e) {

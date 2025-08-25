@@ -1,8 +1,11 @@
 package emu.grasscutter.net.packet;
 
+import lombok.val;
 import emu.grasscutter.server.game.GameSession;
 import org.anime_game_servers.core.base.Version;
 import org.anime_game_servers.multi_proto.core.interfaces.ProtoModel;
+import org.anime_game_servers.multi_proto.gi.utils.ProtoRuntimeProvider;
+import org.anime_game_servers.multi_proto.runtime.DynamicProtoHandler;
 
 public abstract class BaseTypedPacket<Packet extends ProtoModel> extends BasePacket {
 
@@ -28,7 +31,12 @@ public abstract class BaseTypedPacket<Packet extends ProtoModel> extends BasePac
 
     @Override
     public int getOpcode(GameSession session) {
-        return session.getPackageIdProvider().getPacketId(proto.getClass().getSimpleName());
+        String name = proto.getClass().getSimpleName();
+        if (ProtoRuntimeProvider.INSTANCE.getInstance() instanceof DynamicProtoHandler handler) {
+            val alias = handler.getObfuscatedName(name);
+            if (alias != null) name = alias;
+        }
+        return session.getPackageIdProvider().getPacketId(name);
     }
 
     @Override @Deprecated

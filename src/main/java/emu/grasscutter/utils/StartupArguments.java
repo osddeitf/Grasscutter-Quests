@@ -8,6 +8,9 @@ import emu.grasscutter.Grasscutter.ServerRunMode;
 import emu.grasscutter.Loggers;
 import emu.grasscutter.net.packet.PacketOpcodesUtils;
 import lombok.val;
+import org.anime_game_servers.multi_proto.gi.utils.ProtoRuntimeProvider;
+import org.anime_game_servers.multi_proto.runtime.DynamicProtoHandler;
+import org.anime_game_servers.multi_proto.runtime.ProtoLoader;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
@@ -100,6 +103,10 @@ public final class StartupArguments {
         Loggers.getResourceSystem().setLevel(loggers.resourceLevel);
         Loggers.getScriptSystem().setLevel(loggers.scriptLevel);
         Grasscutter.getLogger().debug("The logger is now running in debug mode.");
+        if (ProtoRuntimeProvider.INSTANCE.getInstance() instanceof DynamicProtoHandler handler) {
+            ProtoLoader.INSTANCE.setCommonLogger(Grasscutter.getLogger());
+            handler.loadMappingFromJson();
+        }
 
         // Log level to other third-party services
         Level loggerLevel = loggers.servicesLoggersLevel;

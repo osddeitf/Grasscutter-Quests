@@ -15,6 +15,8 @@ import emu.grasscutter.utils.JsonUtils;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import lombok.val;
+import org.anime_game_servers.multi_proto.gi.utils.ProtoRuntimeProvider;
+import org.anime_game_servers.multi_proto.runtime.DynamicProtoHandler;
 
 public class PacketOpcodesUtils {
     private static Int2ObjectMap<String> opcodeMap;
@@ -57,12 +59,16 @@ public class PacketOpcodesUtils {
 
     public static String getOpcodeName(int opcode, GameSession session) {
         if (opcode <= 0) return "UNKNOWN";
-        val provider = session.getPackageIdProvider();
-        if (provider != null) {
-            val name = provider.getPacketName(opcode);
-            if (name != null) return name;
+        val name = session.getPackageIdProvider().getPacketName(opcode);
+        if (name == null) {
+            return opcodeMap.getOrDefault(opcode, "UNKNOWN");
         }
-        return opcodeMap.getOrDefault(opcode, "UNKNOWN");
+        if (ProtoRuntimeProvider.INSTANCE.getInstance() instanceof DynamicProtoHandler handler) {
+            val alias = handler.getDeobfuscatedName(name);
+            if (alias != null) return alias;
+        }
+
+        return name;
     }
 
     public static void dumpPacketIds() {
