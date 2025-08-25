@@ -21,7 +21,7 @@ plugins {
     // Apply the java plugin to add support for Java
     id 'java'
 
-    id 'com.github.johnrengelman.shadow' version '8.1.1'
+//    id 'com.github.johnrengelman.shadow' version '8.1.1'
 
     // Maven
     id 'maven-publish'
@@ -31,14 +31,14 @@ plugins {
 compileJava.options.encoding = "UTF-8"
 compileTestJava.options.encoding = "UTF-8"
 
-sourceCompatibility = JavaVersion.VERSION_17
-targetCompatibility = JavaVersion.VERSION_17
+//sourceCompatibility = JavaVersion.VERSION_17
+//targetCompatibility = JavaVersion.VERSION_17
 
 group = 'xyz.grasscutters'
 version = '1.4.4-dev'
 
-sourceCompatibility = 17
-targetCompatibility = 17
+//sourceCompatibility = 17
+//targetCompatibility = 17
 
 java {
     withJavadocJar()
@@ -119,19 +119,6 @@ configurations.all {
 application {
     // Define the main class for the application
     getMainClass().set('emu.grasscutter.Grasscutter')
-}
-
-shadowJar {
-    zip64 = true
-    duplicatesStrategy = DuplicatesStrategy.INCLUDE
-    mergeServiceFiles()
-
-    archiveBaseName = 'grasscutter'
-    if (project.hasProperty('jarFilename')) {
-        archiveFileName = "${jarFilename}.${extension}"
-    }
-
-    destinationDirectory = file(".")
 }
 
 jar {
