@@ -65,8 +65,10 @@ public class GameMainQuest {
         this.parentQuestId = parentQuestId;
         this.childQuests = new HashMap<>();
         this.talks = new HashMap<>();
-        //official server always has a list of 5 questVars, with default value 0
-        this.questVars = new int[] {0,0,0,0,0};
+        // Official server always has a list of 5 questVars, with default value 0.
+        // In later version (somewhere after 5.3), must have 20 quest vars,
+        // or stuck at the loading screen after player born
+        this.questVars = new int[20];
         this.timeVar = new long[] {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1}; // theoretically max is 10 here
         this.state = ParentQuestState.PARENT_QUEST_STATE_NONE;
         this.questGroupSuites = new ArrayList<>();
