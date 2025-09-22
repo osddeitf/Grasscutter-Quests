@@ -14,9 +14,7 @@ import emu.grasscutter.Grasscutter.ServerDebugMode;
 import emu.grasscutter.server.game.GameSession.SessionState;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
-import lombok.val;
-import org.anime_game_servers.multi_proto.gi.utils.ProtoRuntimeProvider;
-import org.anime_game_servers.multi_proto.runtime.DynamicProtoHandler;
+import org.anime_game_servers.multi_proto.runtime.ProtoLoader;
 
 import javax.annotation.Nullable;
 
@@ -85,9 +83,9 @@ public class GameServerPacketHandler {
     public void handle(GameSession session, int opcode, byte[] header, byte[] payload) {
         String packageName = session.getPackageIdProvider().getPacketName(opcode);
         if (packageName != null) {
-            val runtime = ProtoRuntimeProvider.INSTANCE.getInstance();
-            if (runtime instanceof DynamicProtoHandler handler) {
-                String alias = handler.getDeobfuscatedName(packageName);
+            var protoSet = ProtoLoader.INSTANCE.getProtoSet(session.getVersion());
+            if (protoSet != null) {
+                String alias = protoSet.getDeobfuscatedName(packageName);
                 if (alias != null) packageName = alias;
             }
         }
