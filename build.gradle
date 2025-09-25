@@ -21,7 +21,7 @@ plugins {
     // Apply the java plugin to add support for Java
     id 'java'
 
-//    id 'com.github.johnrengelman.shadow' version '8.1.1'
+    id("com.gradleup.shadow") version "8.3.9"
 
     // Maven
     id 'maven-publish'
@@ -119,6 +119,19 @@ configurations.all {
 application {
     // Define the main class for the application
     getMainClass().set('emu.grasscutter.Grasscutter')
+}
+
+shadowJar {
+    zip64 = true
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    mergeServiceFiles()
+
+    archiveBaseName = 'grasscutter'
+    if (project.hasProperty('jarFilename')) {
+        archiveFileName = "${jarFilename}.${extension}"
+    }
+
+    destinationDirectory = file(".")
 }
 
 jar {
