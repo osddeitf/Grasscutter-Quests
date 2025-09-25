@@ -145,7 +145,7 @@ public final class AbilityManager extends BasePlayerManager {
 
         switch (invoke.getArgumentType()) {
             case ABILITY_META_OVERRIDE_PARAM -> this.handleOverrideParam(invoke);
-            case ABILITY_META_REINIT_OVERRIDEMAP -> this.handleReinitOverrideMap(invoke);
+            case ABILITY_META_REINIT_OVERRIDE_MAP -> this.handleReinitOverrideMap(invoke);
             case ABILITY_META_MODIFIER_CHANGE -> this.handleModifierChange(invoke);
             case ABILITY_MIXIN_COST_STAMINA -> this.handleMixinCostStamina(invoke);
             case ABILITY_ACTION_GENERATE_ELEM_BALL -> this.handleGenerateElemBall(invoke);
