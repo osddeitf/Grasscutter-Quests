@@ -258,7 +258,6 @@ public class ResourceLoader {
                     pointData.setSceneId(sceneId);
 
                     GameData.getScenePointIdList().add(pointId.intValue());
-                    GameData.getScenePointEntries().put(scenePoint.getName(), scenePoint);
                     GameData.scenePointEntryMap.put((sceneId << 16) + pointId, scenePoint);
 
                     pointData.onLoad();
