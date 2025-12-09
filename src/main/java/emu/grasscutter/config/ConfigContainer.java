@@ -244,6 +244,7 @@ public class ConfigContainer {
         public InventoryLimits inventoryLimits = new InventoryLimits();
         public AvatarLimits avatarLimits = new AvatarLimits();
         public int sceneEntityLimit = 1000; // Unenforced. TODO: Implement.
+        public boolean useShortenedEntityId = false;     // TODO: this is only a temporary solution for v6.1+
 
         public boolean watchGachaConfig = false;
         public boolean enableShopItems = true;
