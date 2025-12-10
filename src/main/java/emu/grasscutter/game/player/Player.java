@@ -684,7 +684,7 @@ public class Player {
     }
 
     public int getProperty(PlayerProperty prop) {
-        return getProperties().get(prop.getId());
+        return getProperties().getOrDefault(prop.getId(), 0);
     }
     public boolean getBoolProperty(PlayerProperty prop) {
         return getProperties().get(prop.getId()) == 1;
@@ -1568,7 +1568,7 @@ public class Player {
         if(!isValueInPropBounds(prop, value)){
             return false;
         }
-        int currentValue = this.properties.get(prop.getId());
+        int currentValue = this.getProperty(prop);
         this.properties.put(prop.getId(), value);
         if (sendPacket) {
             // Notify the client about the player property change. For cb1 clients we probably need to send PlayerPropChangeNotify instead. TODO: verify
