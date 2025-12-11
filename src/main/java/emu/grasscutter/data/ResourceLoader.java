@@ -589,8 +589,8 @@ public class ResourceLoader {
                             addToCache(quest);
                         }
                     }
-                } catch (IOException e) {
-
+                } catch (Exception e) {
+                    logger.error("Failed to load quest config {}", path.getFileName().toString());
                 }
             });
         } catch (IOException e) {
