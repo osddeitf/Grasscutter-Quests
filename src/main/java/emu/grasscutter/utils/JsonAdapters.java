@@ -104,7 +104,8 @@ public class JsonAdapters {
                             case "x", "X", "_x" -> x = (float) reader.nextDouble();
                             case "y", "Y", "_y" -> y = (float) reader.nextDouble();
                             case "z", "Z", "_z" -> z = (float) reader.nextDouble();
-                            default -> throw new IOException("Invalid field in Position definition - " + name);
+                            default -> reader.skipValue();
+                            // default -> throw new IOException("Invalid field in Position definition - " + name);
                         }
                     }
                     reader.endObject();
