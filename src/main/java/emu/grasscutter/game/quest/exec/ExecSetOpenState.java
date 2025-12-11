@@ -18,7 +18,7 @@ public class ExecSetOpenState extends QuestExecHandler {
             .mapToInt(Integer::parseInt)
             .toArray();
 
-        quest.getOwner().getProgressManager().forceSetOpenState(param[0], param[1]);
+        quest.getOwner().getProgressManager().setOpenStateFromServer(param[0], param[1]);
         return true;
     }
 }

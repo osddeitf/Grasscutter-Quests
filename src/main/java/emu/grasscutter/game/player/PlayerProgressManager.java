@@ -1,5 +1,6 @@
 package emu.grasscutter.game.player;
 
+import emu.grasscutter.Loggers;
 import emu.grasscutter.data.GameData;
 import emu.grasscutter.data.binout.ScenePointEntry;
 import emu.grasscutter.data.excels.OpenStateData;
@@ -98,9 +99,6 @@ public class PlayerProgressManager extends BasePlayerDataManager {
             }
         }
     }
-    private void setOpenState(int openState, int value) {
-        this.setOpenState(openState, value, true);
-    }
 
     /**********
         Condition checking for setting open states.
@@ -110,6 +108,9 @@ public class PlayerProgressManager extends BasePlayerDataManager {
         for (val condition : openState.getCond()) {
             switch (condition.getCondType()){
                 // For level conditions, check if the player has reached the necessary level.
+                case OPEN_STATE_COND_NONE -> {
+                    // Do nothing
+                }
                 case OPEN_STATE_COND_PLAYER_LEVEL -> {
                     if (this.player.getLevel() < condition.getParam()) {
                         return false;
@@ -144,6 +145,18 @@ public class PlayerProgressManager extends BasePlayerDataManager {
                     // param offering id
                     // param2 offering level
                 }
+                case OPEN_STATE_COND_GCG_LEVEL -> {
+                    // TODO
+                    return false;
+                }
+                case OPEN_STATE_TRIBAL_REPUTATION_FINISH_NUM -> {
+                    // TODO
+                    return false;
+                }
+                case OPEN_STATE_COND_PLAYER_BEYOND_LEVEL -> {
+                    // TODO
+                    return false;
+                }
             }
         }
 
@@ -170,15 +183,23 @@ public class PlayerProgressManager extends BasePlayerDataManager {
         }
 
         // Set.
-        this.setOpenState(openState, value);
+        this.setOpenState(openState, value, true);
         this.player.sendPacket(new PacketSetOpenStateRsp(openState, value));
     }
 
     /**
-     * This force sets an open state, ignoring all conditions and permissions
+     * This sets an open state from server, ignoring all conditions and permissions,
+     * a warning is logged instead
      */
-    public void forceSetOpenState(int openState, int value){
-        setOpenState(openState, value);
+    public void setOpenStateFromServer(int openState, int value) {
+        var data = GameData.getOpenStateDataMap().get(openState);
+        if (data == null) {
+            Loggers.getDefaultLogger().warn("Force setting an invalid open state {} = {}", openState, value);
+        }
+        else if (!this.areConditionsMet(data)) {
+            Loggers.getDefaultLogger().warn("Force setting an unmet open state {} = {}", openState, value);
+        }
+        this.setOpenState(openState, value, true);
     }
 
     /**********
