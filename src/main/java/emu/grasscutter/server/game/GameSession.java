@@ -10,7 +10,6 @@ import emu.grasscutter.net.packet.PacketOpcodesUtils;
 import emu.grasscutter.server.event.game.SendPacketEvent;
 import emu.grasscutter.utils.Crypto;
 import emu.grasscutter.utils.FileUtils;
-import emu.grasscutter.utils.Utils;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import lombok.Getter;
@@ -25,6 +24,7 @@ import org.anime_game_servers.multi_proto.gi.utils.VersionIdentify;
 import java.io.File;
 import java.net.InetSocketAddress;
 import java.nio.file.Path;
+import java.util.Optional;
 
 import static emu.grasscutter.config.Configuration.*;
 import static emu.grasscutter.utils.Language.translate;
@@ -103,10 +103,25 @@ public class GameSession implements GameSessionManager.KcpChannel {
         send(basePacket);
     }
 
-    public void logPacket(String sendOrRecv, int opcode, byte[] payload) {
-        Grasscutter.getLogger().info("{}: {} ({})", sendOrRecv, PacketOpcodesUtils.getOpcodeName(opcode, this), opcode);
-        if (GAME_INFO.isShowPacketPayload)
-            System.out.println(Utils.bytesToHex(payload));
+    private void logPacketSummary(String method, int opcode) {
+        Grasscutter.getLogger().info(method + ": " + PacketOpcodesUtils.getOpcodeName(opcode, this) + " (" + opcode + ")");
+    }
+
+    public void logPacket(String method, int opcode, BasePacket packet) {
+        logPacketSummary(method, opcode);
+        if (GAME_INFO.isShowPacketPayload) {
+            var header = Optional.ofNullable(packet.getHeader())
+                .map(p -> p.encodeToByteArray(version))
+                .orElse(new byte[0]);
+            PacketLogger.logPacket(method, opcode, packet.getData(this.version), header);
+        }
+    }
+
+    public void logPacket(String method, int opcode, byte[] payload, byte[] header) {
+        logPacketSummary(method, opcode);
+        if (GAME_INFO.isShowPacketPayload) {
+            PacketLogger.logPacket(method, opcode, payload, header);
+        }
     }
 
     public void send(BasePacket packet) {
@@ -133,17 +148,17 @@ public class GameSession implements GameSessionManager.KcpChannel {
         switch (DEBUG_MODE_INFO.logPackets) {
             case ALL -> {
                 if (!PacketOpcodesUtils.LOOP_PACKETS.contains(paketName) || GAME_INFO.isShowLoopPackets) {
-                    logPacket("SEND", opcode, packet.getData(version));
+                    logPacket("SEND", opcode, packet);
                 }
             }
             case WHITELIST -> {
                 if (SERVER.debugWhitelist.contains(paketName)) {
-                    logPacket("SEND", opcode, packet.getData(version));
+                    logPacket("SEND", opcode, packet);
                 }
             }
             case BLACKLIST -> {
                 if (!SERVER.debugBlacklist.contains(paketName)) {
-                    logPacket("SEND", opcode, packet.getData(version));
+                    logPacket("SEND", opcode, packet);
                 }
             }
             default -> {
@@ -230,17 +245,17 @@ public class GameSession implements GameSessionManager.KcpChannel {
                 switch (DEBUG_MODE_INFO.logPackets) {
                     case ALL -> {
                         if (!PacketOpcodesUtils.LOOP_PACKETS.contains(paketName) || GAME_INFO.isShowLoopPackets) {
-                            logPacket("RECV", opcode, payload);
+                            logPacket("RECV", opcode, payload, header);
                         }
                     }
                     case WHITELIST -> {
                         if (SERVER.debugWhitelist.contains(paketName)) {
-                            logPacket("RECV", opcode, payload);
+                            logPacket("RECV", opcode, payload, header);
                         }
                     }
                     case BLACKLIST -> {
                         if (!(SERVER.debugBlacklist.contains(paketName))) {
-                            logPacket("RECV", opcode, payload);
+                            logPacket("RECV", opcode, payload, header);
                         }
                     }
                     default -> { /* nothing to log */}

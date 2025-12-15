@@ -20,11 +20,11 @@ public class HandlerUnionCmdNotify extends TypedPacketHandler<UnionCmdNotify> {
             val cmdName = session.getPackageIdProvider().getPacketName(cmdOpcode);
             byte[] cmdPayload = cmd.getBody();
             if (GAME_INFO.logPackets == ServerDebugMode.WHITELIST && SERVER.debugWhitelist.contains(cmdName)) {
-                session.logPacket("RECV in Union", cmdOpcode, cmdPayload);
+                session.logPacket("RECV in Union", cmdOpcode, cmdPayload, new byte[0]);
             } else if (GAME_INFO.logPackets ==  ServerDebugMode.BLACKLIST && !SERVER.debugBlacklist.contains(cmdName)) {
-                session.logPacket("RECV in Union", cmdOpcode, cmdPayload);
+                session.logPacket("RECV in Union", cmdOpcode, cmdPayload, new byte[0]);
             }
-            session.logPacket("RECV", cmd.getMessageId(), cmd.getBody());
+            session.logPacket("RECV", cmd.getMessageId(), cmd.getBody(), new byte[0]);
             //debugLevel ALL ignores UnionCmdNotify, so we will also ignore the contained opcodes
             session.getServer().getPacketHandler().handle(session, cmd.getMessageId(), EMPTY_BYTE_ARRAY, cmd.getBody());
         }
