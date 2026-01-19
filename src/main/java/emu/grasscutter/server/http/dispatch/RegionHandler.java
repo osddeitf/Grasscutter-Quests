@@ -95,10 +95,10 @@ public final class RegionHandler implements Router {
         });
 
         // Create a config object.
-        byte[] customConfig = "{\"sdkenv\":\"2\",\"checkdevice\":\"false\",\"loadPatch\":\"false\",\"showexception\":\"false\",\"regionConfig\":\"pm|fk|add\",\"downloadMode\":\"0\",\"debugmenu\":\"true\",\"debuglog\":\"true\"}".getBytes();
+        byte[] customConfig = "{\"codeSwitch\":[4334],\"coverSwitch\":[40],\"sdkenv\":\"2\",\"checkdevice\":\"false\",\"loadPatch\":\"false\",\"showexception\":\"false\",\"regionConfig\":\"pm|fk|add\",\"downloadMode\":\"0\",\"debugmenu\":\"true\",\"debuglog\":\"true\"}".getBytes();
         Crypto.xor(customConfig, Crypto.DISPATCH_KEY); // XOR the config with the key.
 
-        byte[] customConfigCn = "{\"sdkenv\":\"2\",\"checkdevice\":\"false\",\"loadPatch\":\"false\",\"showexception\":\"false\",\"regionConfig\":\"pm|fk|add\",\"downloadMode\":\"0\",\"debugmenu\":\"true\",\"debuglog\":\"true\"}".getBytes();
+        byte[] customConfigCn = "{\"codeSwitch\":[4334],\"coverSwitch\":[40],\"sdkenv\":\"2\",\"checkdevice\":\"false\",\"loadPatch\":\"false\",\"showexception\":\"false\",\"regionConfig\":\"pm|fk|add\",\"downloadMode\":\"0\",\"debugmenu\":\"true\",\"debuglog\":\"true\"}".getBytes();
         Crypto.xor(customConfigCn, Crypto.DISPATCH_KEY); // XOR the config with the key.
 
         // Create an updated region list.
