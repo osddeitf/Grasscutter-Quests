@@ -119,7 +119,7 @@ public final class Grasscutter {
         ResourceLoader.loadAll();
 
         // Generate handbooks.
-        Tools.createGmHandbooks();
+        //Tools.createGmHandbooks();
 
         // Generate gacha mappings.
         Tools.generateGachaMappings();
@@ -148,7 +148,7 @@ public final class Grasscutter {
         httpServer.addRouter(AnnouncementsHandler.class);
         httpServer.addRouter(DispatchHandler.class);
         httpServer.addRouter(GachaHandler.class);
-        httpServer.addRouter(DocumentationServerHandler.class);
+        //httpServer.addRouter(DocumentationServerHandler.class);
 
         // Start servers.
         var runMode = Grasscutter.getRunMode();
