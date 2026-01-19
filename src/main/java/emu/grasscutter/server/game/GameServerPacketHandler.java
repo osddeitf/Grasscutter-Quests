@@ -14,7 +14,6 @@ import emu.grasscutter.Grasscutter.ServerDebugMode;
 import emu.grasscutter.server.game.GameSession.SessionState;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
-import lombok.val;
 
 import javax.annotation.Nullable;
 
@@ -64,12 +63,13 @@ public class GameServerPacketHandler {
     }
 
     public void handle(GameSession session, int opcode, byte[] header, byte[] payload) {
-        val provider = session.getPackageIdProvider();
-        if (provider == null) {
-            Grasscutter.getLogger().warn("No package id provider found for version {}", session.getVersion());
-            return;
+        String packageName = session.getPackageIdProvider().getPacketName(opcode);
+        if (packageName != null) {
+            if (session.getProtoRuntime() != null) {
+                String alias = session.getProtoRuntime().getDeobfuscatedName(packageName);
+                if (alias != null) packageName = alias;
+            }
         }
-        String packageName = provider.getPacketName(opcode);
         PacketHandler handler = getHandler(packageName, opcode);
 
         if (handler != null) {
@@ -108,6 +108,7 @@ public class GameServerPacketHandler {
             } catch (Exception ex) {
                 // TODO Remove this when no more needed
                 ex.printStackTrace();
+                Grasscutter.getLogger().error("Failed to handle packet", ex);
             }
             return; // Packet successfully handled
         }
