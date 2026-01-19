@@ -14,7 +14,6 @@ import emu.grasscutter.server.game.GameSession;
 import emu.grasscutter.utils.JsonUtils;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
-import lombok.val;
 
 public class PacketOpcodesUtils {
 
@@ -40,11 +39,15 @@ public class PacketOpcodesUtils {
 
     public static String getOpcodeName(int opcode, GameSession session) {
         if (opcode <= 0) return "UNKNOWN";
-        val provider = session.getPackageIdProvider();
-        if (provider != null) {
-            val name = provider.getPacketName(opcode);
-            if (name != null) return name;
+        var name = session.getPackageIdProvider().getPacketName(opcode);
+        if (name == null) {
+            return "UNKNOWN";
         }
-        return "UNKNOWN";
+        if (session.getProtoRuntime() != null) {
+            var alias = session.getProtoRuntime().getDeobfuscatedName(name);
+            if (alias != null) return alias;
+        }
+
+        return name;
     }
 }

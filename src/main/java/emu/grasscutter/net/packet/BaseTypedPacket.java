@@ -28,7 +28,12 @@ public abstract class BaseTypedPacket<Packet extends ProtoModel> extends BasePac
 
     @Override
     public int getOpcode(GameSession session) {
-        return session.getPackageIdProvider().getPacketId(proto.getClass().getSimpleName());
+        var name = proto.getClass().getSimpleName();
+        if (session.getProtoRuntime() != null) {
+            var alias = session.getProtoRuntime().getObfuscatedName(name);
+            if (alias != null) name = alias;
+        }
+        return session.getPackageIdProvider().getPacketId(name);
     }
 
     @Override @Deprecated
