@@ -258,6 +258,20 @@ public final class AbilityManager extends BasePlayerManager {
         this.abilityInvulnerable = false;
     }
 
+    private float getScalarFloatValue(AbilityScalarValueEntry entry) {
+        val wrapper = entry.getValue();
+        if (wrapper instanceof AbilityScalarValueEntry.Value.FloatValue floatValue) {
+            return floatValue.getValue();
+        }
+        if (wrapper instanceof AbilityScalarValueEntry.Value.UintValue uintValue) {
+            return uintValue.getValue().floatValue();
+        }
+        if (wrapper instanceof AbilityScalarValueEntry.Value.IntValue intValue) {
+            return intValue.getValue().floatValue();
+        }
+        return 0f;
+    }
+
     private void setAbilityOverrideValue(Ability ability, AbilityScalarValueEntry valueChange) {
         if(valueChange.getValueType() != AbilityScalarType.ABILITY_SCALAR_TYPE_FLOAT) {
             logger.info("setAbilityOverrideValue scalar type not supported: {}", valueChange.getValueType());
@@ -272,8 +286,7 @@ public final class AbilityManager extends BasePlayerManager {
 
         if(valueChange.getKey().getType() instanceof AbilityString.Type.Str str){
             val key = str.getValue();
-            val value = ((AbilityScalarValueEntry.Value.FloatValue) valueChange.getValue()).getValue();
-
+            val value = getScalarFloatValue(valueChange);
             ability.getAbilitySpecials().put(key, value);
             logger.debug("Ability {} changed {} to {}", ability.getData().abilityName, key, value);
         } else {
@@ -444,10 +457,9 @@ public final class AbilityManager extends BasePlayerManager {
         if(entity == null) return;
 
         var entry = AbilityScalarValueEntry.parseBy(invoke.getAbilityData(), player.getSession().getVersion());
-        if(entry == null || !(entry.getValue() instanceof AbilityScalarValueEntry.Value.FloatValue)) return;
+        if(entry == null) return;
 
-        String key = getAbilityName(entry.getKey());
-
+        var key = getAbilityName(entry.getKey());
         if(key == null) return;
 
         if(key.startsWith("SGV_")) return; //Server does not allow to change this variables I think
