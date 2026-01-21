@@ -35,7 +35,7 @@ compileTestJava.options.encoding = "UTF-8"
 //targetCompatibility = JavaVersion.VERSION_17
 
 group = 'xyz.grasscutters'
-version = '1.4.4-dev'
+version = projectVersion
 
 //sourceCompatibility = 17
 //targetCompatibility = 17
