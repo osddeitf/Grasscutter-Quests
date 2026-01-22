@@ -1,6 +1,7 @@
 package emu.grasscutter.server.http.dispatch;
 
 import emu.grasscutter.Grasscutter;
+import emu.grasscutter.config.Configuration;
 import emu.grasscutter.database.DatabaseHelper;
 import emu.grasscutter.game.Account;
 import emu.grasscutter.server.http.objects.*;
@@ -42,6 +43,13 @@ public class MaPassportAuthenticator {
             }
 
             Account account = DatabaseHelper.getAccountByName(username);
+
+            if (account == null && Configuration.ACCOUNT.autoCreate && password.length() >= 8) {
+                // This account has been created AUTOMATICALLY. There will be no permissions added.
+                account = DatabaseHelper.createAccountWithUid(username, 0);
+                account.setPassword(password);
+                account.save();
+            }
 
             if (account == null) {
                 Grasscutter.getLogger().info("Account not found: " + username);
