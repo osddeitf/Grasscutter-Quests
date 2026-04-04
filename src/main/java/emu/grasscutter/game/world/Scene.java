@@ -506,9 +506,11 @@ public class Scene {
         if (this.scriptManager.getConfig() == null) return;
 
         val diePos = this.scriptManager.getConfig().getDieY();
-        // Check if we need a respawn
-        this.players.stream().filter(p -> diePos >= p.getPosition().getY()).forEach(this::respawnPlayer);
-        this.entities.values().stream().filter(e -> diePos >= e.getPosition().getY()).forEach(this::killEntity);
+        // Collect before mutating to avoid modifying collections during iteration
+        val toRespawn = this.players.stream().filter(p -> diePos >= p.getPosition().getY()).toList();
+        toRespawn.forEach(this::respawnPlayer);
+        val toKill = this.entities.values().stream().filter(e -> diePos >= e.getPosition().getY()).toList();
+        toKill.forEach(this::killEntity);
     }
 
     private Position getDefaultLocation(Player player) {
