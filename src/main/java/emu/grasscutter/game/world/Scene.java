@@ -30,6 +30,8 @@ import emu.grasscutter.game.props.*;
 import emu.grasscutter.game.quest.QuestGroupSuite;
 import emu.grasscutter.game.world.data.TeleportProperties;
 import emu.grasscutter.game.world.managers.NpcGroupManager;
+import emu.grasscutter.game.world.managers.PlatformManager;
+import emu.grasscutter.game.world.managers.PlayerRespawnManager;
 import emu.grasscutter.game.world.managers.SpawnManager;
 import emu.grasscutter.game.world.managers.seal_battle.SealBattleManager;
 import emu.grasscutter.net.packet.BasePacket;
@@ -99,10 +101,10 @@ public class Scene {
     private boolean weatherLoaded = false;
 
     @Getter private final GameEntity sceneEntity;
-    @Getter @Setter private Map<Integer, Double> scheduledPlatforms = new ConcurrentHashMap<>();
-
     @Getter private final SpawnManager spawnManager;
     @Getter private final NpcGroupManager npcGroupManager;
+    @Getter private final PlatformManager platformManager;
+    @Getter private final PlayerRespawnManager respawnManager;
 
     public Scene(World world, SceneData sceneData) {
         this.world = world;
@@ -125,6 +127,8 @@ public class Scene {
         this.sealBattleManager = new SealBattleManager(this);
         this.spawnManager = new SpawnManager(this);
         this.npcGroupManager = new NpcGroupManager(this);
+        this.platformManager = new PlatformManager(this);
+        this.respawnManager = new PlayerRespawnManager(this);
 
         //Create scene entity
         this.sceneEntity = new EntityScene(this);
@@ -497,61 +501,12 @@ public class Scene {
 
         this.entities.values().forEach(e -> e.onTick(getSceneTimeSeconds()));
 
-        checkPlatforms();
+        platformManager.tick();
         npcGroupManager.tick();
         finishLoading();
-        checkPlayerRespawn();
+        respawnManager.tick();
         this.getSealBattleManager().onTick();
         this.tickCount++;
-    }
-
-    private void checkPlayerRespawn() {
-        if (this.scriptManager.getConfig() == null) return;
-
-        val diePos = this.scriptManager.getConfig().getDieY();
-        // Collect before mutating to avoid modifying collections during iteration
-        val toRespawn = this.players.stream().filter(p -> diePos >= p.getPosition().getY()).toList();
-        toRespawn.forEach(this::respawnPlayer);
-        val toKill = this.entities.values().stream().filter(e -> diePos >= e.getPosition().getY()).toList();
-        toKill.forEach(this::killEntity);
-    }
-
-    private Position getDefaultLocation(Player player) {
-        val bornPost = this.scriptManager.getConfig().getBornPos();
-        return bornPost != null ? new Position(bornPost) : player.getPosition();
-    }
-
-    private Position getDefaultRot(Player player) {
-        val bornPost = this.scriptManager.getConfig().getBornRot();
-        return bornPost != null ? new Position(bornPost) : player.getRotation();
-    }
-
-    private Position getRespawnLocation(Player player) {
-        //TODO get last valid location the player stood on
-        return Optional.ofNullable(this.dungeonManager).map(DungeonManager::getRespawnLocation).orElse(getDefaultLocation(player));
-    }
-
-    private Position getRespawnRotation(Player player) {
-        return Optional.ofNullable(this.dungeonManager).map(DungeonManager::getRespawnRotation).orElse(getDefaultRot(player));
-
-    }
-
-    public boolean respawnPlayer(Player player) {
-        player.getTeamManager().onAvatarDieDamage();
-
-        // todo should probably respawn the player at the last valid location
-        return this.world.transferPlayerToScene(player, TeleportProperties.builder()
-            .sceneId(getId())
-            .prevSceneId(getId())
-            .prevPos(player.getPosition())
-            .teleportTo(getRespawnLocation(player))
-            .teleportRot(getRespawnRotation(player))
-            .teleportType(PlayerTeleportEvent.TeleportType.INTERNAL)
-            .worldType(Optional.ofNullable(this.dungeonManager).map(data -> 13).orElse(14))
-            .enterType(EnterType.ENTER_GOTO)
-            .dungeonId(Optional.ofNullable(this.dungeonManager).map(DungeonManager::getDungeonData).map(DungeonData::getId).orElse(0))
-            .enterReason(this.dungeonManager != null ? EnterReason.DungeonReviveOnWaypoint : EnterReason.Revival)
-            .build());
     }
 
     private void finishLoading() {
@@ -921,77 +876,6 @@ public class Scene {
 
     public int getCurDungeonId(){
         return dungeonManager != null ? dungeonManager.getDungeonData().getId() : 0;
-    }
-
-    private void checkPlatforms() {
-        val curTime = this.getSceneTime();
-        var iter = scheduledPlatforms.entrySet().iterator();
-        while (iter.hasNext()) {
-            val entry = iter.next();
-            val key = entry.getKey();
-            val value = entry.getValue();
-            if (value < curTime) {
-                scheduledPlatforms.remove(key);
-                val entity = getEntityById(key);
-                // Deleted entity
-                if (entity == null) return;
-                // Not a platform
-                if (!(entity instanceof EntityGadget entityGadget)) return;
-                // No configRoute
-                if (!(entityGadget.getRouteConfig() instanceof ConfigRoute configRoute)) return;
-                // No route in file
-                val route = this.getSceneRouteById(configRoute.getRouteId());
-                if (route == null) return;
-
-                val points = route.getPoints();
-
-                // Increment the index
-                var index = 1 + entityGadget.getRouteConfig().getStartIndex();
-                if (index == points.length) index = 0;
-                entityGadget.getRouteConfig().setStartIndex(index);
-
-                // Update position
-
-                entity.getPosition().set(points[index].getPos());
-
-                // If the point has a Reach Event:
-                if (points[index].isHasReachEvent()) {
-                    callPlatformEvent(key);
-                }
-
-                //if there is a Reach Stop, or we have reached the end, call stop
-                if (points[index].isReachStop() || (index == points.length - 1 /*&& route.getType().equals(RouteType.OneWay)*/)) {
-                    entityGadget.stopPlatform();
-                    //otherwise, schedule the next one.
-                } else {
-                    double distance;
-                    if (index == points.length - 1 && route.getType().equals(RouteType.Loop)) {
-                        distance = points[index].getPos().computeDistance(points[0].getPos());
-                    } else {
-                        distance = points[index].getPos().computeDistance(points[index + 1].getPos());
-                    }
-                    double time = 1000 * distance / points[index].getTargetVelocity();
-                    scheduledPlatforms.put(key, value + time);
-                }
-            }
-        }
-    }
-
-    public boolean callPlatformEvent(int entityId) {
-        val entity = getEntityById(entityId);
-        if (entity == null) return false;
-        if (!(entity instanceof EntityGadget entityGadget)) return false;
-        if (!(entityGadget.getRouteConfig() instanceof ConfigRoute configRoute)) return false;
-
-        val groupId = entityGadget.getGroupId();
-        val configId = entityGadget.getConfigId();
-        val routeId = configRoute.getRouteId();
-        val index = configRoute.getStartIndex();
-
-        this.scriptManager.callEvent(new ScriptArgs(groupId, EventType.EVENT_PLATFORM_REACH_POINT, configId, routeId)
-                .setParam3(index)
-                .setEventSource(configId));
-        return true;
     }
 
     public WeatherArea getWeatherArea(Position position) {

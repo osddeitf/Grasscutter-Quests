@@ -230,13 +230,13 @@ public class EntityGadget extends EntityBaseGadget implements ConfigAbilityDataA
 
         val currIndex = configRoute.getStartIndex();
         if (currIndex == 0) {
-            this.getScene().callPlatformEvent(this.getId());
+            this.getScene().getPlatformManager().callPlatformEvent(this.getId());
         }
 
         double distance = points[currIndex].getPos().computeDistance(points[currIndex + 1].getPos());
         double time = 1000 * distance / points[currIndex].getTargetVelocity();
         time += this.getScene().getSceneTime();
-        this.getScene().getScheduledPlatforms().put(this.getId(), time);
+        this.getScene().getPlatformManager().schedule(this.getId(), time);
 
         return true;
     }
@@ -245,7 +245,7 @@ public class EntityGadget extends EntityBaseGadget implements ConfigAbilityDataA
         if(routeConfig == null){
             return false;
         }
-        this.getScene().getScheduledPlatforms().remove(this.getId());
+        this.getScene().getPlatformManager().unschedule(this.getId());
         routeConfig.stopRoute(getScene());
         getScene().broadcastPacket(new PacketPlatformStopRouteNotify(this));
 
