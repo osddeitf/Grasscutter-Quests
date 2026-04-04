@@ -2,6 +2,7 @@ package emu.grasscutter.game.world.managers;
 
 import emu.grasscutter.Grasscutter;
 import emu.grasscutter.data.GameData;
+import emu.grasscutter.game.entity.EntityMonster;
 import emu.grasscutter.game.entity.EntityRegion;
 import emu.grasscutter.game.entity.GameEntity;
 import emu.grasscutter.game.entity.create_config.CreateRegionEntityConfig;
@@ -11,7 +12,6 @@ import emu.grasscutter.scripts.SceneScriptManager;
 import emu.grasscutter.server.packet.send.PacketGroupUnloadNotify;
 import emu.grasscutter.utils.KahnsSort;
 import kotlin.Pair;
-import lombok.Getter;
 import lombok.val;
 import org.anime_game_servers.gi_lua.models.SceneGroupUserData;
 import org.anime_game_servers.gi_lua.models.ScriptArgs;
@@ -20,6 +20,7 @@ import org.anime_game_servers.gi_lua.models.scene.block.SceneBlock;
 import org.anime_game_servers.gi_lua.models.scene.block.SceneGroupInfo;
 import org.anime_game_servers.gi_lua.models.scene.group.SceneGroup;
 import org.anime_game_servers.gi_lua.models.scene.group.SceneInitConfig;
+import org.anime_game_servers.gi_lua.models.scene.group.SceneMonster;
 import org.anime_game_servers.gi_lua.utils.GroupUtils;
 import org.anime_game_servers.multi_proto.gi.messages.scene.VisionType;
 
@@ -31,7 +32,7 @@ import java.util.stream.IntStream;
 public class SceneGroupManager {
     private final Scene scene;
     private final Set<SceneBlock> loadedBlocks = ConcurrentHashMap.newKeySet();
-    @Getter private final Set<SceneGroup> loadedGroups = ConcurrentHashMap.newKeySet();
+    private final Set<SceneGroup> loadedGroups = ConcurrentHashMap.newKeySet();
     private final Set<Integer> replacedGroup = ConcurrentHashMap.newKeySet();
 
     public SceneGroupManager(Scene scene) {
@@ -240,5 +241,14 @@ public class SceneGroupManager {
 
         scene.broadcastPacket(new PacketGroupUnloadNotify(List.of(groupId)));
         getScriptManager().unregisterGroup(group);
+    }
+
+    public SceneMonster getSceneMonster(EntityMonster entity) {
+        var group = loadedGroups.stream()
+            .filter(g -> g.getGroupInfo().getId() == entity.getGroupId())
+            .findAny().orElse(null);
+
+        if (group == null || group.getMonsters() == null) return null;
+        return group.getMonsters().get(entity.getConfigId());
     }
 }

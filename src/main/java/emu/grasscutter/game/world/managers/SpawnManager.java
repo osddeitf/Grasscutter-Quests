@@ -11,7 +11,6 @@ import emu.grasscutter.game.world.Scene;
 import emu.grasscutter.game.world.SpawnDataEntry;
 import emu.grasscutter.server.packet.send.PacketSceneEntityAppearNotify;
 import emu.grasscutter.server.packet.send.PacketSceneEntityDisappearNotify;
-import lombok.Getter;
 import lombok.val;
 import org.anime_game_servers.multi_proto.gi.messages.scene.VisionType;
 
@@ -22,7 +21,7 @@ import java.util.stream.Collectors;
 public class SpawnManager {
     private final Scene scene;
     private final Set<SpawnDataEntry> spawnedEntities = ConcurrentHashMap.newKeySet();
-    @Getter private final Set<SpawnDataEntry> deadSpawnedEntities = ConcurrentHashMap.newKeySet();
+    private final Set<SpawnDataEntry> deadSpawnedEntities = ConcurrentHashMap.newKeySet();
     private Set<SpawnDataEntry.GridBlockId> loadedGridBlocks = new HashSet<>();
 
     public SpawnManager(Scene scene) {
@@ -91,6 +90,10 @@ public class SpawnManager {
             toRemove.forEach(scene::removeEntityDirectly);
             scene.broadcastPacket(new PacketSceneEntityDisappearNotify(toRemove, VisionType.VISION_REMOVE));
         }
+    }
+
+    public void addDeadSpawnEntry(SpawnDataEntry entry) {
+        deadSpawnedEntities.add(entry);
     }
 
     private int getEntityLevel(int baseLevel, int worldLevelOverride) {

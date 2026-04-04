@@ -26,14 +26,13 @@ import it.unimi.dsi.fastutil.ints.Int2FloatOpenHashMap;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.val;
+import org.anime_game_servers.gi_lua.models.ScriptArgs;
+import org.anime_game_servers.gi_lua.models.constants.EventType;
+import org.anime_game_servers.gi_lua.models.scene.group.SceneMonster;
 import org.anime_game_servers.multi_proto.gi.messages.gadget.GadgetInteractReq;
 import org.anime_game_servers.multi_proto.gi.messages.general.ability.AbilitySyncStateInfo;
 import org.anime_game_servers.multi_proto.gi.messages.general.entity.SceneWeaponInfo;
 import org.anime_game_servers.multi_proto.gi.messages.scene.entity.*;
-import org.anime_game_servers.gi_lua.models.ScriptArgs;
-import org.anime_game_servers.gi_lua.models.constants.EventType;
-import org.anime_game_servers.gi_lua.models.scene.group.SceneGroup;
-import org.anime_game_servers.gi_lua.models.scene.group.SceneMonster;
 
 import javax.annotation.Nullable;
 import java.util.*;
@@ -96,12 +95,9 @@ public class EntityMonster extends GameEntity<CreateMonsterEntityConfig> impleme
     }
 
     @Nullable
-    private List<MonsterAffixData> getAffixes(@Nullable SceneGroup group){
+    private List<MonsterAffixData> getAffixes(@Nullable SceneMonster monster){
         List<Integer> affixes = null;
-        if(group != null && group.getMonsters() != null) {
-            SceneMonster monster = group.getMonsters().get(getConfigId());
-            if(monster != null) affixes = monster.getAffix();
-        }
+        if (monster != null) affixes = monster.getAffix();
 
         if(monsterData != null) {
             //TODO: Research if group affixes goes first
@@ -128,8 +124,8 @@ public class EntityMonster extends GameEntity<CreateMonsterEntityConfig> impleme
         ArrayList<String> abilityNames = new ArrayList<>();
         val defaultAbilities = GameData.getConfigGlobalCombat().getDefaultAbilities();
         //Affix abilities
-        Optional<SceneGroup> optionalGroup = getScene().getGroupManager().getLoadedGroups().stream().filter(g -> g.getGroupInfo().getId() == getGroupId()).findAny();
-        List<MonsterAffixData> affixes = getAffixes(optionalGroup.orElse(null));
+        var monster = getScene().getGroupManager().getSceneMonster(this);
+        var affixes = getAffixes(monster);
 
         // first add pre add affix abilities
         if(affixes != null) {
@@ -152,12 +148,9 @@ public class EntityMonster extends GameEntity<CreateMonsterEntityConfig> impleme
             );
         }
 
-        optionalGroup.ifPresent(group -> {
-            val monster = group.getMonsters().get(getConfigId());
-            if(monster != null && monster.isElite()) {
-                abilityNames.add(defaultAbilities.getMonterEliteAbilityName());
-            }
-        });
+        if(monster != null && monster.isElite()) {
+            abilityNames.add(defaultAbilities.getMonterEliteAbilityName());
+        }
 
         if(affixes != null) {
             for(val affix : affixes) {
@@ -253,7 +246,7 @@ public class EntityMonster extends GameEntity<CreateMonsterEntityConfig> impleme
         var challenge = Optional.ofNullable(scene.getChallenge());
         var scriptManager = scene.getScriptManager();
 
-        Optional.ofNullable(this.getSpawnEntry()).ifPresent(scene.getSpawnManager().getDeadSpawnedEntities()::add);
+        Optional.ofNullable(this.getSpawnEntry()).ifPresent(scene.getSpawnManager()::addDeadSpawnEntry);
 
         // first set the challenge data
         challenge.ifPresent(c -> c.onMonsterDeath(this));
