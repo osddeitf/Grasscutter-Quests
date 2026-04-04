@@ -178,7 +178,7 @@ public class SceneGroupManager {
     public void loadTriggerFromGroup(SceneGroup group, String triggerName) {
         getScriptManager().registerTrigger(group.getTriggers().values().stream().filter(p -> p.getName().contains(triggerName)).toList());
         group.getRegions().values().stream().filter(q -> q.getConfigId() == Integer.parseInt(triggerName.substring(13)))
-            .map(region -> new EntityRegion(scene, new CreateRegionEntityConfig(region))).forEach(getScriptManager()::registerRegion);
+            .map(region -> new EntityRegion(scene, new CreateRegionEntityConfig(region))).forEach(scene.getRegionManager()::registerRegion);
     }
 
     public void onLoadGroupInfo(List<SceneGroupInfo> groups) {
@@ -229,7 +229,7 @@ public class SceneGroupManager {
         }
         val regions = group.getRegions();
         if (regions != null) {
-            regions.values().forEach(getScriptManager()::deregisterRegion);
+            regions.values().forEach(scene.getRegionManager()::deregisterRegion);
         }
 
         Optional.ofNullable(loadedGroupSetPerBlock.get(block.getId())).ifPresent(s -> s.remove(group));

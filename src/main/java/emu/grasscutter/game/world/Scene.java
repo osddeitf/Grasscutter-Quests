@@ -38,7 +38,7 @@ import emu.grasscutter.game.world.managers.seal_battle.SealBattleManager;
 import emu.grasscutter.net.packet.BasePacket;
 import emu.grasscutter.scripts.SceneIndexManager;
 import emu.grasscutter.scripts.SceneScriptManager;
-import emu.grasscutter.server.event.player.PlayerTeleportEvent;
+import emu.grasscutter.scripts.ScriptRegionManager;
 import emu.grasscutter.server.packet.send.*;
 import emu.grasscutter.utils.KahnsSort;
 import emu.grasscutter.utils.Position;
@@ -104,6 +104,7 @@ public class Scene {
     @Getter private final NpcGroupManager npcGroupManager;
     @Getter private final PlatformManager platformManager;
     @Getter private final PlayerRespawnManager respawnManager;
+    @Getter private final ScriptRegionManager regionManager;
 
     public Scene(World world, SceneData sceneData) {
         this.world = world;
@@ -129,6 +130,7 @@ public class Scene {
         this.npcGroupManager = new NpcGroupManager(this);
         this.platformManager = new PlatformManager(this);
         this.respawnManager = new PlayerRespawnManager(this);
+        this.regionManager = new ScriptRegionManager(this);
 
         //Create scene entity
         this.sceneEntity = new EntityScene(this);
@@ -495,7 +497,7 @@ public class Scene {
             spawnManager.tick();
         }
         // Triggers
-        this.scriptManager.checkRegions();
+        this.regionManager.checkRegions();
 
         Optional.ofNullable(this.challenge).ifPresent(WorldChallenge::onCheckTimeOut);
 

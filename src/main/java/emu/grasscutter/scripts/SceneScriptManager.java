@@ -9,11 +9,8 @@ import emu.grasscutter.game.entity.*;
 import emu.grasscutter.game.entity.create_config.CreateGadgetEntityConfig;
 import emu.grasscutter.game.entity.create_config.CreateMonsterEntityConfig;
 import emu.grasscutter.game.entity.create_config.CreateNpcEntityConfig;
-import emu.grasscutter.game.entity.create_config.CreateRegionEntityConfig;
-import emu.grasscutter.game.props.EntityType;
 import emu.grasscutter.game.quest.GameQuest;
 import emu.grasscutter.game.quest.QuestGroupSuite;
-import emu.grasscutter.game.quest.enums.QuestCond;
 import emu.grasscutter.game.quest.enums.QuestContent;
 import emu.grasscutter.game.world.Scene;
 import emu.grasscutter.game.world.SceneGroupInstance;
@@ -61,7 +58,6 @@ public class SceneScriptManager {
     private final Map<String, Set<SceneTrigger>> triggersByGroupScene;
     private final Map<Integer, Set<Pair<String, Integer>>> activeGroupTimers;
     private final Map<String, AtomicInteger> triggerInvocations;
-    private final Map<Integer, EntityRegion> regions; // <EntityId-Region>
     private final Map<Integer, SceneGroupInstance> sceneGroupsInstances;
     private final Map<Integer, SceneGroupInstance> cachedSceneGroupsInstances;
     private ScriptMonsterTideService scriptMonsterTideService;
@@ -86,7 +82,6 @@ public class SceneScriptManager {
         this.activeGroupTimers = new ConcurrentHashMap<>();
         this.triggerInvocations = new ConcurrentHashMap<>();
 
-        this.regions = new ConcurrentHashMap<>();
         this.variables = new ConcurrentHashMap<>();
         this.sceneGroupsInstances = new ConcurrentHashMap<>();
         this.cachedSceneGroupsInstances = new ConcurrentHashMap<>();
@@ -314,32 +309,6 @@ public class SceneScriptManager {
         return true;
     }
 
-    public EntityRegion getRegionByConfigId(int configId, int groupId) {
-        return this.regions.values().stream()
-            .filter(x -> x.getConfigId() == configId && x.getGroupId() == groupId)
-            .findFirst()
-            .orElse(null);
-    }
-
-    public EntityRegion getRegionById(int id) {
-        return regions.get(id);
-    }
-
-    public void registerRegion(EntityRegion region) {
-        regions.put(region.getId(), region);
-        logger.debug("Registered region {} from group {}", region.getConfigId(), region.getGroupId());
-    }
-    public void registerRegionInGroupSuite(SceneGroup group, SceneSuite suite) {
-        suite.getSceneRegions().stream().map(region -> new EntityRegion(this.getScene(), new CreateRegionEntityConfig(region)))
-            .forEach(this::registerRegion);
-    }
-    public synchronized void deregisterRegion(SceneRegion region) {
-        var instance = regions.values().stream()
-            .filter(r -> r.getConfigId() == region.getConfigId() && r.getGroupId() == region.getGroupId())
-            .findFirst();
-        instance.ifPresent(entityRegion -> regions.remove(entityRegion.getId()));
-    }
-
     // TODO optimize
     public SceneGroup getGroupById(int groupId) {
         val luaGroup = meta.getGroups().get(groupId);
@@ -423,45 +392,6 @@ public class SceneScriptManager {
         this.cachedSceneGroupsInstances.values().stream().filter(i -> Objects.equals(i.getLuaGroup(),group)).forEach(s -> s.setCached(true));
     }
 
-    public void checkRegions() {
-        if (this.regions.size() == 0) {
-            return;
-        }
-
-        for (var region : this.regions.values()) {
-            region.clearDeadEntities();
-
-            getScene().getEntities().values().stream()
-                .filter(e -> e.getEntityType() == EntityType.Avatar)
-                .filter(e -> region.isPosInRegion(e.getPosition()) && !region.getEntities().contains(e))
-                .forEach(region::addEntity);
-
-            getScene().getEntities().values().stream()
-                .filter(e -> e.getEntityType() == EntityType.Avatar)
-                .filter(e -> !region.isPosInRegion(e.getPosition()) && !region.getNotContainEntities().contains(e))
-                .forEach(region::removeEntity);
-
-            // call enter region events for new entities
-            region.getNewEntities().forEach(entity -> callRegionEvent(region, EventType.EVENT_ENTER_REGION, entity));
-            region.resetNewEntities();
-
-            // call leave region events for left entities
-            region.getLeftEntities().forEach(entity -> callRegionEvent(region, EventType.EVENT_LEAVE_REGION, entity));
-            region.resetEntityLeave();
-        }
-    }
-
-    private void callRegionEvent(EntityRegion region, int eventType, GameEntity<?> entity) {
-        callEvent(new ScriptArgs(region.getGroupId(), eventType, region.getConfigId())
-            .setEventSource(entity.getEntityType().getValue())
-            .setSourceEntityId(region.getId())
-            .setTargetEntityId(entity.getId())
-        );
-        if (eventType == EventType.EVENT_ENTER_REGION && entity instanceof EntityAvatar avatar) {
-            avatar.getPlayer().getQuestManager().queueEvent(QuestCond.QUEST_COND_PLAYER_ENTER_REGION, region.getGroupId(), region.getConfigId());
-        }
-    }
-
     public List<EntityGadget> getGadgetsInGroupSuite(SceneGroupInstance groupInstance, SceneSuite suite) {
         val group = groupInstance.getLuaGroup();
         val groupId =  group.getGroupInfo().getId();
@@ -504,7 +434,7 @@ public class SceneScriptManager {
         else
             addEntities(toCreate);
 
-        registerRegionInGroupSuite(group, suite);
+        scene.getRegionManager().registerRegionInGroupSuite(group, suite);
     }
     public void refreshGroupSuite(SceneGroupInstance groupInstance, SceneSuite suite) {
         // we added trigger first
@@ -516,14 +446,14 @@ public class SceneScriptManager {
         toCreate.addAll(getMonstersInGroupSuite(groupInstance, suite));
         addEntities(toCreate);
 
-        registerRegionInGroupSuite(group, suite);
+        scene.getRegionManager().registerRegionInGroupSuite(group, suite);
     }
     public void removeGroupSuite(SceneGroup group, SceneSuite suite) {
         deregisterTrigger(suite.getSceneTriggers());
         removeMonstersInGroup(group, suite);
         removeGadgetsInGroup(group, suite);
 
-        suite.getSceneRegions().forEach(this::deregisterRegion);
+        suite.getSceneRegions().forEach(scene.getRegionManager()::deregisterRegion);
     }
     public void killGroupSuite(SceneGroup group, SceneSuite suite) {
         deregisterTrigger(suite.getSceneTriggers());
@@ -531,7 +461,7 @@ public class SceneScriptManager {
         killMonstersInGroup(group, suite);
         killGadgetsInGroup(group, suite);
 
-        suite.getSceneRegions().forEach(this::deregisterRegion);
+        suite.getSceneRegions().forEach(scene.getRegionManager()::deregisterRegion);
     }
 
     public void startMonsterTideInGroup(int challengeIndex, SceneGroup group, List<Integer> ordersConfigId, int tideSize, int spawnThreshold, int spawnLimit) {
