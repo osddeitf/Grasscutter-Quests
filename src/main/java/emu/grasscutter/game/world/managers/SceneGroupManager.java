@@ -34,6 +34,8 @@ public class SceneGroupManager {
     private final Set<SceneBlock> loadedBlocks = ConcurrentHashMap.newKeySet();
     private final Set<SceneGroup> loadedGroups = ConcurrentHashMap.newKeySet();
     private final Set<Integer> replacedGroup = ConcurrentHashMap.newKeySet();
+    /** blockid - loaded groupSet */
+    private final Map<Integer, Set<SceneGroup>> loadedGroupSetPerBlock = new ConcurrentHashMap<>();
 
     public SceneGroupManager(Scene scene) {
         this.scene = scene;
@@ -83,7 +85,7 @@ public class SceneGroupManager {
         if (!block.isLoaded()) {
             Grasscutter.getLogger().info("Scene {} Block {} loaded.", scene.getId(), block.getId());
         }
-        return getScriptManager().getLoadedGroupSetPerBlock().computeIfAbsent(block.getId(), f -> new HashSet<>());
+        return loadedGroupSetPerBlock.computeIfAbsent(block.getId(), f -> new HashSet<>());
     }
 
     private Pair<SceneGroupInfo, SceneGroupUserData> getReplaceableGroupsPair(SceneGroup group) {
@@ -230,12 +232,12 @@ public class SceneGroupManager {
             regions.values().forEach(getScriptManager()::deregisterRegion);
         }
 
-        Optional.ofNullable(getScriptManager().getLoadedGroupSetPerBlock().get(block.getId())).ifPresent(s -> s.remove(group));
+        Optional.ofNullable(loadedGroupSetPerBlock.get(block.getId())).ifPresent(s -> s.remove(group));
 
         this.loadedGroups.remove(group);
 
-        if (getScriptManager().getLoadedGroupSetPerBlock().get(block.getId()).isEmpty()) {
-            getScriptManager().getLoadedGroupSetPerBlock().remove(block.getId());
+        if (loadedGroupSetPerBlock.get(block.getId()).isEmpty()) {
+            loadedGroupSetPerBlock.remove(block.getId());
             Grasscutter.getLogger().info("Scene {} Block {} is unloaded.", scene.getId(), block.getId());
         }
 

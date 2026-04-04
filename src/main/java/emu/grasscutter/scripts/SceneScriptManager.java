@@ -74,17 +74,13 @@ public class SceneScriptManager {
     private final Map<Integer, Set<Pair<String, Integer>>> activeGroupTimers;
     private final Map<String, AtomicInteger> triggerInvocations;
     private final Map<Integer, EntityRegion> regions; // <EntityId-Region>
-    private final Map<Integer, SceneGroup> sceneGroups;
     private final Map<Integer, SceneGroupInstance> sceneGroupsInstances;
     private final Map<Integer, SceneGroupInstance> cachedSceneGroupsInstances;
     private ScriptMonsterTideService scriptMonsterTideService;
     private ScriptMonsterSpawnService scriptMonsterSpawnService;
-    /**
-     * blockid - loaded groupSet
-     */
-    private final Map<Integer, Set<SceneGroup>> loadedGroupSetPerBlock;
     private static final Int2ObjectMap<List<Grid>> groupGridsCache = new Int2ObjectOpenHashMap<>();
     public static final ExecutorService eventExecutor;
+
     static {
         eventExecutor = new ThreadPoolExecutor(4, 4,
             60, TimeUnit.SECONDS, new LinkedBlockingDeque<>(10000),
@@ -105,11 +101,9 @@ public class SceneScriptManager {
 
         this.regions = new ConcurrentHashMap<>();
         this.variables = new ConcurrentHashMap<>();
-        this.sceneGroups = new ConcurrentHashMap<>();
         this.sceneGroupsInstances = new ConcurrentHashMap<>();
         this.cachedSceneGroupsInstances = new ConcurrentHashMap<>();
         this.scriptMonsterSpawnService = new ScriptMonsterSpawnService(this);
-        this.loadedGroupSetPerBlock = new ConcurrentHashMap<>();
 
         // TEMPORARY
         if (this.getScene().getId() < 10 && !Grasscutter.getConfig().server.game.enableScriptInBigWorld) {
@@ -359,10 +353,6 @@ public class SceneScriptManager {
         instance.ifPresent(entityRegion -> regions.remove(entityRegion.getId()));
     }
 
-    public Map<Integer, Set<SceneGroup>> getLoadedGroupSetPerBlock() {
-        return loadedGroupSetPerBlock;
-    }
-
     // TODO optimize
     public SceneGroup getGroupById(int groupId) {
         val luaGroup = meta.getGroups().get(groupId);
@@ -563,7 +553,6 @@ public class SceneScriptManager {
         val groupId = group.getGroupInfo().getId();
         group.load(scriptLoader);
 
-        this.sceneGroups.put(groupId, group);
         if(this.getCachedGroupInstanceById(groupId) != null) {
             this.sceneGroupsInstances.put(groupId, this.cachedSceneGroupsInstances.get(groupId));
             this.cachedSceneGroupsInstances.get(groupId).setCached(false);
@@ -585,7 +574,6 @@ public class SceneScriptManager {
     }
 
     public void unregisterGroup(SceneGroup group) {
-        this.sceneGroups.remove(group.getGroupInfo().getId());
         this.sceneGroupsInstances.values().removeIf(i -> i.getLuaGroup().equals(group));
         this.cachedSceneGroupsInstances.values().stream().filter(i -> Objects.equals(i.getLuaGroup(),group)).forEach(s -> s.setCached(true));
     }
