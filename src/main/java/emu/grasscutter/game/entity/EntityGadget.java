@@ -146,7 +146,7 @@ public class EntityGadget extends EntityBaseGadget implements ConfigAbilityDataA
         super.onDeath(killerId); // Invoke super class's onDeath() method.
 
         if (this.getSpawnEntry() != null) {
-            this.getScene().getDeadSpawnedEntities().add(this.getSpawnEntry());
+            this.getScene().getSpawnManager().getDeadSpawnedEntities().add(this.getSpawnEntry());
         }
         getScene().getScriptManager().callEvent(new ScriptArgs(this.getGroupId(), EventType.EVENT_ANY_GADGET_DIE, this.getConfigId()));
 

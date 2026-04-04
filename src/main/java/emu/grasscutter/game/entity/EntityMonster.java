@@ -253,7 +253,7 @@ public class EntityMonster extends GameEntity<CreateMonsterEntityConfig> impleme
         var challenge = Optional.ofNullable(scene.getChallenge());
         var scriptManager = scene.getScriptManager();
 
-        Optional.ofNullable(this.getSpawnEntry()).ifPresent(scene.getDeadSpawnedEntities()::add);
+        Optional.ofNullable(this.getSpawnEntry()).ifPresent(scene.getSpawnManager().getDeadSpawnedEntities()::add);
 
         // first set the challenge data
         challenge.ifPresent(c -> c.onMonsterDeath(this));

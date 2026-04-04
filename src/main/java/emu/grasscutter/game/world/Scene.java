@@ -18,17 +18,19 @@ import emu.grasscutter.game.dungeons.challenge.WorldChallenge;
 import emu.grasscutter.game.dungeons.enums.DungeonPassConditionType;
 import emu.grasscutter.game.dungeons.settle_listeners.DungeonSettleListener;
 import emu.grasscutter.game.entity.*;
-import emu.grasscutter.game.entity.create_config.CreateRegionEntityConfig;
-import emu.grasscutter.game.entity.gadget.platform.ConfigRoute;
 import emu.grasscutter.game.entity.create_config.CreateEntityConfig;
 import emu.grasscutter.game.entity.create_config.CreateGadgetEntityConfig;
 import emu.grasscutter.game.entity.create_config.CreateMonsterEntityConfig;
+import emu.grasscutter.game.entity.create_config.CreateRegionEntityConfig;
 import emu.grasscutter.game.entity.gadget.content.GadgetWorktop;
+import emu.grasscutter.game.entity.gadget.platform.ConfigRoute;
 import emu.grasscutter.game.player.Player;
 import emu.grasscutter.game.player.TeamInfo;
 import emu.grasscutter.game.props.*;
 import emu.grasscutter.game.quest.QuestGroupSuite;
 import emu.grasscutter.game.world.data.TeleportProperties;
+import emu.grasscutter.game.world.managers.NpcGroupManager;
+import emu.grasscutter.game.world.managers.SpawnManager;
 import emu.grasscutter.game.world.managers.seal_battle.SealBattleManager;
 import emu.grasscutter.net.packet.BasePacket;
 import emu.grasscutter.scripts.SceneIndexManager;
@@ -72,8 +74,6 @@ public class Scene {
     @Getter private final List<Player> players = new CopyOnWriteArrayList<>();
     @Getter private final Map<Integer, GameEntity<?>> entities = new ConcurrentHashMap<>();
     @Getter private final Map<Integer, GameEntity<?>> weaponEntities = new ConcurrentHashMap<>();
-    private final Set<SpawnDataEntry> spawnedEntities = ConcurrentHashMap.newKeySet();
-    @Getter private final Set<SpawnDataEntry> deadSpawnedEntities = ConcurrentHashMap.newKeySet();
     private final Set<SceneBlock> loadedBlocks = ConcurrentHashMap.newKeySet();
     @Getter private final Set<SceneGroup> loadedGroups = ConcurrentHashMap.newKeySet();
     private final Set<Integer> replacedGroup = ConcurrentHashMap.newKeySet();
@@ -84,7 +84,6 @@ public class Scene {
     @Getter @Setter SealBattleManager sealBattleManager;
     @Getter Int2ObjectMap<Route> sceneRoutes;
     @Getter List<ScenePointArrayData> pointArrays;
-    private Set<SpawnDataEntry.GridBlockId> loadedGridBlocks = new HashSet<>();
     @Getter @Setter private boolean dontDestroyWhenEmpty;
     @Getter private final SceneScriptManager scriptManager;
     @Getter @Setter private WorldChallenge challenge;
@@ -93,7 +92,6 @@ public class Scene {
     @Getter @Setter private int prevScenePoint;
     @Getter @Setter private int killedMonsterCount;
     @Getter @Setter private int killChestCount;
-    private Set<SceneNpcBornEntry> npcBornEntrySet = ConcurrentHashMap.newKeySet();
     @Getter private boolean finishedLoading = false;
     @Getter private int tickCount = 0;
     @Getter private boolean isPaused = false;
@@ -102,6 +100,9 @@ public class Scene {
 
     @Getter private final GameEntity sceneEntity;
     @Getter @Setter private Map<Integer, Double> scheduledPlatforms = new ConcurrentHashMap<>();
+
+    @Getter private final SpawnManager spawnManager;
+    @Getter private final NpcGroupManager npcGroupManager;
 
     public Scene(World world, SceneData sceneData) {
         this.world = world;
@@ -122,6 +123,8 @@ public class Scene {
         this.scriptManager = new SceneScriptManager(this);
         getWorld().getHost().getActivityManager().triggerSceneLoadForActiveActivity(this);
         this.sealBattleManager = new SealBattleManager(this);
+        this.spawnManager = new SpawnManager(this);
+        this.npcGroupManager = new NpcGroupManager(this);
 
         //Create scene entity
         this.sceneEntity = new EntityScene(this);
@@ -280,7 +283,7 @@ public class Scene {
         teamManager.getActiveTeam().stream().map(EntityAvatar::getAvatar).forEach(Avatar::sendSkillExtraChargeMap);
     }
 
-    private void addEntityDirectly(GameEntity entity) {
+    public void addEntityDirectly(GameEntity entity) {
         this.entities.put(entity.getId(), entity);
         entity.onCreate(); // Call entity create event
     }
@@ -359,7 +362,7 @@ public class Scene {
         });
     }
 
-    private GameEntity removeEntityDirectly(GameEntity entity) {
+    public GameEntity removeEntityDirectly(GameEntity entity) {
         val removed = this.entities.remove(entity.getId());
         Optional.ofNullable(removed).ifPresent(GameEntity::onRemoved); //Call entity remove event
 
@@ -485,7 +488,7 @@ public class Scene {
             }
         } else {
             // TEMPORARY
-            checkSpawns();
+            spawnManager.tick();
         }
         // Triggers
         this.scriptManager.checkRegions();
@@ -495,7 +498,7 @@ public class Scene {
         this.entities.values().forEach(e -> e.onTick(getSceneTimeSeconds()));
 
         checkPlatforms();
-        checkNpcGroup();
+        npcGroupManager.tick();
         finishLoading();
         checkPlayerRespawn();
         this.getSealBattleManager().onTick();
@@ -565,97 +568,6 @@ public class Scene {
             return;
         }
         this.afterLoadedCallbacks.add(runnable);
-    }
-
-    private int getEntityLevel(int baseLevel, int worldLevelOverride) {
-        return Math.max(1, Math.min(Math.max(worldLevelOverride + baseLevel - 22, baseLevel), 100));
-    }
-
-    private void checkNpcGroup() {
-        Set<SceneNpcBornEntry> npcBornEntries = ConcurrentHashMap.newKeySet();
-        npcBornEntries.addAll(this.players.stream().map(this::loadNpcForPlayer).flatMap(List::stream).toList());
-
-        // clear the unreachable group for client
-        val toUnload = this.npcBornEntrySet.stream()
-            .filter(i -> !npcBornEntries.contains(i))
-            .map(SceneNpcBornEntry::getGroupId)
-            .toList();
-
-        if (!toUnload.isEmpty()) {
-            broadcastPacket(new PacketGroupUnloadNotify(toUnload));
-            Grasscutter.getLogger().debug("Unload NPC Group {}", toUnload);
-        }
-        // exchange the new npcBornEntry Set
-        this.npcBornEntrySet = npcBornEntries;
-    }
-
-    private synchronized void checkSpawns() {
-        val loadedGridBlocks = this.players.stream()
-            .map(p -> SpawnDataEntry.GridBlockId.getAdjacentGridBlockIds(p.getSceneId(), p.getPosition()))
-            .flatMap(Arrays::stream).collect(Collectors.toSet());
-
-        // Don't recalculate static spawns if nothing has changed
-        if (this.loadedGridBlocks.containsAll(loadedGridBlocks)) return;
-
-        this.loadedGridBlocks = loadedGridBlocks;
-        val visible = loadedGridBlocks.stream().map(GameDepot.getSpawnLists()::get)
-            .filter(Objects::nonNull).flatMap(List::stream).collect(Collectors.toSet());
-
-        // World level
-        final int worldLevelOverride = Optional.ofNullable(GameData.getWorldLevelDataMap().get(this.world.getWorldLevel()))
-            .map(WorldLevelData::getMonsterLevel).orElse(0);
-
-        // Todo
-        List<GameEntity> toAdd = new ArrayList<>();
-        List<GameEntity> toRemove = new ArrayList<>();
-        val spawnedEntities = this.spawnedEntities;
-        for (SpawnDataEntry entry : visible) {
-            // If spawn entry is in our view and hasn't been spawned/killed yet, we should spawn it
-            if (spawnedEntities.contains(entry) || this.deadSpawnedEntities.contains(entry)) continue;
-            // Entity object holder
-            GameEntity<?> entity = null;
-
-            // Check if spawn entry is monster or gadget
-            if (entry.getMonsterId() > 0) {
-                final int level = getEntityLevel(entry.getLevel(), worldLevelOverride);
-                val config = new CreateMonsterEntityConfig(entry)
-                    .setLevel(level);
-                val data = config.getMonsterData();
-                if (data == null) continue;
-
-                entity = new EntityMonster(this, config);
-            } else if (entry.getGadgetId() > 0) {
-                val createConfig = new CreateGadgetEntityConfig(entry);
-                val gadget = new EntityGadget(this, createConfig);
-
-                gadget.setFightProperty(FightProperty.FIGHT_PROP_BASE_HP, Float.POSITIVE_INFINITY);
-                gadget.setFightProperty(FightProperty.FIGHT_PROP_CUR_HP, Float.POSITIVE_INFINITY);
-                gadget.setFightProperty(FightProperty.FIGHT_PROP_MAX_HP, Float.POSITIVE_INFINITY);
-
-                entity = gadget;
-            }
-
-            if (entity == null) continue;
-
-            // Add to scene and spawned list
-            toAdd.add(entity);
-            spawnedEntities.add(entry);
-        }
-
-        this.entities.values().stream().filter(entity -> entity.getSpawnEntry() != null)
-            .filter(entity -> !(entity instanceof EntityWeapon))
-            .filter(entity -> !visible.contains(entity.getSpawnEntry()))
-            .peek(toRemove::add).map(GameEntity::getSpawnEntry).forEach(spawnedEntities::remove);
-
-        if (!toAdd.isEmpty()) {
-            toAdd.forEach(this::addEntityDirectly);
-            broadcastPacket(new PacketSceneEntityAppearNotify(toAdd, VisionType.VISION_BORN));
-            toAdd.forEach(x -> x.afterCreate(this.players));
-        }
-        if (!toRemove.isEmpty()) {
-            toRemove.forEach(this::removeEntityDirectly);
-            broadcastPacket(new PacketSceneEntityDisappearNotify(toRemove, VisionType.VISION_REMOVE));
-        }
     }
 
     private Set<Integer> getPlayerActiveGroups(Player player) {
@@ -970,27 +882,6 @@ public class Scene {
                 .setBornPos(bornForm.getPosition().clone().addZ(.9f));
             addEntity(new EntityItem(this, createConfig));
         }
-    }
-
-    public void loadNpcForPlayerEnter(Player player) {
-        this.npcBornEntrySet.addAll(loadNpcForPlayer(player));
-    }
-
-    private List<SceneNpcBornEntry> loadNpcForPlayer(Player player) {
-        val pos = player.getPosition();
-        val data = GameData.getSceneNpcBornData().get(getId());
-        if (data == null) return List.of();
-
-        val npcList = SceneIndexManager.queryNeighbors(data.getIndex(), pos.toDoubleArray(),
-            Grasscutter.getConfig().server.game.loadEntitiesForPlayerRange);
-
-        val sceneNpcBornEntries = npcList.stream().filter(i -> !this.npcBornEntrySet.contains(i)).toList();
-
-        if (!sceneNpcBornEntries.isEmpty()) {
-            broadcastPacket(new PacketGroupSuiteNotify(sceneNpcBornEntries));
-            Grasscutter.getLogger().debug("Loaded Npc Group Suite {}", sceneNpcBornEntries);
-        }
-        return npcList;
     }
 
     public void loadGroupForQuest(List<QuestGroupSuite> sceneGroupSuite) {
