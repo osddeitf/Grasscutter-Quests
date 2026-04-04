@@ -69,7 +69,7 @@ public class SceneGroupManager {
 
     private Set<Integer> getPlayerActiveGroups(Player player) {
         return IntStream.range(0, 4)
-            .mapToObj(i -> getScriptManager().getGroupGrids().get(i).getNearbyGroups(i, player.getPosition()))
+            .mapToObj(i -> SceneGridManager.getGroupGrids(scene).get(i).getNearbyGroups(i, player.getPosition()))
             .flatMap(Set::stream).collect(Collectors.toSet());
     }
 
