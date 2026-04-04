@@ -195,11 +195,11 @@ public class BlossomManager extends BasePlayerDataManager {
             .forEach(newSchedule -> {
                 this.blossomSchedule.put(newSchedule.getGroupId(), newSchedule);
                 this.player.getScene().runWhenFinished(() -> {
-                    this.player.getScene().loadDynamicGroup(newSchedule.getGroupId());
+                    this.player.getScene().getGroupManager().loadDynamicGroup(newSchedule.getGroupId());
                     val decorateGroupId = newSchedule.getDecorateGroupId();
                     if(decorateGroupId != 0) {
                         Grasscutter.getLogger().debug("[BlossomManager] New Decorate Group: {}", decorateGroupId);
-                        this.player.getScene().loadDynamicGroup(decorateGroupId);
+                        this.player.getScene().getGroupManager().loadDynamicGroup(decorateGroupId);
                     }
                 });
             });
@@ -216,11 +216,11 @@ public class BlossomManager extends BasePlayerDataManager {
         this.blossomSchedule.values().stream()
             .filter(schedule -> schedule.getSceneId() == scene.getId())
             .forEach(schedule -> {
-                scene.loadDynamicGroup(schedule.getGroupId());
+                scene.getGroupManager().loadDynamicGroup(schedule.getGroupId());
                 val decorateGroupId = schedule.getDecorateGroupId();
                 if(decorateGroupId != 0) {
                     Grasscutter.getLogger().debug("[BlossomManager] Decorate Group: {}", decorateGroupId);
-                    scene.loadDynamicGroup(decorateGroupId);
+                    scene.getGroupManager().loadDynamicGroup(decorateGroupId);
                 }
             });
 //            .peek(schedule -> Grasscutter.getLogger().info("[Blossom Manager] Loading Blossom Group: {}", schedule.getGroupId()))

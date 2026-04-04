@@ -23,7 +23,7 @@ public class ExecRegisterDynamicGroup extends QuestExecHandler {
         Scene scene = quest.getOwner().getWorld().getSceneById(sceneId);
         if(scene == null) return false;
 
-        int suiteId = scene.loadDynamicGroup(groupId);
+        int suiteId = scene.getGroupManager().loadDynamicGroup(groupId);
         if(suiteId == -1) return false;
 
         quest.getMainQuest().getQuestGroupSuites().add(QuestGroupSuite.of()

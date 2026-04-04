@@ -1661,7 +1661,7 @@ public class Player {
         });
 
         //load dynamic groups
-        Arrays.stream(levelTagData.getLoadDynamicGroupList()).forEach(groupId -> this.scene.loadDynamicGroup(groupId));
+        Arrays.stream(levelTagData.getLoadDynamicGroupList()).forEach(groupId -> this.scene.getGroupManager().loadDynamicGroup(groupId));
 
         this.levelTags.put(levelTag, true);
 

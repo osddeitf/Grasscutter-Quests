@@ -158,7 +158,7 @@ public class EntityGadget extends EntityBaseGadget implements ConfigAbilityDataA
         val removedChest = hostBlossom.getSpawnedChest().remove(getConfigId());
         if (removedChest != null) {
             Grasscutter.getLogger().info("[EntityGadget] Removing Blossom Chest: {}, {}", getGroupId(), getConfigId());
-            getScene().unregisterDynamicGroup(getGroupId());
+            getScene().getGroupManager().unregisterDynamicGroup(getGroupId());
             getScene().getScriptManager().callEvent(
                 new ScriptArgs(getGroupId(), EventType.EVENT_BLOSSOM_CHEST_DIE, getConfigId()));
             hostBlossom.buildNextCamp(getGroupId());

@@ -372,8 +372,8 @@ public class SceneScriptManager {
             return null;
         }
         if (!this.sceneGroupsInstances.containsKey(groupId)) {
-            getScene().onLoadGroup(List.of(luaGroup));
-            getScene().onRegisterGroups();
+            getScene().getGroupManager().onLoadGroup(List.of(luaGroup));
+            getScene().getGroupManager().onRegisterGroups();
         }
         return luaGroup;
     }

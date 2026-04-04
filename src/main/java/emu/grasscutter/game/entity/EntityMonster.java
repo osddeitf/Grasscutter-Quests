@@ -128,7 +128,7 @@ public class EntityMonster extends GameEntity<CreateMonsterEntityConfig> impleme
         ArrayList<String> abilityNames = new ArrayList<>();
         val defaultAbilities = GameData.getConfigGlobalCombat().getDefaultAbilities();
         //Affix abilities
-        Optional<SceneGroup> optionalGroup = getScene().getLoadedGroups().stream().filter(g -> g.getGroupInfo().getId() == getGroupId()).findAny();
+        Optional<SceneGroup> optionalGroup = getScene().getGroupManager().getLoadedGroups().stream().filter(g -> g.getGroupInfo().getId() == getGroupId()).findAny();
         List<MonsterAffixData> affixes = getAffixes(optionalGroup.orElse(null));
 
         // first add pre add affix abilities
