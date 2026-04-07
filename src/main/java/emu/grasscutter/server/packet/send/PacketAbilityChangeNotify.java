@@ -7,6 +7,6 @@ import org.anime_game_servers.multi_proto.gi.messages.ability.AbilityChangeNotif
 public class PacketAbilityChangeNotify extends BaseTypedPacket<AbilityChangeNotify> {
 
 	public PacketAbilityChangeNotify(EntityAvatar entity) {
-		super(new AbilityChangeNotify(entity.getId(), entity.getAbilityControlBlock()), true);
+		super(new AbilityChangeNotify(entity.getId(), entity.getAvatar().getAbilities().toProto()), true);
 	}
 }

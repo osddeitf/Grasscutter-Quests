@@ -156,6 +156,13 @@ public class AvatarData extends GameResource {
         rebuildAbilityEmbryo();
     }
 
+    public AbilityEmbryoEntry getAbilityEmbryoInfo() {
+        if (this.name != null) {
+            return GameData.getAbilityEmbryoInfo().get(this.name);
+        }
+        return null;
+    }
+
     public void rebuildAbilityEmbryo(){// rebuild ability for different scene
         // Cache abilities
         String[] split = this.iconName.split("_");

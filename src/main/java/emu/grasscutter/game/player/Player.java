@@ -1030,9 +1030,7 @@ public class Player {
                 if (config.getAvatarAbilities() == null){
                     continue; // continue and not break because has to rebuild ability for the next avatar if any
                 }
-                for (ConfigAbilityData abilities : config.getAvatarAbilities()){
-                    avatarData.getAbilities().add(Utils.abilityHash(abilities.getAbilityName()));
-                }
+                entityAvatar.getAvatar().getAbilities().updateLevelEntityAbilities(config);
             }
         } catch (Exception e){
             Grasscutter.getLogger().error("Error applying level entity config for scene {}", scene.getSceneData().getId(), e);

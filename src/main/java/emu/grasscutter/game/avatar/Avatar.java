@@ -4,11 +4,9 @@ import dev.morphia.annotations.*;
 import emu.grasscutter.data.GameData;
 import emu.grasscutter.data.binout.OpenConfigEntry;
 import emu.grasscutter.data.binout.OpenConfigEntry.SkillPointModifier;
-import emu.grasscutter.data.common.FightPropData;
 import emu.grasscutter.data.excels.*;
-import emu.grasscutter.data.excels.AvatarSkillDepotData.InherentProudSkillOpens;
-import emu.grasscutter.data.excels.ItemData.WeaponProperty;
 import emu.grasscutter.database.DatabaseHelper;
+import emu.grasscutter.game.ability.embryos.AvatarAbilityManager;
 import emu.grasscutter.game.entity.EntityAvatar;
 import emu.grasscutter.game.entity.EntityWeapon;
 import emu.grasscutter.game.entity.create_config.CreateGadgetEntityConfig;
@@ -83,6 +81,7 @@ public class Avatar {
     @Getter @Setter private int nameCardId;
 
     transient @Getter private AvatarStatsManager stats;
+    transient @Getter protected AvatarAbilityManager abilities;
 
     // Character passives - derived from stats manager
     public Set<Integer> getProudSkillList() {
@@ -120,6 +119,7 @@ public class Avatar {
         // Skill depot
         this.setSkillDepotData(data.getSkillDepot(), false);
         this.stats = new AvatarStatsManager(this);
+        this.abilities = new AvatarAbilityManager(this);
 
         // Set stats
         this.recalcStats();
@@ -146,6 +146,7 @@ public class Avatar {
         if (this.data != null) return;
         this.data = data; // Used while loading this from the database
         this.stats = new AvatarStatsManager(this);
+        this.abilities = new AvatarAbilityManager(this);
     }
 
     public void setOwner(Player player) {
@@ -406,10 +407,6 @@ public class Avatar {
         // Setup
         var data = this.getAvatarData();
 
-        // Extra ability embryos
-        Set<String> prevExtraAbilityEmbryos = this.getExtraAbilityEmbryos();
-        this.extraAbilityEmbryos.clear();
-
         // Fetters
         this.getFetters().addAll(data.getFetters());
         this.setNameCardRewardId(data.getNameCardRewardId());
@@ -422,54 +419,19 @@ public class Avatar {
         this.stats.calculateTalentStats();
         this.stats.refreshStats();
 
-        for (var affix: this.stats.getWeaponAffixes()) {
-            this.addToExtraAbilityEmbryos(affix.getOpenConfig(), true);
-        }
-        for (var affix: this.stats.getReliquaryAffixes()) {
-            this.addToExtraAbilityEmbryos(affix.getOpenConfig(), true);
-        }
-        for (var proudSkillData: this.stats.getProudSkills()) {
-            this.addToExtraAbilityEmbryos(proudSkillData.getOpenConfig());
-        }
-        this.stats.getTalents().stream()
-            .map(AvatarTalentData::getOpenConfig)
-            .filter(Objects::nonNull)
-            .forEach(this::addToExtraAbilityEmbryos);
+        this.abilities.updateWeaponAbilities();
+        this.abilities.updateReliquaryAbilities();
+        this.abilities.updateProudSkillAbilities();
+        this.abilities.updateTalentAbilities();
+        this.abilities.updateElementalResonanceAbilities();
+        this.abilities.updateSkillDepotAbilities();
+        this.abilities.updateExtraAbilities();
+        this.abilities.notifyChanges();
 
         // Packet
         if (getPlayer() != null && getPlayer().hasSentLoginPackets()) {
             // Update stats for client. TODO: maybe should sent only updated fight props
             getPlayer().sendPacket(new PacketAvatarFightPropUpdateNotify(this));
-            // Update client abilities
-            EntityAvatar entity = this.getAsEntity();
-            if (entity != null && (!this.getExtraAbilityEmbryos().equals(prevExtraAbilityEmbryos) || forceSendAbilityChange)) {
-                getPlayer().sendPacket(new PacketAbilityChangeNotify(entity));
-            }
-        }
-    }
-
-    public void addToExtraAbilityEmbryos(String openConfig) {
-        this.addToExtraAbilityEmbryos(openConfig, false);
-    }
-
-    public void addToExtraAbilityEmbryos(String openConfig, boolean forceAdd) {
-        if (openConfig == null || openConfig.isEmpty()) {
-            return;
-        }
-
-        OpenConfigEntry entry = GameData.getOpenConfigEntries().get(openConfig);
-        if (entry == null) {
-            if (forceAdd) {
-                // Add config string to ability skill list anyway
-                this.getExtraAbilityEmbryos().add(openConfig);
-            }
-            return;
-        }
-
-        if (entry.getAddAbilities() != null) {
-            for (String ability : entry.getAddAbilities()) {
-                this.getExtraAbilityEmbryos().add(ability);
-            }
         }
     }
 
