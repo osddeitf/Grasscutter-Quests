@@ -52,7 +52,6 @@ public class AvatarData extends GameResource {
     private float[] hpGrowthCurve;
     private float[] attackGrowthCurve;
     private float[] defenseGrowthCurve;
-    @Getter private AvatarSkillDepotData skillDepot;
 
     @Getter private List<Integer> fetters;
     @Getter private int nameCardRewardId;
@@ -104,8 +103,6 @@ public class AvatarData extends GameResource {
 
     @Override
     public void onLoad() {
-        this.skillDepot = GameData.getAvatarSkillDepotDataMap().get(this.skillDepotId);
-
         // Get fetters from GameData
         this.fetters = GameData.getFetterDataEntries().get(this.id);
 

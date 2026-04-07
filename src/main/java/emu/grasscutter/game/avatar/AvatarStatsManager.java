@@ -100,8 +100,7 @@ public class AvatarStatsManager {
         }
 
         // Skill depot: add proud skills and unlock them if needed
-        var skillDepot = GameData.getAvatarSkillDepotDataMap().get(avatar.getSkillDepotId());
-        for (AvatarSkillDepotData.InherentProudSkillOpens openData : skillDepot.getInherentProudSkillOpens()) {
+        for (var openData : avatar.getSkillDepot().getInherentProudSkillOpens()) {
             if (openData.getProudSkillGroupId() == 0) {
                 continue;
             }

@@ -44,7 +44,6 @@ public class Avatar {
 
     transient private Player owner;
     transient @Getter protected AvatarData data;
-    transient @Getter protected AvatarSkillDepotData skillDepot;
     transient @Getter protected long guid;	// Player unique id
     @Getter protected int avatarId;			// id of avatar
 
@@ -63,10 +62,10 @@ public class Avatar {
 
     @Getter protected final Set<Integer> fetters = new HashSet<>();
 
-    protected final Map<Integer, Integer> skillLevelMap = new Int2IntArrayMap(7); // Talent levels
+    protected final Map<Integer, Integer> skillLevelMap = new Int2IntArrayMap(7); // Talent levels. TODO: keep levels of different elements for Traveler?
     transient @Getter protected final Map<Integer, Integer> skillExtraChargeMap = new Int2IntArrayMap(2); // Charges
     transient protected final Map<Integer, Integer> proudSkillBonusMap = new Int2IntArrayMap(2); // Talent bonus levels (from const)
-    @Getter private int skillDepotId;
+    @Getter protected int skillDepotId;
     protected Set<Integer> talentIdList; // Constellation id list
 
     @Getter @Setter private int weaponSkin;
@@ -91,6 +90,10 @@ public class Avatar {
             .collect(Collectors.toSet());
     }
 
+    public AvatarSkillDepotData getSkillDepot() {
+        return GameData.getAvatarSkillDepotDataMap().get(skillDepotId);
+    }
+
     @Deprecated // Do not use. Morphia only!
     public Avatar() {
     }
@@ -105,7 +108,6 @@ public class Avatar {
         this.avatarId = data.getId();
         this.nameCardRewardId = data.getNameCardRewardId();
         this.nameCardId = data.getNameCardId();
-        this.data = data;
         this.bornTime = (int) (System.currentTimeMillis() / 1000);
         this.flyCloak = 140001;
         this.talentIdList = new HashSet<>();
@@ -116,10 +118,9 @@ public class Avatar {
             .filter(id -> (id > 0) && (id < 3000))
             .forEach(id -> this.setFightProperty(id, 0f));
 
-        // Skill depot
-        this.setSkillDepotData(data.getSkillDepot(), false);
-        this.stats = new AvatarStatsManager(this);
-        this.abilities = new AvatarAbilityManager(this);
+        // Init
+        this.setSkillDepotData(data.getSkillDepotId());
+        this.setAvatarData(data);
 
         // Set stats
         this.recalcStats();
@@ -144,7 +145,7 @@ public class Avatar {
 
     protected void setAvatarData(AvatarData data) {
         if (this.data != null) return;
-        this.data = data; // Used while loading this from the database
+        this.data = data;
         this.stats = new AvatarStatsManager(this);
         this.abilities = new AvatarAbilityManager(this);
     }
@@ -190,23 +191,12 @@ public class Avatar {
         return this.getEquipBySlot(EquipType.EQUIP_WEAPON);
     }
 
-    protected void setSkillDepot(AvatarSkillDepotData skillDepot) {
-        if (this.skillDepot != null) return;
-        this.skillDepot = skillDepot; // Used while loading this from the database
-    }
-
-    public void setSkillDepotData(AvatarSkillDepotData skillDepot, boolean notifyChange) {
-        // Set id and depot
-        this.skillDepotId = skillDepot.getId();
-        this.skillDepot = skillDepot;
+    public void setSkillDepotData(int skillDepotId) {
+        this.skillDepotId = skillDepotId;
+        var skillDepot = Objects.requireNonNull(this.getSkillDepot());
         // Add any missing skills
-        this.skillDepot.getSkillsAndEnergySkill()
+        skillDepot.getSkillsAndEnergySkill()
             .forEach(skillId -> this.skillLevelMap.putIfAbsent(skillId, 1));
-
-        if(notifyChange){
-            owner.sendPacket(new PacketAvatarSkillDepotChangeNotify(this));
-        }
-        this.recalcStats(notifyChange);
     }
 
     /**
@@ -237,7 +227,9 @@ public class Avatar {
         }
 
         // Set skill depot
-        setSkillDepotData(skillDepot, true);
+        setSkillDepotData(candSkillDepotId);
+        owner.sendPacket(new PacketAvatarSkillDepotChangeNotify(this));
+        recalcStats(true);
         return true;
     }
 
@@ -248,7 +240,7 @@ public class Avatar {
     }
 
     public void setCurrentEnergy(float currentEnergy) {
-        var depot = this.skillDepot;
+        var depot = this.getSkillDepot();
         if (depot != null && depot.getEnergySkillData() != null) {
             ElementType element = depot.getElementType();
             var maxEnergy = depot.getEnergySkillData().getCostElemVal();
@@ -286,7 +278,7 @@ public class Avatar {
 
     public Map<Integer, Integer> getSkillLevelMap() {  // Returns a copy of the skill levels for the current skillDepot.
         var map = new Int2IntOpenHashMap();
-        this.skillDepot.getSkillsAndEnergySkill().forEach(skillId ->
+        this.getSkillDepot().getSkillsAndEnergySkill().forEach(skillId ->
             map.put(skillId, this.skillLevelMap.getOrDefault(skillId, 1).intValue()));
         return map;
     }
@@ -294,7 +286,7 @@ public class Avatar {
     // Returns a copy of the skill bonus levels for the current skillDepot, capped to avoid invalid levels.
     public Map<Integer, Integer> getProudSkillBonusMap() {
         var map = new Int2IntArrayMap();
-        this.skillDepot.getSkillsAndEnergySkill().forEach(skillId -> {
+        this.getSkillDepot().getSkillsAndEnergySkill().forEach(skillId -> {
             val skillData = GameData.getAvatarSkillDataMap().get(skillId);
             if (skillData == null) return;
             int proudSkillGroupId = skillData.getProudSkillGroupId();
@@ -462,7 +454,7 @@ public class Avatar {
         this.skillExtraChargeMap.clear();
 
         // Sanity checks
-        if (this.data == null || this.skillDepot == null) {
+        if (this.data == null || this.getSkillDepot() == null) {
             return;
         }
 
@@ -495,8 +487,8 @@ public class Avatar {
 
     private boolean calcConstellationExtraLevels(OpenConfigEntry entry) {
         int skillId = switch (entry.getExtraTalentIndex()) {
-            case 9 -> this.skillDepot.getEnergySkill();  // Ult skill
-            case 2 -> (this.skillDepot.getSkills().size() >= 2) ? this.skillDepot.getSkills().get(1) : 0;  // E skill
+            case 9 -> this.getSkillDepot().getEnergySkill();  // Ult skill
+            case 2 -> (this.getSkillDepot().getSkills().size() >= 2) ? this.getSkillDepot().getSkills().get(1) : 0;  // E skill
             default -> 0;
         };
         // Sanity check
@@ -569,7 +561,7 @@ public class Avatar {
         if(currentTalentLevel == -1){
             return false;
         }
-        int talentId = this.skillDepot.getTalents().get(currentTalentLevel);
+        int talentId = this.getSkillDepot().getTalents().get(currentTalentLevel);
         return this.unlockConstellation(talentId, skipPayment);
     }
     public boolean unlockConstellation(int talentId) {
