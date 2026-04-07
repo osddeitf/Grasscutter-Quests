@@ -34,7 +34,6 @@ public class TowerAvatar extends Avatar {
         this.promoteLevel = original.promoteLevel;
         this.fetters.addAll(original.fetters);
         this.talentIdList.addAll(original.talentIdList);
-        this.proudSkillList.addAll(original.proudSkillList);
         this.skillLevelMap.putAll(original.skillLevelMap);
 
         if (original instanceof TowerAvatar towerAvatar) {

@@ -154,9 +154,9 @@ public class AvatarStorage extends BasePlayerManager implements Iterable<Avatar>
             }
 
             // Set ownerships
-            avatar.setAvatarData(avatarData);
             avatar.setSkillDepot(skillDepot);
             avatar.setOwner(getPlayer());
+            avatar.setAvatarData(avatarData);
 
             // Force recalc of const boosted skills
             avatar.recalcConstellations();

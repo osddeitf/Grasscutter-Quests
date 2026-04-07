@@ -70,7 +70,6 @@ public class Avatar {
     transient protected final Map<Integer, Integer> proudSkillBonusMap = new Int2IntArrayMap(2); // Talent bonus levels (from const)
     @Getter private int skillDepotId;
     protected Set<Integer> talentIdList; // Constellation id list
-    @Getter protected Set<Integer> proudSkillList; // Character passives
 
     @Getter @Setter private int weaponSkin;
     @Getter @Setter private int flyCloak;
@@ -82,6 +81,16 @@ public class Avatar {
 
     @Getter @Setter private int nameCardRewardId;
     @Getter @Setter private int nameCardId;
+
+    transient @Getter private AvatarStatsManager stats;
+
+    // Character passives - derived from stats manager
+    public Set<Integer> getProudSkillList() {
+        if (this.stats == null) return Set.of();
+        return this.stats.getProudSkills().stream()
+            .map(ProudSkillData::getId)
+            .collect(Collectors.toSet());
+    }
 
     @Deprecated // Do not use. Morphia only!
     public Avatar() {
@@ -100,9 +109,7 @@ public class Avatar {
         this.data = data;
         this.bornTime = (int) (System.currentTimeMillis() / 1000);
         this.flyCloak = 140001;
-
         this.talentIdList = new HashSet<>();
-        this.proudSkillList = new HashSet<>();
 
         // Combat properties
         Stream.of(FightProperty.values())
@@ -112,6 +119,7 @@ public class Avatar {
 
         // Skill depot
         this.setSkillDepotData(data.getSkillDepot(), false);
+        this.stats = new AvatarStatsManager(this);
 
         // Set stats
         this.recalcStats();
@@ -137,6 +145,7 @@ public class Avatar {
     protected void setAvatarData(AvatarData data) {
         if (this.data != null) return;
         this.data = data; // Used while loading this from the database
+        this.stats = new AvatarStatsManager(this);
     }
 
     public void setOwner(Player player) {
@@ -192,14 +201,6 @@ public class Avatar {
         // Add any missing skills
         this.skillDepot.getSkillsAndEnergySkill()
             .forEach(skillId -> this.skillLevelMap.putIfAbsent(skillId, 1));
-        // Add proud skills
-        this.proudSkillList.clear();
-        skillDepot.getInherentProudSkillOpens().stream()
-            .filter(openData -> openData.getProudSkillGroupId() > 0)
-            .filter(openData -> openData.getNeedAvatarPromoteLevel() <= this.getPromoteLevel())
-            .mapToInt(openData -> (openData.getProudSkillGroupId() * 100) + 1)
-            .filter(proudSkillId -> GameData.getProudSkillDataMap().containsKey(proudSkillId))
-            .forEach(proudSkillId -> this.proudSkillList.add(proudSkillId));
 
         if(notifyChange){
             owner.sendPacket(new PacketAvatarSkillDepotChangeNotify(this));
@@ -404,8 +405,6 @@ public class Avatar {
     public void recalcStats(boolean forceSendAbilityChange) {
         // Setup
         var data = this.getAvatarData();
-        var promoteData = GameData.getAvatarPromoteData(data.getAvatarPromoteId(), this.getPromoteLevel());
-        var setMap = new Int2IntOpenHashMap();
 
         // Extra ability embryos
         Set<String> prevExtraAbilityEmbryos = this.getExtraAbilityEmbryos();
@@ -416,181 +415,26 @@ public class Avatar {
         this.setNameCardRewardId(data.getNameCardRewardId());
         this.setNameCardId(data.getNameCardId());
 
-        // Get hp percent, set to 100% if none
-        float hpPercent = this.getFightProperty(FightProperty.FIGHT_PROP_MAX_HP) <= 0 ? 1f : this.getFightProperty(FightProperty.FIGHT_PROP_CUR_HP) / this.getFightProperty(FightProperty.FIGHT_PROP_MAX_HP);
+        // Refresh stats. TODO: updates should be more granular, but keeping this for now for backward compatibility
+        this.stats.calculateLevelBaseStats();
+        this.stats.calculateWeaponStats();
+        this.stats.calculateReliquaryStats();
+        this.stats.calculateTalentStats();
+        this.stats.refreshStats();
 
-        // Store current energy value for later
-        float currentEnergy = (this.getSkillDepot() != null) ? this.getFightProperty(this.getSkillDepot().getElementType().getCurEnergyProp()) : 0f;
-
-        // Clear properties
-        this.getFightProperties().clear();
-
-        // Base stats
-        this.setFightProperty(FightProperty.FIGHT_PROP_BASE_HP, data.getBaseHp(this.getLevel()));
-        this.setFightProperty(FightProperty.FIGHT_PROP_BASE_ATTACK, data.getBaseAttack(this.getLevel()));
-        this.setFightProperty(FightProperty.FIGHT_PROP_BASE_DEFENSE, data.getBaseDefense(this.getLevel()));
-        this.setFightProperty(FightProperty.FIGHT_PROP_CRITICAL, data.getBaseCritical());
-        this.setFightProperty(FightProperty.FIGHT_PROP_CRITICAL_HURT, data.getBaseCriticalHurt());
-        this.setFightProperty(FightProperty.FIGHT_PROP_CHARGE_EFFICIENCY, 1f);
-
-        if (promoteData != null) {
-            for (FightPropData fightPropData : promoteData.getAddProps()) {
-                this.addFightProperty(fightPropData.getProp(), fightPropData.getValue());
-            }
+        for (var affix: this.stats.getWeaponAffixes()) {
+            this.addToExtraAbilityEmbryos(affix.getOpenConfig(), true);
         }
-
-        // Set energy usage
-        setCurrentEnergy(currentEnergy);
-
-        // Artifacts
-        for (int slotId = 1; slotId <= 5; slotId++) {
-            // Get artifact
-            GameItem equip = this.getEquipBySlot(slotId);
-            if (equip == null) {
-                continue;
-            }
-            // Artifact main stat
-            ReliquaryMainPropData mainPropData = GameData.getReliquaryMainPropDataMap().get(equip.getMainPropId());
-            if (mainPropData != null) {
-                ReliquaryLevelData levelData = GameData.getRelicLevelData(equip.getItemData().getRankLevel(), equip.getLevel());
-                if (levelData != null) {
-                    this.addFightProperty(mainPropData.getFightProp(), levelData.getPropValue(mainPropData.getFightProp()));
-                }
-            }
-            // Artifact sub stats
-            for (int appendPropId : equip.getAppendPropIdList()) {
-                ReliquaryAffixData affixData = GameData.getReliquaryAffixDataMap().get(appendPropId);
-                if (affixData != null) {
-                    this.addFightProperty(affixData.getFightProp(), affixData.getPropValue());
-                }
-            }
-            // Set bonus
-            if (equip.getItemData().getSetId() > 0) {
-                setMap.addTo(equip.getItemData().getSetId(), 1);
-            }
+        for (var affix: this.stats.getReliquaryAffixes()) {
+            this.addToExtraAbilityEmbryos(affix.getOpenConfig(), true);
         }
-
-        // Set stuff
-        setMap.forEach((setId, amount) -> {
-            ReliquarySetData setData = GameData.getReliquarySetDataMap().get((int) setId);
-            if (setData == null) return;
-
-            // Calculate how many items are from the set
-            // Add affix data from set bonus
-            val setNeedNum = setData.getSetNeedNum();
-            for (int setIndex = 0; setIndex < setNeedNum.length; setIndex++) {
-                if (amount < setNeedNum[setIndex]) break;
-
-                int affixId = (setData.getEquipAffixId() * 10) + setIndex;
-                EquipAffixData affix = GameData.getEquipAffixDataMap().get(affixId);
-                if (affix == null) {
-                    continue;
-                }
-
-                // Add properties from this affix to our avatar
-                for (FightPropData prop : affix.getAddProps()) {
-                    this.addFightProperty(prop.getProp(), prop.getValue());
-                }
-
-                // Add any skill strings from this affix
-                this.addToExtraAbilityEmbryos(affix.getOpenConfig(), true);
-            }
-        });
-
-        // Weapon
-        GameItem weapon = this.getWeapon();
-        if (weapon != null) {
-            // Add stats
-            WeaponCurveData curveData = GameData.getWeaponCurveDataMap().get(weapon.getLevel());
-            if (curveData != null) {
-                for (WeaponProperty weaponProperty : weapon.getItemData().getWeaponProperties()) {
-                    this.addFightProperty(weaponProperty.getPropType(), weaponProperty.getInitValue() * curveData.getMultByProp(weaponProperty.getType()));
-                }
-            }
-            // Weapon promotion stats
-            WeaponPromoteData wepPromoteData = GameData.getWeaponPromoteData(weapon.getItemData().getWeaponPromoteId(), weapon.getPromoteLevel());
-            if (wepPromoteData != null) {
-                for (FightPropData prop : wepPromoteData.getAddProps()) {
-                    if (prop.getValue() == 0f || prop.getProp() == null) {
-                        continue;
-                    }
-                    this.addFightProperty(prop.getProp(), prop.getValue());
-                }
-            }
-            // Add weapon skill from affixes
-            if (weapon.getAffixes() != null && !weapon.getAffixes().isEmpty()) {
-                // Weapons usually don't have more than one affix but just in case...
-                for (int af : weapon.getAffixes()) {
-                    if (af == 0) {
-                        continue;
-                    }
-                    // Calculate affix id
-                    int affixId = (af * 10) + weapon.getRefinement();
-                    EquipAffixData affix = GameData.getEquipAffixDataMap().get(affixId);
-                    if (affix == null) {
-                        continue;
-                    }
-
-                    // Add properties from this affix to our avatar
-                    for (FightPropData prop : affix.getAddProps()) {
-                        this.addFightProperty(prop.getProp(), prop.getValue());
-                    }
-
-                    // Add any skill strings from this affix
-                    this.addToExtraAbilityEmbryos(affix.getOpenConfig(), true);
-                }
-            }
-        }
-
-        // Add proud skills and unlock them if needed
-        AvatarSkillDepotData skillDepot = GameData.getAvatarSkillDepotDataMap().get(this.getSkillDepotId());
-        this.getProudSkillList().clear();
-        for (InherentProudSkillOpens openData : skillDepot.getInherentProudSkillOpens()) {
-            if (openData.getProudSkillGroupId() == 0) {
-                continue;
-            }
-            if (openData.getNeedAvatarPromoteLevel() <= this.getPromoteLevel()) {
-                int proudSkillId = (openData.getProudSkillGroupId() * 100) + 1;
-                if (GameData.getProudSkillDataMap().containsKey(proudSkillId)) {
-                    this.getProudSkillList().add(proudSkillId);
-                }
-            }
-        }
-
-        // Proud skills
-        for (int proudSkillId : this.getProudSkillList()) {
-            ProudSkillData proudSkillData = GameData.getProudSkillDataMap().get(proudSkillId);
-            if (proudSkillData == null) {
-                continue;
-            }
-
-            // Add properties from this proud skill to our avatar
-            for (FightPropData prop : proudSkillData.getAddProps()) {
-                this.addFightProperty(prop.getProp(), prop.getValue());
-            }
-
-            // Add any embryos from this proud skill
+        for (var proudSkillData: this.stats.getProudSkills()) {
             this.addToExtraAbilityEmbryos(proudSkillData.getOpenConfig());
         }
-
-        // Constellations
-        this.getTalentIdList().intStream()
-            .mapToObj(GameData.getAvatarTalentDataMap()::get)
-            .filter(Objects::nonNull)
+        this.stats.getTalents().stream()
             .map(AvatarTalentData::getOpenConfig)
             .filter(Objects::nonNull)
             .forEach(this::addToExtraAbilityEmbryos);
-            // Add any skill strings from this constellation
-
-        // Set % stats
-        FightProperty.forEachCompoundProperty(c -> this.setFightProperty(c.getResult(),
-            this.getFightProperty(c.getFlat()) + (this.getFightProperty(c.getBase()) * (1f + this.getFightProperty(c.getPercent())))));
-
-        // Reapply all overrides
-        this.fightProperties.putAll(this.fightPropOverrides);
-
-        // Set current hp
-        this.setFightProperty(FightProperty.FIGHT_PROP_CUR_HP, this.getFightProperty(FightProperty.FIGHT_PROP_MAX_HP) * hpPercent);
 
         // Packet
         if (getPlayer() != null && getPlayer().hasSentLoginPackets()) {
