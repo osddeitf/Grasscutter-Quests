@@ -1,9 +1,5 @@
 package emu.grasscutter.game.entity;
 
-import emu.grasscutter.GameConstants;
-import emu.grasscutter.data.GameData;
-import emu.grasscutter.data.excels.AvatarData;
-import emu.grasscutter.data.excels.AvatarSkillDepotData;
 import emu.grasscutter.game.avatar.Avatar;
 import emu.grasscutter.game.entity.create_config.CreateGadgetEntityConfig;
 import emu.grasscutter.game.inventory.EquipType;
@@ -13,33 +9,25 @@ import emu.grasscutter.game.props.EntityIdType;
 import emu.grasscutter.game.props.FightProperty;
 import emu.grasscutter.game.props.PlayerProperty;
 import emu.grasscutter.game.world.Scene;
-import org.anime_game_servers.multi_proto.gi.messages.scene.entity.ChangeEnergyReason;
-import org.anime_game_servers.multi_proto.gi.messages.scene.entity.ChangeHpReason;
-import org.anime_game_servers.multi_proto.gi.messages.general.PlayerDieType;
-import org.anime_game_servers.multi_proto.gi.messages.general.PropChangeReason;
 import emu.grasscutter.server.event.player.PlayerMoveEvent;
 import emu.grasscutter.server.packet.send.PacketEntityFightPropChangeReasonNotify;
 import emu.grasscutter.server.packet.send.PacketEntityFightPropUpdateNotify;
 import emu.grasscutter.utils.Position;
 import emu.grasscutter.utils.ProtoHelper;
-import emu.grasscutter.utils.Utils;
 import it.unimi.dsi.fastutil.ints.Int2FloatMap;
 import lombok.Getter;
 import lombok.val;
-import org.anime_game_servers.multi_proto.gi.messages.general.ability.AbilityControlBlock;
-import org.anime_game_servers.multi_proto.gi.messages.general.ability.AbilityEmbryo;
+import org.anime_game_servers.multi_proto.gi.messages.general.PlayerDieType;
+import org.anime_game_servers.multi_proto.gi.messages.general.PropChangeReason;
 import org.anime_game_servers.multi_proto.gi.messages.general.ability.AbilitySyncStateInfo;
 import org.anime_game_servers.multi_proto.gi.messages.general.entity.SceneReliquaryInfo;
 import org.anime_game_servers.multi_proto.gi.messages.scene.entity.*;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class EntityAvatar extends GameEntity {
     @Getter private final Avatar avatar;
-
     @Getter private PlayerDieType killedType;
     @Getter private int killedBy;
 
@@ -264,36 +252,6 @@ public class EntityAvatar extends GameEntity {
         entityInfo.setEntity(new SceneEntityInfo.Entity.Avatar(this.getSceneAvatarInfo()));
 
         return entityInfo;
-    }
-
-    public AbilityControlBlock getAbilityControlBlock() {
-        AvatarData data = this.getAvatar().getAvatarData();
-        val abilityControlBlock = new AbilityControlBlock();
-        val embryoId = new AtomicInteger(0);
-        val embrioList = new ArrayList<AbilityEmbryo>();
-
-        val abilities = data.getAbilities();
-        // Add avatar abilities
-        if (abilities != null) {
-            embrioList.addAll(abilities.stream().map(id -> new AbilityEmbryo(embryoId.incrementAndGet(), id, GameConstants.DEFAULT_ABILITY_NAME)).toList());
-        }
-        // Add default abilities
-        embrioList.addAll(Arrays.stream(GameConstants.DEFAULT_ABILITY_HASHES).mapToObj(id -> new AbilityEmbryo(embryoId.incrementAndGet(), id, GameConstants.DEFAULT_ABILITY_NAME)).toList());
-        // Add team resonances
-        embrioList.addAll(this.getPlayer().getTeamManager().getTeamResonancesConfig().stream().map(id -> new AbilityEmbryo(embryoId.incrementAndGet(), id, GameConstants.DEFAULT_ABILITY_NAME)).toList());
-        // Add skill depot abilities
-        AvatarSkillDepotData skillDepot = GameData.getAvatarSkillDepotDataMap().get(this.getAvatar().getSkillDepotId());
-        if (skillDepot != null && skillDepot.getAbilities() != null) {
-            embrioList.addAll(skillDepot.getAbilities().stream().map(id -> new AbilityEmbryo(embryoId.incrementAndGet(), id, GameConstants.DEFAULT_ABILITY_NAME)).toList());
-        }
-        // Add equip abilities
-        if (this.getAvatar().getExtraAbilityEmbryos().size() > 0) {
-            embrioList.addAll(this.getAvatar().getExtraAbilityEmbryos().stream().map(id -> new AbilityEmbryo(embryoId.incrementAndGet(), Utils.abilityHash(id), GameConstants.DEFAULT_ABILITY_NAME)).toList());
-        }
-        abilityControlBlock.setAbilityEmbryoList(embrioList);
-
-        //
-        return abilityControlBlock;
     }
 
     /**

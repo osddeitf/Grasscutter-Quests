@@ -5,7 +5,6 @@ import emu.grasscutter.GameConstants;
 import emu.grasscutter.Grasscutter;
 import emu.grasscutter.data.GameData;
 import emu.grasscutter.data.binout.config.ConfigLevelEntity;
-import emu.grasscutter.data.binout.config.fields.ConfigAbilityData;
 import emu.grasscutter.data.excels.AvatarData;
 import emu.grasscutter.data.excels.PlayerLevelData;
 import emu.grasscutter.data.excels.SceneTagData;
@@ -1009,7 +1008,7 @@ public class Player {
             List<Integer> avatarIds = scene.getSceneData().getSpecifiedAvatarList();
             List<EntityAvatar> specifiedAvatarList = getTeamManager().getActiveTeam();
 
-            if (avatarIds != null && avatarIds.size() > 0){
+            if (avatarIds != null && !avatarIds.isEmpty()){
                 // certain scene could limit specifc avatars' entry
                 specifiedAvatarList.clear();
                 for (int id : avatarIds){
@@ -1022,14 +1021,6 @@ public class Player {
             }
 
             for (EntityAvatar entityAvatar : specifiedAvatarList){
-                AvatarData avatarData = entityAvatar.getAvatar().getAvatarData();
-                if (avatarData == null){
-                    continue;
-                }
-                avatarData.rebuildAbilityEmbryo();
-                if (config.getAvatarAbilities() == null){
-                    continue; // continue and not break because has to rebuild ability for the next avatar if any
-                }
                 entityAvatar.getAvatar().getAbilities().updateLevelEntityAbilities(config);
             }
         } catch (Exception e){

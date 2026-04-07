@@ -12,6 +12,7 @@ import it.unimi.dsi.fastutil.ints.IntSet;
 import lombok.NonNull;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -75,7 +76,8 @@ public class AvatarAbilityManager extends BaseAbilityManager {
     }
 
     public void updateLevelEntityAbilities(@NonNull ConfigLevelEntity config) {
-        updateAbilityEmbryos(AbilityType.LEVEL_ENTITY, config.getAvatarAbilities().stream()
+        List<ConfigAbilityData> abilities = Objects.requireNonNullElse(config.getAvatarAbilities(), List.of());
+        updateAbilityEmbryos(AbilityType.LEVEL_ENTITY, abilities.stream()
             .map(ConfigAbilityData::getAbilityName)
             .mapToInt(Utils::abilityHash)
         );
