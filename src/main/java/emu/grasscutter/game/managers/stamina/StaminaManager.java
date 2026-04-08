@@ -484,7 +484,7 @@ public class StaminaManager extends BasePlayerManager {
 
                 if (consumption.amount < 0 && isCharacterStamina) {
                     // Do not apply reduction factor when recovering stamina
-                    if (player.getTeamManager().getTeamResonances().contains(10301)) {
+                    if (player.getTeamManager().getElementalResonances().stream().anyMatch(r -> r.getId() == 10301)) {
                         consumption.amount *= 0.85f;
                     }
                 }

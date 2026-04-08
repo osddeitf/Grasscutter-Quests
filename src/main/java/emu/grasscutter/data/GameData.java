@@ -179,6 +179,7 @@ public class GameData {
     private static final Int2ObjectMap<CodexReliquaryData> codexReliquaryDataMap = new Int2ObjectOpenHashMap<>();
     private static final Int2ObjectMap<CodexWeaponData> codexWeaponDataMap = new Int2ObjectOpenHashMap<>();
     private static final Int2ObjectMap<CodexViewpointData> codexViewpointDataMap = new Int2ObjectOpenHashMap<>();
+    @Getter private static final Int2ObjectMap<TeamResonanceData> teamResonanceDataMap = new Int2ObjectOpenHashMap<>();
 
     @Getter private static final Int2ObjectMap<List<DungeonDropEntry>> dungeonDropDataMap = new Int2ObjectOpenHashMap<>();
 

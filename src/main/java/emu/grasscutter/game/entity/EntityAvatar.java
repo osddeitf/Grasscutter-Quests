@@ -1,5 +1,6 @@
 package emu.grasscutter.game.entity;
 
+import emu.grasscutter.data.excels.TeamResonanceData;
 import emu.grasscutter.game.avatar.Avatar;
 import emu.grasscutter.game.entity.create_config.CreateGadgetEntityConfig;
 import emu.grasscutter.game.inventory.EquipType;
@@ -193,13 +194,13 @@ public class EntityAvatar extends GameEntity {
         val avatar = this.getAvatar();
         val player = this.getPlayer();
         val avatarInfo = new SceneAvatarInfo(player.getUid(), avatar.getAvatarId(), avatar.getGuid(), player.getPeerId());
-        avatarInfo.setTalentIdList(avatar.getTalentIdList().stream().toList());
+        avatarInfo.setTalentIdList(avatar.getTalentIdList().intStream().boxed().toList());
         avatarInfo.setCoreProudSkillLevel(avatar.getCoreProudSkillLevel());
         avatarInfo.setSkillLevelMap(avatar.getSkillLevelMap());
         avatarInfo.setSkillDepotId(avatar.getSkillDepotId());
         avatarInfo.setInherentProudSkillList(avatar.getProudSkillList().stream().toList());
         avatarInfo.setProudSkillExtraLevelMap(avatar.getProudSkillBonusMap());
-        avatarInfo.setTeamResonanceList(player.getTeamManager().getTeamResonances().stream().toList());
+        avatarInfo.setTeamResonanceList(player.getTeamManager().getElementalResonances().stream().map(TeamResonanceData::getId).toList());
         avatarInfo.setWearingFlycloakId(avatar.getFlyCloak());
         avatarInfo.setCostumeId(avatar.getCostume());
         avatarInfo.setBornTime(avatar.getBornTime());

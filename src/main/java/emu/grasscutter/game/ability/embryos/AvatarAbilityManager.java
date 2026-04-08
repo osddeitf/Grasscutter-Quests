@@ -46,7 +46,9 @@ public class AvatarAbilityManager extends BaseAbilityManager {
     }
 
     public void updateElementalResonanceAbilities() {
-       updateAbilityEmbryos(AbilityType.RESONANCE_ELEMENTAL, avatar.getPlayer().getTeamManager().getTeamResonancesConfig());
+        var abilities = avatar.getPlayer().getTeamManager().getElementalResonances().stream()
+            .flatMapToInt(config -> getAbilitiesByOpenConfig(config.getOpenConfig()));
+        updateAbilityEmbryos(AbilityType.RESONANCE_ELEMENTAL, abilities);
     }
 
     public void updateMoonsignResonanceAbilities() {

@@ -3,14 +3,13 @@ package emu.grasscutter.game.player;
 import dev.morphia.annotations.Entity;
 import emu.grasscutter.GameConstants;
 import emu.grasscutter.data.GameData;
-import emu.grasscutter.data.excels.AvatarSkillDepotData;
+import emu.grasscutter.data.excels.TeamResonanceData;
 import emu.grasscutter.game.avatar.Avatar;
 import emu.grasscutter.game.avatar.AvatarStorage;
 import emu.grasscutter.game.avatar.TrialAvatar;
 import emu.grasscutter.game.entity.EntityAvatar;
 import emu.grasscutter.game.entity.EntityBaseGadget;
 import emu.grasscutter.game.entity.EntityTeam;
-import emu.grasscutter.game.props.ElementType;
 import emu.grasscutter.game.props.EnterReason;
 import emu.grasscutter.game.props.FightProperty;
 import emu.grasscutter.game.world.World;
@@ -18,12 +17,10 @@ import emu.grasscutter.server.event.player.PlayerTeamDeathEvent;
 import emu.grasscutter.server.packet.send.*;
 import emu.grasscutter.utils.Position;
 import emu.grasscutter.utils.Utils;
-import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
-import it.unimi.dsi.fastutil.ints.IntSet;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.Setter;
 import lombok.val;
 import org.anime_game_servers.multi_proto.gi.messages.general.PlayerDieType;
@@ -33,6 +30,7 @@ import org.anime_game_servers.multi_proto.gi.messages.scene.entity.MotionState;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.stream.IntStream;
 
 import static emu.grasscutter.config.Configuration.GAME_OPTIONS;
@@ -47,8 +45,7 @@ public class TeamManager extends BasePlayerDataManager {
     transient @Setter private EntityTeam entity;
     transient private final List<EntityAvatar> activeTeam;
     transient private final Set<EntityBaseGadget> gadgets;
-    transient private final IntSet teamResonances;
-    transient private final IntSet teamResonancesConfig;
+    transient private final List<TeamResonanceData> elementalResonances;
     transient @Setter private TeamInfo mpTeam;
     transient @Setter private int temporaryTeamIndex = -1;
     transient private final List<TeamInfo> temporaryTeam; // Temporary Team for tower
@@ -62,8 +59,7 @@ public class TeamManager extends BasePlayerDataManager {
         this.mpTeam = new TeamInfo();
         this.activeTeam = new ArrayList<>();
         this.gadgets = new HashSet<>();
-        this.teamResonances = new IntOpenHashSet();
-        this.teamResonancesConfig = new IntOpenHashSet();
+        this.elementalResonances = new ArrayList<>();
         this.temporaryTeam = new ArrayList<>();
         this.trialAvatarTeam = new TeamInfo();
         this.entityGuids = new LinkedHashMap<>();
@@ -78,6 +74,12 @@ public class TeamManager extends BasePlayerDataManager {
         this.setTeams(new LinkedHashMap<>());
         IntStream.rangeClosed(1, GameConstants.DEFAULT_TEAMS)
             .forEachOrdered(i -> this.getTeams().put(i, new TeamInfo()));
+    }
+
+    public static void updateCurrentTeamAvatars(@NonNull Player player, Consumer<Avatar> runner) {
+        player.getTeamManager().getActiveTeam().stream()
+            .map(EntityAvatar::getAvatar)
+            .forEach(runner);
     }
 
     public World getWorld() {
@@ -179,35 +181,15 @@ public class TeamManager extends BasePlayerDataManager {
     }
 
     private void updateTeamResonances() {
-        getTeamResonances().clear();
-        getTeamResonancesConfig().clear();
-        // Official resonances require a full party
-        if (getActiveTeam().size() < 4) return;
-
-        // TODO: make this actually read from TeamResonanceExcelConfigData.json for the real resonances and conditions
-        // Currently we just hardcode these conditions, but this won't work for modded resources or future changes
-        var elementCounts = new Object2IntOpenHashMap<ElementType>();
-        getActiveTeam().stream()
-            .map(EntityAvatar::getAvatar).filter(Objects::nonNull)
-            .map(Avatar::getSkillDepot).filter(Objects::nonNull)
-            .map(AvatarSkillDepotData::getElementType).filter(Objects::nonNull)
-            .forEach(elementType -> elementCounts.addTo(elementType, 1));
-
-        // Dual element resonances
-        elementCounts.object2IntEntrySet().stream()
-            .filter(e -> e.getIntValue() >= 2)
-            .map(Map.Entry::getKey)
-            .filter(elementType -> elementType.getTeamResonanceId() != 0)
-            .forEach(elementType -> {
-                getTeamResonances().add(elementType.getTeamResonanceId());
-                getTeamResonancesConfig().add(elementType.getConfigHash());
-            });
-
-        // Four element resonance
-        if (elementCounts.size() >= 4) {
-            getTeamResonances().add(ElementType.Default.getTeamResonanceId());
-            getTeamResonancesConfig().add(ElementType.Default.getConfigHash());
-        }
+        elementalResonances.clear();
+        elementalResonances.addAll(GameData.getTeamResonanceDataMap().values().stream()
+            .filter(config -> config.isResonanceActive(player, getCurrentTeamInfo()))
+            .toList()
+        );
+        updateCurrentTeamAvatars(player, avatar -> {
+            avatar.getAbilities().updateElementalResonanceAbilities();
+            avatar.getAbilities().notifyChanges();
+        });
     }
 
     private long getAvatarGuid(AvatarStorage storage, int avatarId){
