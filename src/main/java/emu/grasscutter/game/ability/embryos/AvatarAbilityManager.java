@@ -77,6 +77,19 @@ public class AvatarAbilityManager extends BaseAbilityManager {
         updateAbilityEmbryos(AbilityType.TALENT, abilities);
     }
 
+    public void updateWorldAreaAbilities(@NonNull WorldAreaData area) {
+        var type = area.getAreaID2() == 0
+            ? AbilityType.WORLD_AREA_LEVEL_1
+            : AbilityType.WORLD_AREA_LEVEL_2;
+        List<String> groupList = Objects.requireNonNullElse(area.getAvatarAbilityGroupList(), List.of());
+        updateAbilityEmbryos(type, groupList.stream()
+            .map(GameData.getAbilityGroupMap()::get)
+            .filter(Objects::nonNull)
+            .flatMap(group -> group.getAvatarAbilities().stream())
+            .mapToInt(Integer::intValue)
+        );
+    }
+
     public void updateLevelEntityAbilities(@NonNull ConfigLevelEntity config) {
         List<ConfigAbilityData> abilities = Objects.requireNonNullElse(config.getAvatarAbilities(), List.of());
         updateAbilityEmbryos(AbilityType.LEVEL_ENTITY, abilities.stream()
