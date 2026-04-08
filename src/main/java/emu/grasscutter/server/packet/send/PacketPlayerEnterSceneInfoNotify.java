@@ -21,14 +21,14 @@ public class PacketPlayerEnterSceneInfoNotify extends BaseTypedPacket<PlayerEnte
 
 		proto.setTeamEnterInfo(
 				new org.anime_game_servers.multi_proto.gi.messages.scene.TeamEnterSceneInfo(
-                    player.getTeamManager().getEntity().getId(), // 150995833
+                    player.getTeamManager().getEntity().getId(),
                     empty,
-                    new AbilityControlBlock()
+                    player.getTeamManager().getEntity().getAbilities().toProto()
                 )
 		);
 		proto.setMpLevelEntityInfo(
 				new MPLevelEntityInfo(
-                    player.getWorld().getLevelEntityId(), // 184550274
+                    player.getWorld().getLevelEntityId(),
                     player.getWorld().getHostPeerId(),
                     empty
                 )

@@ -54,4 +54,10 @@ public class AbilityGroup {
         if (hashedAbilities != null) return hashedAbilities;
         return targetAbilities.stream().map(Object::toString).map(Utils::abilityHash).collect(Collectors.toSet());
     }
+
+    public Set<Integer> getTeamAbilities() {
+        if (targetType != AbilityGroupTarget.ABILITY_GROUP_TARGET_TEAM) return Set.of();
+        if (hashedAbilities != null) return hashedAbilities;
+        return targetAbilities.stream().map(Object::toString).map(Utils::abilityHash).collect(Collectors.toSet());
+    }
 }

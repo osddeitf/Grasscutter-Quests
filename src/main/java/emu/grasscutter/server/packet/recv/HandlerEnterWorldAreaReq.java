@@ -26,6 +26,12 @@ public class HandlerEnterWorldAreaReq extends TypedPacketHandler<EnterWorldAreaR
             });
         }
 
+        if (area != null) {
+            var team = player.getTeamManager().getEntity();
+            team.getAbilities().updateWorldAreaAbilities(area);
+            team.getAbilities().notifyChanges();
+        }
+
         session.send(new PacketEnterWorldAreaRsp(head.getClientSequenceId(), req));
 		//session.send(new PacketScenePlayerLocationNotify(session.getPlayer()));
 	}
