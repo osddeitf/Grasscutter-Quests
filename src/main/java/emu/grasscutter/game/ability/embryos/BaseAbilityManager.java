@@ -49,6 +49,5 @@ public abstract class BaseAbilityManager {
         GALLERY,
         SCRIPT_LUA,
         DYNAMIC,
-        EXTRA,      // for uncategorized abilities, shouldn't be overused!
     }
 }

@@ -58,7 +58,6 @@ public class Avatar {
     transient @Getter protected final Int2ObjectMap<GameItem> equips = new Int2ObjectOpenHashMap<>();
     transient @Getter protected final Int2FloatOpenHashMap fightProperties = new Int2FloatOpenHashMap();
     transient @Getter protected final Int2FloatOpenHashMap fightPropOverrides = new Int2FloatOpenHashMap();
-    transient @Getter protected final Set<String> extraAbilityEmbryos = new HashSet<>();
 
     @Getter protected final Set<Integer> fetters = new HashSet<>();
 
@@ -417,7 +416,6 @@ public class Avatar {
         this.abilities.updateTalentAbilities();
         this.abilities.updateElementalResonanceAbilities();
         this.abilities.updateSkillDepotAbilities();
-        this.abilities.updateExtraAbilities();
         this.abilities.notifyChanges();
 
         // Packet

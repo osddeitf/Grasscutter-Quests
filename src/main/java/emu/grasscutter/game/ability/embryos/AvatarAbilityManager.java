@@ -93,11 +93,6 @@ public class AvatarAbilityManager extends BaseAbilityManager {
         updateAbilityEmbryos(AbilityType.SCRIPT_LUA, IntSet.of());
     }
 
-    // TODO: maybe move the extra abilities to this class
-    public void updateExtraAbilities() {
-        updateAbilityEmbryos(AbilityType.EXTRA, avatar.getExtraAbilityEmbryos().stream().mapToInt(Utils::abilityHash));
-    }
-
     private void initAbilityEmbryos() {
         var defaults = Arrays.stream(GameConstants.DEFAULT_ABILITY_HASHES);
         var info = avatar.getAvatarData().getAbilityEmbryoInfo();

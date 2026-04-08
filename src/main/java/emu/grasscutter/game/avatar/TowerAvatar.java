@@ -42,7 +42,6 @@ public class TowerAvatar extends Avatar {
             this.equips.putAll(towerAvatar.towerItemMap);
             this.fightProperties.putAll(towerAvatar.towerFightProperties);
             this.fightPropOverrides.putAll(towerAvatar.towerFightPropOverrides);
-            this.extraAbilityEmbryos.addAll(towerAvatar.towerExtraAbilityEmbryos);
             this.skillExtraChargeMap.putAll(towerAvatar.towerSkillExtraChargeMap);
             this.proudSkillBonusMap.putAll(towerAvatar.towerProudSkillBonusMap);
 
@@ -57,7 +56,6 @@ public class TowerAvatar extends Avatar {
                 Collectors.toMap(GameItem::getEquipSlot, item -> item)));
             this.fightProperties.clear(); this.fightProperties.putAll(original.fightProperties);
             this.fightPropOverrides.clear(); this.fightPropOverrides.putAll(original.fightPropOverrides);
-            this.extraAbilityEmbryos.clear(); this.extraAbilityEmbryos.addAll(original.extraAbilityEmbryos);
             this.skillExtraChargeMap.clear(); this.skillExtraChargeMap.putAll(original.skillExtraChargeMap);
             this.proudSkillBonusMap.clear(); this.proudSkillBonusMap.putAll(original.proudSkillBonusMap);
             this.skillDepotId = original.getSkillDepotId();
@@ -71,7 +69,6 @@ public class TowerAvatar extends Avatar {
         }
         this.towerFightProperties.putAll(this.fightProperties);
         this.towerFightPropOverrides.putAll(this.fightPropOverrides);
-        this.towerExtraAbilityEmbryos.addAll(this.extraAbilityEmbryos);
         this.towerSkillExtraChargeMap.putAll(this.skillExtraChargeMap);
         this.towerProudSkillBonusMap.putAll(this.proudSkillBonusMap);
         setFightProperty(FightProperty.FIGHT_PROP_CUR_HP, this.currentHp);
