@@ -8,6 +8,7 @@ import emu.grasscutter.net.packet.BasePacket;
 import emu.grasscutter.net.packet.BaseTypedPacket;
 import emu.grasscutter.net.packet.PacketOpcodesUtils;
 import emu.grasscutter.server.event.game.SendPacketEvent;
+import emu.grasscutter.server.http.dispatch.RegionHandler;
 import emu.grasscutter.utils.Crypto;
 import emu.grasscutter.utils.FileUtils;
 import io.netty.buffer.ByteBuf;
@@ -25,6 +26,7 @@ import org.anime_game_servers.multi_proto.gi.utils.VersionIdentify;
 import java.io.File;
 import java.net.InetSocketAddress;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Optional;
 
 import static emu.grasscutter.config.Configuration.*;
@@ -231,7 +233,11 @@ public class GameSession implements GameSessionManager.KcpChannel {
                 }
 
                 if(version == Version.DEFAULT) {
-                    val versions = VersionIdentify.getClientVersionsFromFirstPacket(opcode, payload);
+                    val versions =
+                        Optional.<List<Version>>ofNullable(null)
+                        //Optional.ofNullable(VersionIdentify.getClientVersionsFromFirstPacket(opcode, payload))
+                        .orElseGet(() -> RegionHandler.versionIdentifies.get(opcode));
+
                     if(versions == null || versions.isEmpty()) {
                         Grasscutter.getLogger().error("Failed to identify client version for opcode: {}", opcode);
                         return;

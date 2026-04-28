@@ -14,6 +14,7 @@ import emu.grasscutter.utils.Utils;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
 import lombok.val;
+import org.anime_game_servers.multi_proto.gi.ProtoRuntimeProvider;
 import org.anime_game_servers.multi_proto.gi.messages.general.server.RegionInfo;
 import org.anime_game_servers.multi_proto.gi.messages.login.QueryCurrRegionHttpRsp;
 import org.anime_game_servers.core.base.Version;
@@ -35,6 +36,7 @@ import static emu.grasscutter.config.Configuration.*;
 public final class RegionHandler implements Router {
     private static final Map<String, RegionData> regions = new ConcurrentHashMap<>();
     private static final Map<RegionType, String> regionListResponses = new EnumMap<>(RegionType.class);
+    public static final Map<Integer, List<Version>> versionIdentifies = new ConcurrentHashMap<>();
 
     public RegionHandler() {
         try { // Read & initialize region data.
@@ -141,12 +143,34 @@ public final class RegionHandler implements Router {
      * @param baseRegionList The filled out region list response model
      */
     private void setRegionListResponses(RegionType regionType, byte[] customConfig, QueryRegionListHttpRsp baseRegionList) {
+        var protoService = ProtoRuntimeProvider.INSTANCE.getService();
+        versionIdentifies.clear();
+
         baseRegionList.setClientCustomConfigEncrypted(customConfig);
         Arrays.stream(Version.values()).forEach(version -> {
             val encoded = baseRegionList.encodeToByteArray(version);
             if (encoded != null) {
+                Grasscutter.getLogger().info("Added version {}, length {}, hex {}", version.getNamespace(), encoded.length, Utils.bytesToHex(encoded));
                 // todo actually save region specific responses, and not just the newest success
                 regionListResponses.put(regionType, Utils.base64Encode(encoded));
+
+                var mapper = protoService.getPacketMapper(version);
+                if (mapper != null) {
+                    var opcode = mapper.getPacketId("GetPlayerTokenReq");
+                    if (opcode <= 0 || opcode == 999999) {
+                        var obfuscated = Optional.ofNullable(protoService.getVersionRuntime(version))
+                            .map(runtime -> runtime.getObfuscatedName("GetPlayerTokenReq"))
+                            .orElse(null);
+                        if (obfuscated != null) {
+                            opcode = mapper.getPacketId(obfuscated);
+                        }
+                    }
+                    if (opcode <= 0 || opcode == 999999) return;
+
+                    var list = versionIdentifies.computeIfAbsent(opcode, k -> new ArrayList<>());
+                    Grasscutter.getLogger().info("Added version identify (GetPlayerTokenReq) for {}, cmdid {}", version.getNamespace(), opcode);
+                    list.add(version);
+                }
             }
         });
     }
