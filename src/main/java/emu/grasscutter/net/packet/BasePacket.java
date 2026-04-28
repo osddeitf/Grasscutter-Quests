@@ -1,13 +1,15 @@
 package emu.grasscutter.net.packet;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-
 import emu.grasscutter.server.game.GameSession;
 import emu.grasscutter.utils.Crypto;
 import lombok.val;
 import org.anime_game_servers.core.base.Version;
 import org.anime_game_servers.multi_proto.gi.messages.packet_head.PacketHead;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+
+import static emu.grasscutter.config.Configuration.GAME_INFO;
 
 public class BasePacket {
     private static final int const1 = 17767; // 0x4567
@@ -21,7 +23,6 @@ public class BasePacket {
 
     // Encryption
     private boolean useDispatchKey;
-    public boolean shouldEncrypt = true;
 
     protected BasePacket(){}
 
@@ -114,7 +115,7 @@ public class BasePacket {
 
         byte[] packet = baos.toByteArray();
 
-        if (this.shouldEncrypt) {
+        if (GAME_INFO.compatOptions.usePacketXorEncryption) {
             Crypto.xor(packet, this.useDispatchKey() ? Crypto.DISPATCH_KEY : Crypto.ENCRYPT_KEY);
         }
 

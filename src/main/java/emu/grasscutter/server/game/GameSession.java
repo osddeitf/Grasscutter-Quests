@@ -195,7 +195,10 @@ public class GameSession implements GameSessionManager.KcpChannel {
     @Override
     public void handleReceive(byte[] bytes) {
         // Decrypt and turn back into a packet
+        // for 4.7.50 should be disabled
+        if (GAME_INFO.compatOptions.usePacketXorEncryption) {
         Crypto.xor(bytes, useSecretKey() ? Crypto.ENCRYPT_KEY : Crypto.DISPATCH_KEY);
+        }
         ByteBuf packet = Unpooled.wrappedBuffer(bytes);
 
         // Handle
