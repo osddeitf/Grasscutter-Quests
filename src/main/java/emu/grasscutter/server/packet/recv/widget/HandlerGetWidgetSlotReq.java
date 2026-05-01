@@ -1,9 +1,9 @@
-package emu.grasscutter.server.packet.recv;
+package emu.grasscutter.server.packet.recv.widget;
 
 import emu.grasscutter.game.player.Player;
 import emu.grasscutter.net.packet.TypedPacketHandler;
 import emu.grasscutter.server.game.GameSession;
-import emu.grasscutter.server.packet.send.PacketGetWidgetSlotRsp;
+import emu.grasscutter.server.packet.send.widget.PacketGetWidgetSlotRsp;
 import org.anime_game_servers.multi_proto.gi.messages.item.widget.manage_slot.GetWidgetSlotReq;
 
 public class HandlerGetWidgetSlotReq extends TypedPacketHandler<GetWidgetSlotReq> {

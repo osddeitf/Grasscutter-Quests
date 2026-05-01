@@ -1,4 +1,4 @@
-package emu.grasscutter.server.packet.recv;
+package emu.grasscutter.server.packet.recv.widget;
 
 import emu.grasscutter.Grasscutter;
 import emu.grasscutter.game.inventory.GameItem;
@@ -8,7 +8,7 @@ import emu.grasscutter.game.inventory.ItemType;
 import emu.grasscutter.game.player.Player;
 import emu.grasscutter.net.packet.TypedPacketHandler;
 import emu.grasscutter.server.game.GameSession;
-import emu.grasscutter.server.packet.send.PacketQuickUseWidgetRsp;
+import emu.grasscutter.server.packet.send.widget.PacketQuickUseWidgetRsp;
 import org.anime_game_servers.multi_proto.gi.messages.general.Retcode;
 import org.anime_game_servers.multi_proto.gi.messages.item.widget.use.QuickUseWidgetReq;
 

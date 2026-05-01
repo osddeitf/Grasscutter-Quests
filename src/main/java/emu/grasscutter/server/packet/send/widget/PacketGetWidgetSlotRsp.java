@@ -1,4 +1,4 @@
-package emu.grasscutter.server.packet.send;
+package emu.grasscutter.server.packet.send.widget;
 
 import emu.grasscutter.game.player.Player;
 import emu.grasscutter.net.packet.BaseTypedPacket;
