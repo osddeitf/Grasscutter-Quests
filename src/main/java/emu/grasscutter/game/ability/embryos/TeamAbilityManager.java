@@ -37,6 +37,13 @@ public class TeamAbilityManager extends BaseAbilityManager {
         );
     }
 
+    public void updateDynamicAbilities() {
+        updateAbilityEmbryos(AbilityType.DYNAMIC, team.getPlayer().getAbilityManager().getDynamicAbilityGroups().stream()
+            .flatMap(group -> group.getTeamAbilities().stream())
+            .mapToInt(Integer::intValue)
+        );
+    }
+
     private void initAbilityEmbryos() {
         var defaults = GameData.getConfigGlobalCombat().getDefaultAbilities().getDefaultTeamAbilities();
         if (defaults != null) {

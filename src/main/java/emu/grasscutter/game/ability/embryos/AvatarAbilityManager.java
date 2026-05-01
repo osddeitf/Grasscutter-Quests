@@ -108,6 +108,13 @@ public class AvatarAbilityManager extends BaseAbilityManager {
         updateAbilityEmbryos(AbilityType.SCRIPT_LUA, IntSet.of());
     }
 
+    public void updateDynamicAbilities() {
+        updateAbilityEmbryos(AbilityType.DYNAMIC, avatar.getPlayer().getAbilityManager().getDynamicAbilityGroups().stream()
+            .flatMap(group -> group.getAvatarAbilities().stream())
+            .mapToInt(Integer::intValue)
+        );
+    }
+
     private void initAbilityEmbryos() {
         var defaults = Arrays.stream(GameConstants.DEFAULT_ABILITY_HASHES);
         var info = avatar.getAvatarData().getAbilityEmbryoInfo();
