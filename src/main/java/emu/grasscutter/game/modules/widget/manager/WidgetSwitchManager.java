@@ -6,6 +6,7 @@ import dev.morphia.query.filters.Filters;
 import emu.grasscutter.database.DatabaseManager;
 import emu.grasscutter.game.modules.GameModuleData;
 import emu.grasscutter.game.modules.widget.WidgetModule;
+import emu.grasscutter.game.modules.widget.effect.WidgetEffectManager;
 import emu.grasscutter.game.player.Player;
 import emu.grasscutter.net.packet.GrasscutterException;
 import emu.grasscutter.server.packet.send.widget.PacketWidgetSlotChangeNotify;
@@ -73,6 +74,9 @@ public class WidgetSwitchManager extends GameModuleData {
         // detach current material ids
         for (var it: curMaterialIds) self.detachMaterial(it);
 
+        // try to attach effects
+        WidgetEffectManager.registerEffect(player, materialId);
+
         // update slots and notify change
         config.getTags().stream()
             .map(tag -> tag.asSlotTag())
@@ -121,6 +125,9 @@ public class WidgetSwitchManager extends GameModuleData {
             .toList();
         if (slotTags.isEmpty()) return false;
 
+        // detach the associated effects
+        WidgetEffectManager.deregisterEffect(player, materialId);
+
         // detach and notify
         for (var tag: slotTags) {
             var notify = new PacketWidgetSlotChangeNotify(WidgetSlotOp.WIDGET_SLOT_OP_DETACH, getSlotData(tag));
@@ -165,6 +172,9 @@ public class WidgetSwitchManager extends GameModuleData {
 
         // init if previously persisted
         saved.player = player;
+        Set.copyOf(saved.slots.values()).forEach(materialId ->
+            WidgetEffectManager.registerEffect(player, materialId)
+        );
         return saved;
     }
 

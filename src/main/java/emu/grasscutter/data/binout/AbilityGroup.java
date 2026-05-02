@@ -3,6 +3,7 @@ package emu.grasscutter.data.binout;
 import com.google.gson.annotations.SerializedName;
 import emu.grasscutter.utils.Utils;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -59,5 +60,13 @@ public class AbilityGroup {
         if (targetType != AbilityGroupTarget.ABILITY_GROUP_TARGET_TEAM) return Set.of();
         if (hashedAbilities != null) return hashedAbilities;
         return targetAbilities.stream().map(Object::toString).map(Utils::abilityHash).collect(Collectors.toSet());
+    }
+
+    public static AbilityGroup of(AbilityGroupTarget target, Collection<Integer> abilityHashes) {
+        var group = new AbilityGroup();
+        group.targetType = target;
+        group.sourceType = AbilityGroupSource.ABILITY_GROUP_SOURCE_NONE;
+        group.hashedAbilities = Set.copyOf(abilityHashes);
+        return group;
     }
 }

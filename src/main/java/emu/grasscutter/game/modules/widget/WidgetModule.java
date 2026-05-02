@@ -1,5 +1,6 @@
 package emu.grasscutter.game.modules.widget;
 
+import emu.grasscutter.game.modules.widget.effect.WidgetEffectManager;
 import emu.grasscutter.game.modules.widget.manager.*;
 import emu.grasscutter.game.player.BasePlayerManager;
 import emu.grasscutter.game.player.Player;
@@ -17,6 +18,9 @@ public class WidgetModule extends BasePlayerManager {
 
     // persist
     @Getter private WidgetSwitchManager switchManager;
+
+    // non-persist
+    @Getter private final WidgetEffectManager effectManager = new WidgetEffectManager();
 
     public WidgetModule(@NonNull Player player) {
         super(player);
