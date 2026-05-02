@@ -52,6 +52,7 @@ public final class DatabaseManager {
             .storeEmpties(true)
             .storeNulls(false)
             .codecProvider(new CodecProvider())
+            .mapSubPackages(true)
             .build();
 
         // Create data store.
@@ -68,6 +69,7 @@ public final class DatabaseManager {
                 .toArray(Class<?>[]::new);
 
         gameDatastore.getMapper().map(entities);
+        gameDatastore.getMapper().mapPackage("emu.grasscutter.game.modules");
 
         // Ensure indexes for the game datastore
         ensureIndexes(gameDatastore);
