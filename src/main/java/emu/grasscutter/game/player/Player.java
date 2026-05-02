@@ -1431,6 +1431,7 @@ public class Player {
         session.send(new PacketCodexDataFullNotify(this));
         session.send(new PacketAllWidgetDataNotify(this));
         session.send(new PacketWidgetGadgetAllDataNotify());
+        session.send(new PacketAnchorPointDataNotify(this));
         session.send(new PacketCoopDataNotify(this));
         session.send(new PacketMainCoopUpdateNotify(this.getCoopHandler().getCoopCards().values().stream().map(e -> e.getMainCoop().toProto()).toList())); //send it a second time
         session.send(new PacketCombineDataNotify(this.unlockedCombines));

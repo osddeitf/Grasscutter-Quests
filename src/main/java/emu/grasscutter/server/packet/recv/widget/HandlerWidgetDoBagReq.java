@@ -3,6 +3,7 @@ package emu.grasscutter.server.packet.recv.widget;
 import emu.grasscutter.game.entity.create_config.CreateGadgetEntityConfig;
 import emu.grasscutter.game.inventory.GameItem;
 import emu.grasscutter.game.modules.widget.WidgetModule;
+import emu.grasscutter.game.modules.widget.manager.WidgetAnchorPointManager;
 import emu.grasscutter.game.modules.widget.manager.WidgetCoolDownManager;
 import emu.grasscutter.game.modules.widget.manager.WidgetSpawnManager;
 import emu.grasscutter.net.packet.GrasscutterException;
@@ -63,6 +64,7 @@ public class HandlerWidgetDoBagReq extends TypedPacketPairHandler<WidgetDoBagReq
 
             var isUnhandled = false;
             switch (config.getType()) {
+                case ConfigWidgetToyAnchorPoint -> WidgetAnchorPointManager.spawnAnchorPoint(player, materialId);
                 case ConfigWidgetToyAdeptiAbode, ConfigWidgetFireworksLauncher -> {
                     Objects.requireNonNull(location);
                     WidgetSpawnManager.spawnGadgetEntity(player, materialId, op, gadget

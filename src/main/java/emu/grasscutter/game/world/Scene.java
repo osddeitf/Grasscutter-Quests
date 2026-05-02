@@ -24,6 +24,7 @@ import emu.grasscutter.game.entity.create_config.CreateEntityConfig;
 import emu.grasscutter.game.entity.create_config.CreateGadgetEntityConfig;
 import emu.grasscutter.game.entity.create_config.CreateMonsterEntityConfig;
 import emu.grasscutter.game.entity.gadget.content.GadgetWorktop;
+import emu.grasscutter.game.modules.widget.manager.WidgetAnchorPointManager;
 import emu.grasscutter.game.player.Player;
 import emu.grasscutter.game.player.TeamInfo;
 import emu.grasscutter.game.props.*;
@@ -223,6 +224,7 @@ public class Scene {
         player.visitScene(getId());
 
         setupPlayerAvatars(player);
+        WidgetAnchorPointManager.spawnSavedEntities(player);
 
         //update weathers
         player.updateWeather(this);
