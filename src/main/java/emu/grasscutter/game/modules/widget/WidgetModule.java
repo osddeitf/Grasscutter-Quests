@@ -18,6 +18,7 @@ public class WidgetModule extends BasePlayerManager {
 
     // persist
     @Getter private WidgetSwitchManager switchManager;
+    @Getter private WidgetBackgroundActiveManager backgroundActiveManager;
 
     // non-persist
     @Getter private final WidgetEffectManager effectManager = new WidgetEffectManager();
@@ -36,6 +37,7 @@ public class WidgetModule extends BasePlayerManager {
     public static void onLogin(@NonNull Player player) {
         var self = getInstance(player);
         self.switchManager = WidgetSwitchManager.loadFromDatabase(player);
+        self.backgroundActiveManager = WidgetBackgroundActiveManager.loadFromDatabase(player);
     }
 
     public static class WidgetConfigContainer {
