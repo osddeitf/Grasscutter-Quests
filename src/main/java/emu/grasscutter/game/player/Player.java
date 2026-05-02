@@ -51,6 +51,7 @@ import emu.grasscutter.game.managers.giving.GivingManager;
 import emu.grasscutter.game.managers.mapmark.MapMark;
 import emu.grasscutter.game.managers.mapmark.MapMarksManager;
 import emu.grasscutter.game.managers.stamina.StaminaManager;
+import emu.grasscutter.game.modules.widget.WidgetModule;
 import emu.grasscutter.game.props.ActionReason;
 import emu.grasscutter.game.props.ClimateType;
 import emu.grasscutter.game.props.PlayerProperty;
@@ -131,7 +132,6 @@ public class Player {
     @Getter @Setter private List<Integer> showNameCardList;
     @Getter private Map<Integer, Integer> properties;
     @Getter @Setter private int currentRealmId;
-    @Getter @Setter private int widgetId;
     @Getter @Setter private int sceneId;
     @Getter @Setter private int regionId;
     @Getter private int mainCharacterId;
@@ -196,6 +196,7 @@ public class Player {
     @Getter private transient DungeonEntryManager dungeonEntryManager;
     @Getter private transient GivingManager givingManager;
     @Getter private transient BargainManager bargainManager;
+    @Getter private transient WidgetModule widgetModule;
 
     @Getter private transient int lastWeatherAreaId = 0;
     @Getter @Setter private transient int weatherAreaId = 0;
@@ -366,6 +367,7 @@ public class Player {
         this.cookingCompoundManager=new CookingCompoundManager(this);
         this.blossomManager = new BlossomManager(this);
         this.dungeonEntryManager = new DungeonEntryManager(this);
+        this.widgetModule = new WidgetModule(this);
     }
 
     public PlayerDungeonExitInfo getDungeonExitInfo() {
@@ -1339,6 +1341,7 @@ public class Player {
         this.getTeamManager().setPlayer(this);
         this.getBlossomManager().setPlayer(this);
         this.getCoopHandler().setPlayer(this);
+        this.widgetModule = new WidgetModule(this);
     }
 
     public void save() {
@@ -1385,6 +1388,7 @@ public class Player {
         // Create world
         World world = new World(this);
         world.addPlayer(this);
+        WidgetModule.onLogin(this);
 
         // Multiplayer setting
         this.setProperty(PlayerProperty.PROP_PLAYER_MP_SETTING_TYPE, this.getMpSetting().ordinal(), false);

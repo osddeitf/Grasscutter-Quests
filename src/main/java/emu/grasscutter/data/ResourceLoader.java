@@ -23,6 +23,7 @@ import emu.grasscutter.game.dungeons.DungeonDrop;
 import emu.grasscutter.game.dungeons.dungeon_entry.DungeonEntries;
 import emu.grasscutter.game.dungeons.enums.DungeonType;
 import emu.grasscutter.game.managers.blossom.BlossomConfig;
+import emu.grasscutter.game.modules.widget.WidgetModule;
 import emu.grasscutter.game.quest.QuestEncryptionKey;
 import emu.grasscutter.game.quest.enums.QuestCond;
 import emu.grasscutter.game.quest.enums.QuestContent;
@@ -119,6 +120,8 @@ public class ResourceLoader {
         loadOpenConfig();
         loadAbilityModifiers();
         loadAbilityGroups();
+        // Load configs
+        loadWidgetConfig();
         // Load resources
         loadResources(true);
         // Process into depots
@@ -466,6 +469,23 @@ public class ResourceLoader {
                     GameData.getAbilityGroupMap().putAll(map);
                 } catch (Exception e) {
                     logger.error("Error loading ability groups at path: {}", path, e);
+                }
+            }
+        }
+        catch (IOException ex) {
+            logger.error("Error loading ability groups", ex);
+        }
+    }
+
+    private static void loadWidgetConfig() {
+        try (val stream = Files.newDirectoryStream(getResourcePath("BinOutput/WidgetNew/"), "*.json")) {
+            for (var path : stream) {
+                try {
+                    var container = JsonUtils.loadToClass(path, WidgetModule.WidgetConfigContainer.class);
+                    WidgetModule.getWidgetConfigMap().putAll(container.widgetConfigMap);
+                    WidgetModule.getWidgetCoolDownGroupMap().putAll(container.cdGroupConfigMap);
+                } catch (IOException e) {
+                    logger.error("Error loading ability groups at: {}", path, e);
                 }
             }
         }

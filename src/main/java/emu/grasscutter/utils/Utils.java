@@ -413,4 +413,12 @@ public final class Utils {
             output.add(input.substring(start));
         return output;
     }
+
+    public static boolean isNullOrEmpty(String str) {
+        return str == null || str.isEmpty();
+    }
+
+    public static boolean isNullOrEmpty(Collection<?> list) {
+        return list == null || list.isEmpty();
+    }
 }
