@@ -1,15 +1,16 @@
 package emu.grasscutter.server.packet.recv.widget;
 
-import emu.grasscutter.game.player.Player;
-import emu.grasscutter.net.packet.TypedPacketHandler;
+import emu.grasscutter.game.modules.widget.manager.WidgetSwitchManager;
+import emu.grasscutter.net.packet.TypedPacketPairHandler;
 import emu.grasscutter.server.game.GameSession;
-import emu.grasscutter.server.packet.send.widget.PacketGetWidgetSlotRsp;
 import org.anime_game_servers.multi_proto.gi.messages.item.widget.manage_slot.GetWidgetSlotReq;
+import org.anime_game_servers.multi_proto.gi.messages.item.widget.manage_slot.GetWidgetSlotRsp;
 
-public class HandlerGetWidgetSlotReq extends TypedPacketHandler<GetWidgetSlotReq> {
+public class HandlerGetWidgetSlotReq extends TypedPacketPairHandler<GetWidgetSlotReq, GetWidgetSlotRsp> {
 	@Override
-    public void handle(GameSession session, byte[] header, GetWidgetSlotReq req) throws Exception {
-		Player player = session.getPlayer();
-		session.send(new PacketGetWidgetSlotRsp(player));
+    public boolean handle(GameSession session, byte[] header, GetWidgetSlotReq req, GetWidgetSlotRsp rsp) {
+		var player = session.getPlayer();
+        rsp.setSlotList(WidgetSwitchManager.getSlotList(player));
+        return true;
 	}
 }

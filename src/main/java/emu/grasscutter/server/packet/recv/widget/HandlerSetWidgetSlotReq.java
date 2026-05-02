@@ -1,29 +1,38 @@
 package emu.grasscutter.server.packet.recv.widget;
 
-import emu.grasscutter.game.player.Player;
-import emu.grasscutter.net.packet.TypedPacketHandler;
+import emu.grasscutter.game.modules.widget.manager.WidgetSwitchManager;
+import emu.grasscutter.net.packet.GrasscutterException;
+import emu.grasscutter.net.packet.TypedPacketPairHandler;
 import emu.grasscutter.server.game.GameSession;
-import emu.grasscutter.server.packet.send.widget.PacketSetWidgetSlotRsp;
-import emu.grasscutter.server.packet.send.widget.PacketWidgetSlotChangeNotify;
 import org.anime_game_servers.multi_proto.gi.messages.item.widget.manage_slot.SetWidgetSlotReq;
+import org.anime_game_servers.multi_proto.gi.messages.item.widget.manage_slot.SetWidgetSlotRsp;
 import org.anime_game_servers.multi_proto.gi.messages.item.widget.manage_slot.WidgetSlotOp;
 
-public class HandlerSetWidgetSlotReq extends TypedPacketHandler<SetWidgetSlotReq> {
+public class HandlerSetWidgetSlotReq extends TypedPacketPairHandler<SetWidgetSlotReq, SetWidgetSlotRsp> {
     @Override
-    public void handle(GameSession session, byte[] header, SetWidgetSlotReq req) throws Exception {
-        Player player = session.getPlayer();
-        player.setWidgetId(req.getMaterialId());
-
-        // WidgetSlotChangeNotify op & slot key
-        session.send(new PacketWidgetSlotChangeNotify(WidgetSlotOp.WIDGET_SLOT_OP_DETACH));
-
-        //only attaching the widget can set it
-        if (req.getOp() == WidgetSlotOp.WIDGET_SLOT_OP_ATTACH) {
-            // WidgetSlotChangeNotify slot
-            session.send(new PacketWidgetSlotChangeNotify(req.getMaterialId()));
+    public boolean handle(GameSession session, byte[] header, SetWidgetSlotReq req, SetWidgetSlotRsp rsp) {
+        try {
+            this.run(session, header, req, rsp);
         }
+        catch (GrasscutterException ex) {
+            rsp.setRetcode(ex.logAndGetRetcode(req));
+        }
+        return true;
+    }
 
-        // SetWidgetSlotRsp
-        session.send(new PacketSetWidgetSlotRsp(req.getMaterialId()));
+    public void run(GameSession session, byte[] header, SetWidgetSlotReq req, SetWidgetSlotRsp rsp) throws GrasscutterException {
+        var player = session.getPlayer();
+        rsp.setOp(req.getOp());
+        rsp.setMaterialId(req.getMaterialId());
+        rsp.setTagList(req.getTagList());
+
+        var materialId = req.getMaterialId();
+        var isAttach = req.getOp() == WidgetSlotOp.WIDGET_SLOT_OP_ATTACH;
+        if (isAttach) {
+            WidgetSwitchManager.attachMaterial(player, materialId);
+        }
+        else {
+            WidgetSwitchManager.detachMaterial(player, materialId);
+        }
     }
 }

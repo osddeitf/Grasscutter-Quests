@@ -5,6 +5,7 @@ import emu.grasscutter.game.inventory.GameItem;
 import emu.grasscutter.game.inventory.Inventory;
 import emu.grasscutter.game.inventory.InventoryTab;
 import emu.grasscutter.game.inventory.ItemType;
+import emu.grasscutter.game.modules.widget.manager.WidgetSwitchManager;
 import emu.grasscutter.game.player.Player;
 import emu.grasscutter.net.packet.TypedPacketHandler;
 import emu.grasscutter.server.game.GameSession;
@@ -25,7 +26,7 @@ public class HandlerQuickUseWidgetReq extends TypedPacketHandler<QuickUseWidgetR
     public void handle(GameSession session, byte[] header, QuickUseWidgetReq req) throws Exception {
         Player pl = session.getPlayer();
         synchronized (pl) {
-            int materialId = pl.getWidgetId();
+            int materialId = WidgetSwitchManager.getMaterialId(pl);
             Inventory inventory = session.getPlayer().getInventory();
             InventoryTab inventoryTab = inventory.getInventoryTab(ItemType.ITEM_MATERIAL);
             GameItem item = inventoryTab.getItemById(materialId);
