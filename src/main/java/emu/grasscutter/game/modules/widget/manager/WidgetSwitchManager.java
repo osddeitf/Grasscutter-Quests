@@ -127,6 +127,7 @@ public class WidgetSwitchManager extends GameModuleData {
 
         // detach the associated effects
         WidgetEffectManager.deregisterEffect(player, materialId);
+        WidgetUseAttachAbilityGroupManager.deactivateEffect(player, materialId);
 
         // detach and notify
         for (var tag: slotTags) {

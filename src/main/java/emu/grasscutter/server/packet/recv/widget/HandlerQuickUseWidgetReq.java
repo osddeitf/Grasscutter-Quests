@@ -4,6 +4,7 @@ import emu.grasscutter.game.modules.widget.WidgetConfig;
 import emu.grasscutter.game.modules.widget.WidgetModule;
 import emu.grasscutter.game.modules.widget.manager.WidgetCoolDownManager;
 import emu.grasscutter.game.modules.widget.manager.WidgetSwitchManager;
+import emu.grasscutter.game.modules.widget.manager.WidgetUseAttachAbilityGroupManager;
 import emu.grasscutter.game.player.Player;
 import emu.grasscutter.net.packet.GrasscutterException;
 import emu.grasscutter.net.packet.TypedPacketPairHandler;
@@ -49,6 +50,9 @@ public class HandlerQuickUseWidgetReq extends TypedPacketPairHandler<QuickUseWid
     }
 
     private void handleUseWidget(@NonNull Player player, int materialId, @NonNull WidgetConfig config) throws GrasscutterException {
+        // attach widgets (no consuming)
+        if (WidgetUseAttachAbilityGroupManager.toggleEffect(player, materialId)) return;
+
         if (config.isConsumeMaterial() && !player.getInventory().hasItem(materialId, 1)) {
             throw new GrasscutterException("widget is depleted", Retcode.RET_ITEM_COUNT_NOT_ENOUGH);
             // TODO: actually consume the material

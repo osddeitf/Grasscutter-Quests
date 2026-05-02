@@ -22,6 +22,7 @@ public class WidgetModule extends BasePlayerManager {
     // non-persist
     @Getter private final WidgetEffectManager effectManager = new WidgetEffectManager();
     @Getter private final WidgetCoolDownManager coolDownManager = new WidgetCoolDownManager();
+    @Getter private final WidgetUseAttachAbilityGroupManager attachAbilityGroupManager = new WidgetUseAttachAbilityGroupManager();
 
     public WidgetModule(@NonNull Player player) {
         super(player);
