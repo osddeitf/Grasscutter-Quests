@@ -30,7 +30,6 @@ import emu.grasscutter.game.friends.FriendsList;
 import emu.grasscutter.game.friends.PlayerProfile;
 import emu.grasscutter.game.gacha.PlayerGachaInfo;
 import emu.grasscutter.game.home.GameHome;
-import emu.grasscutter.game.inventory.GameItem;
 import emu.grasscutter.game.inventory.Inventory;
 import emu.grasscutter.game.mail.Mail;
 import emu.grasscutter.game.mail.MailHandler;
@@ -51,7 +50,7 @@ import emu.grasscutter.game.managers.giving.GivingManager;
 import emu.grasscutter.game.managers.mapmark.MapMark;
 import emu.grasscutter.game.managers.mapmark.MapMarksManager;
 import emu.grasscutter.game.managers.stamina.StaminaManager;
-import emu.grasscutter.game.props.ActionReason;
+import emu.grasscutter.game.modules.shop.ShopModule;
 import emu.grasscutter.game.props.ClimateType;
 import emu.grasscutter.game.props.PlayerProperty;
 import emu.grasscutter.game.props.WatcherTriggerType;
@@ -70,7 +69,6 @@ import emu.grasscutter.server.game.GameServer;
 import emu.grasscutter.server.game.GameSession;
 import emu.grasscutter.server.game.GameSession.SessionState;
 import emu.grasscutter.server.packet.send.*;
-import emu.grasscutter.utils.DateHelper;
 import emu.grasscutter.utils.MessageHandler;
 import emu.grasscutter.utils.Position;
 import emu.grasscutter.utils.Utils;
@@ -196,6 +194,9 @@ public class Player {
     @Getter private transient GivingManager givingManager;
     @Getter private transient BargainManager bargainManager;
 
+    // modules
+    @Getter private transient ShopModule shopModule;
+
     @Getter private transient int lastWeatherAreaId = 0;
     @Getter @Setter private transient int weatherAreaId = 0;
 
@@ -213,11 +214,6 @@ public class Player {
     @Getter private ArrayList<ShopLimit> shopLimit;
 
     @Getter private transient GameHome home;
-
-    @Setter private boolean moonCard;  // Getter is inMoonCard
-    @Getter @Setter private Date moonCardStartTime;
-    @Getter @Setter private int moonCardDuration;
-    @Getter @Setter private Set<Date> moonCardGetTimes;
 
     transient @Getter private boolean paused;
     transient @Getter @Setter private int enterSceneToken;
@@ -307,7 +303,6 @@ public class Player {
 
         this.birthday = new PlayerBirthday();
         this.rewardedLevels = new HashSet<>();
-        this.moonCardGetTimes = new HashSet<>();
         this.codex = new PlayerCodex(this);
         this.progressManager = new PlayerProgressManager(this);
         this.shopLimit = new ArrayList<>();
@@ -365,6 +360,7 @@ public class Player {
         this.cookingCompoundManager=new CookingCompoundManager(this);
         this.blossomManager = new BlossomManager(this);
         this.dungeonEntryManager = new DungeonEntryManager(this);
+        this.shopModule = new ShopModule(this);
     }
 
     public PlayerDungeonExitInfo getDungeonExitInfo() {
@@ -737,64 +733,6 @@ public class Player {
 
     public boolean isInMultiplayer() {
         return this.getWorld() != null && this.getWorld().isMultiplayer();
-    }
-
-    public boolean inMoonCard() {
-        return moonCard;
-    }
-
-    public void addMoonCardDays(int days) {
-        this.moonCardDuration += days;
-    }
-
-    public int getMoonCardRemainDays() {
-        Calendar remainCalendar = Calendar.getInstance();
-        remainCalendar.setTime(moonCardStartTime);
-        remainCalendar.add(Calendar.DATE, moonCardDuration);
-        Date theLastDay = remainCalendar.getTime();
-        Date now = DateHelper.onlyYearMonthDay(new Date());
-        return (int) ((theLastDay.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)); // By copilot
-    }
-
-    public boolean rechargeMoonCard() {
-        if (this.moonCardDuration > 150) return false;  // Can only stack up to 180 days
-        inventory.addItem(new GameItem(203, 300));
-        if (!moonCard) {
-            moonCard = true;
-            Date now = new Date();
-            moonCardStartTime = DateHelper.onlyYearMonthDay(now);
-            moonCardDuration = 30;
-        } else {
-            moonCardDuration += 30;
-        }
-        if (!moonCardGetTimes.contains(moonCardStartTime)) {
-            moonCardGetTimes.add(moonCardStartTime);
-        }
-        return true;
-    }
-
-    public void getTodayMoonCard() {
-        if (!moonCard) {
-            return;
-        }
-        Date now = DateHelper.onlyYearMonthDay(new Date());
-        if (moonCardGetTimes.contains(now)) {
-            return;
-        }
-        Date stopTime = new Date();
-        Calendar stopCalendar = Calendar.getInstance();
-        stopCalendar.setTime(stopTime);
-        stopCalendar.add(Calendar.DATE, moonCardDuration);
-        stopTime = stopCalendar.getTime();
-        if (now.after(stopTime)) {
-            moonCard = false;
-            return;
-        }
-        moonCardGetTimes.add(now);
-        addMoonCardDays(1);
-        GameItem item = new GameItem(201, 90);
-        getInventory().addItem(item, ActionReason.BlessingRedeemReward);
-        session.send(new PacketCardProductRewardNotify(getMoonCardRemainDays()));
     }
 
     public void addExpeditionInfo(long avatarGuid, int expId, int hourTime, int startTime) {
@@ -1338,6 +1276,7 @@ public class Player {
         this.getTeamManager().setPlayer(this);
         this.getBlossomManager().setPlayer(this);
         this.getCoopHandler().setPlayer(this);
+        this.shopModule = new ShopModule(this); // TODO: this may not be ideal
     }
 
     public void save() {
@@ -1384,6 +1323,7 @@ public class Player {
         // Create world
         World world = new World(this);
         world.addPlayer(this);
+        ShopModule.onLogin(this);
 
         // Multiplayer setting
         this.setProperty(PlayerProperty.PROP_PLAYER_MP_SETTING_TYPE, this.getMpSetting().ordinal(), false);
@@ -1440,8 +1380,6 @@ public class Player {
         this.cookingCompoundManager.onPlayerLogin();
         this.dailyTaskManager.onPlayerLogin();
         this.teamManager.onPlayerLogin();
-
-        getTodayMoonCard(); // The timer works at 0:0, some users log in after that, use this method to check if they have received a reward today or not. If not, send the reward.
 
         // Battle Pass trigger
         this.getBattlePassManager().triggerMission(WatcherTriggerType.TRIGGER_LOGIN);

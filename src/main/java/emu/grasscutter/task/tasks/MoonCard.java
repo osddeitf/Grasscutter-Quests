@@ -1,6 +1,7 @@
 package emu.grasscutter.task.tasks;
 
 import emu.grasscutter.Grasscutter;
+import emu.grasscutter.game.modules.shop.MoonCardManager;
 import emu.grasscutter.task.Task;
 import emu.grasscutter.task.TaskHandler;
 
@@ -25,9 +26,7 @@ public final class MoonCard extends TaskHandler {
     public synchronized void execute(JobExecutionContext context) throws JobExecutionException {
         Grasscutter.getGameServer().getPlayers().forEach((uid, player) -> {
             if (player.isOnline()) {
-                if (player.inMoonCard()) {
-                    player.getTodayMoonCard();
-                }
+                MoonCardManager.getInstance(player).getTodayMoonCard();
             }
         });
     }
