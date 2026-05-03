@@ -17,6 +17,11 @@ public class WidgetBackgroundActiveManager extends GameModuleData {
     @Getter private Set<Integer> activeMaterials;
     private transient Player player;
 
+    // morphia-only
+    private WidgetBackgroundActiveManager() {
+        super(0);
+    }
+
     public WidgetBackgroundActiveManager(@NonNull Player player) {
         super(player.getUid());
         this.player = player;
