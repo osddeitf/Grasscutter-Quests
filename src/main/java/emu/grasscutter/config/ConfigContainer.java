@@ -148,9 +148,10 @@ public class ConfigContainer {
         /* This is the port used in the default region. */
         public int accessPort = 0;
 
-        /* Entities within a certain range will be loaded for the player */
-
         public String timeZone = "Asia/Shanghai";
+        public String timeDailyReset = "04:00";
+
+        /* Entities within a certain range will be loaded for the player */
         public int loadEntitiesForPlayerRange = 300;
         public boolean enableScriptInBigWorld = true;
         public boolean useJNLua=false;
