@@ -1,6 +1,5 @@
 package emu.grasscutter.game.props;
 
-import emu.grasscutter.Grasscutter;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import lombok.AllArgsConstructor;
@@ -9,6 +8,8 @@ import lombok.Getter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Stream;
+
+import static emu.grasscutter.config.Configuration.GAME_INFO;
 
 /**
  * This comes from [ProtEntityType].
@@ -48,7 +49,8 @@ public enum EntityIdType {
         });
     }
 
-    private static final int BIT_OFFSET = Grasscutter.getConfig().server.game.gameOptions.useShortenedEntityId? 22: 24;
+//    private static final int BIT_OFFSET = GAME_INFO.compatOptions.useShortenedEntityId? 22: 24;
+    private static final int BIT_OFFSET = GAME_INFO.compatOptions.useShortenedEntityId? 21: 24; // hardcode for 6.5
 
     public static EntityIdType fromEntityId(int id) {
         return map.getOrDefault(id >> BIT_OFFSET, NONE);
