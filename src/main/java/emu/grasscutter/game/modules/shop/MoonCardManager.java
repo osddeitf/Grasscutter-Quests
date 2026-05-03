@@ -10,6 +10,7 @@ import emu.grasscutter.game.player.Player;
 import emu.grasscutter.game.props.ActionReason;
 import emu.grasscutter.server.packet.send.PacketCardProductRewardNotify;
 import lombok.NonNull;
+import org.anime_game_servers.multi_proto.gi.messages.shop.ShopCardProduct;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -19,7 +20,9 @@ import java.util.LinkedList;
 public class MoonCardManager extends GameModuleData {
 
     // Hard code Product id keep cool 😎
-    public static final String MOON_CARD_PRODUCT_ID = "ys_chn_blessofmoon_tier5";
+//    public static final String MOON_CARD_PRODUCT_ID = "ys_chn_blessofmoon_tier5";
+    public static final String MOON_CARD_PRODUCT_ID = "ys_glb_blessofmoon_tier5";
+    public static final String MOON_CARD_PRODUCT_TIER = "Tier5";
     private static final int ITEM_GENESIS_CRYSTAL = 203;
     private static final int ITEM_GENESIS_CRYSTAL_AMOUNT = 300;
     private static final int ITEM_PRIMO_GEM = 201;
@@ -93,6 +96,18 @@ public class MoonCardManager extends GameModuleData {
 
         // persist changes
         saveToDatabase();
+    }
+
+    public ShopCardProduct getMoonCardProduct() {
+        var proto = new ShopCardProduct();
+        proto.setProductId(MOON_CARD_PRODUCT_ID);
+        proto.setPriceTier(MOON_CARD_PRODUCT_TIER);
+        proto.setMcoinBase(ITEM_GENESIS_CRYSTAL_AMOUNT);
+        proto.setHcoinPerDay(ITEM_PRIMO_GEM_AMOUNT);
+        proto.setDays(MOON_CARD_ADD_DURATION);
+        proto.setRemainRewardDays(getMoonCardRemainDays());
+        proto.setCardProductType(CardProductType.CARD_PRODUCT_TYPE_HCOIN.getValue());
+        return proto;
     }
 
     public static MoonCardManager loadFromDatabase(@NonNull Player player) {
