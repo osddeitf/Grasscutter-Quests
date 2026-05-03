@@ -115,6 +115,7 @@ public class Player {
     @Indexed(options = @IndexOptions(unique = true)) private String accountId;
     @Setter private transient Account account;
     @Getter @Setter private transient GameSession session;
+    private transient long startWorldTime;
 
     @Getter private String nickname;
     @Getter private String signature;
@@ -411,6 +412,7 @@ public class Player {
 
     public synchronized void setWorld(World world) {
         this.world = world;
+        this.startWorldTime = world.getWorldTime();
     }
 
     public synchronized Scene getScene() {
@@ -710,6 +712,11 @@ public class Player {
         return session.getClientTime();
     }
 
+    public long getPlayerTime() {
+        // TODO: instead, this is probably the total time player's spent in-game
+        return this.world.getWorldTime() - this.startWorldTime;
+    }
+
     public long getLastPingTime() {
         return session.getLastPingTime();
     }
@@ -723,6 +730,7 @@ public class Player {
         } else if (oldPauseState && !newPauseState) {
             this.onUnpause();
         }
+        sendPacket(new PacketPlayerTimeNotify(this));
     }
 
     public boolean isInMultiplayer() {

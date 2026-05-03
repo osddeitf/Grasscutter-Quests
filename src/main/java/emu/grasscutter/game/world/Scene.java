@@ -499,10 +499,6 @@ public class Scene {
         finishLoading();
         checkPlayerRespawn();
         this.getSealBattleManager().onTick();
-
-        if (this.tickCount % 10 == 0) {
-            broadcastPacket(new PacketSceneTimeNotify(this));
-        }
         this.tickCount++;
     }
 

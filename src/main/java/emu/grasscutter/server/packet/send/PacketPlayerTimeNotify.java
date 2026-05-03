@@ -9,7 +9,7 @@ public class PacketPlayerTimeNotify extends BaseTypedPacket<PlayerTimeNotify> {
 	public PacketPlayerTimeNotify(Player player) {
         super(new PlayerTimeNotify());
         proto.setPaused(player.isPaused());
-        proto.setPlayerTime(player.getClientTime());
+        proto.setPlayerTime(player.getPlayerTime());
         proto.setServerTime(System.currentTimeMillis());
 	}
 }
