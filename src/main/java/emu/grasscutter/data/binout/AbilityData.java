@@ -19,7 +19,7 @@ public class AbilityData {
     public AbilityModifierAction[] onAbilityStart;
     public AbilityModifierAction[] onKill;
     public AbilityModifierAction[] onFieldEnter;
-    public AbilityModifierAction[] onExit;
+    public AbilityModifierAction[] onFieldExit;
     public AbilityModifierAction[] onAttach;
     public AbilityModifierAction[] onDetach;
     public AbilityModifierAction[] onAvatarIn;
@@ -59,7 +59,7 @@ public class AbilityData {
         generator.ConfigIndex++;
         generator.InitializeActionLocalIds(onFieldEnter, localIdToAction);
         generator.ConfigIndex++;
-        generator.InitializeActionLocalIds(onExit, localIdToAction);
+        generator.InitializeActionLocalIds(onFieldExit, localIdToAction);
         generator.ConfigIndex++;
         generator.InitializeActionLocalIds(onAttach, localIdToAction);
         generator.ConfigIndex++;
