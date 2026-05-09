@@ -5,7 +5,6 @@ import emu.grasscutter.Loggers;
 import emu.grasscutter.data.GameData;
 import emu.grasscutter.data.common.DynamicFloat;
 import emu.grasscutter.data.binout.AbilityData;
-import emu.grasscutter.data.binout.AbilityGroup;
 import emu.grasscutter.data.binout.AbilityMixinData;
 import emu.grasscutter.data.binout.AbilityModifier;
 import emu.grasscutter.data.binout.AbilityModifier.AbilityModifierAction;
@@ -36,9 +35,7 @@ import org.slf4j.Logger;
 import javax.annotation.Nullable;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -46,9 +43,6 @@ import java.util.concurrent.TimeUnit;
 
 
 public final class AbilityManager extends BasePlayerManager {
-
-    // Temporary abilities, e.g. the abilities added by activating gadgets. TODO: this might not be a good place to put them
-    @Getter private final Set<AbilityGroup> dynamicAbilityGroups = new HashSet<>();
 
     @Getter
     private static final Logger logger = Loggers.getAbilitySystem();

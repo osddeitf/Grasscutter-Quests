@@ -109,7 +109,7 @@ public class AvatarAbilityManager extends BaseAbilityManager {
     }
 
     public void updateDynamicAbilities() {
-        updateAbilityEmbryos(AbilityType.DYNAMIC, avatar.getPlayer().getAbilityManager().getDynamicAbilityGroups().stream()
+        updateAbilityEmbryos(AbilityType.DYNAMIC, avatar.getPlayer().getAbilityGroupManager().activeGroups()
             .flatMap(group -> group.getAvatarAbilities().stream())
             .mapToInt(Integer::intValue)
         );

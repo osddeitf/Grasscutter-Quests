@@ -38,7 +38,7 @@ public class TeamAbilityManager extends BaseAbilityManager {
     }
 
     public void updateDynamicAbilities() {
-        updateAbilityEmbryos(AbilityType.DYNAMIC, team.getPlayer().getAbilityManager().getDynamicAbilityGroups().stream()
+        updateAbilityEmbryos(AbilityType.DYNAMIC, team.getPlayer().getAbilityGroupManager().activeGroups()
             .flatMap(group -> group.getTeamAbilities().stream())
             .mapToInt(Integer::intValue)
         );

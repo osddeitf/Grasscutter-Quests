@@ -12,6 +12,7 @@ import emu.grasscutter.data.excels.WeatherData;
 import emu.grasscutter.database.DatabaseHelper;
 import emu.grasscutter.game.Account;
 import emu.grasscutter.game.CoopRequest;
+import emu.grasscutter.game.ability.AbilityGroupManager;
 import emu.grasscutter.game.ability.AbilityManager;
 import emu.grasscutter.game.activity.ActivityManager;
 import emu.grasscutter.game.avatar.Avatar;
@@ -173,6 +174,7 @@ public class Player {
     @Getter private transient MailHandler mailHandler;
     @Getter @Setter private transient MessageHandler messageHandler;
     @Getter private transient AbilityManager abilityManager;
+    @Getter private transient AbilityGroupManager abilityGroupManager;
     @Getter @Setter private transient QuestManager questManager;
     @Getter private DailyTaskManager dailyTaskManager;
     @Getter private transient TowerManager towerManager;
@@ -253,6 +255,7 @@ public class Player {
         this.mailHandler = new MailHandler(this);
         this.towerManager = new TowerManager(this);
         this.abilityManager = new AbilityManager(this);
+        this.abilityGroupManager = new AbilityGroupManager(this);
         this.deforestationManager = new DeforestationManager(this);
         this.questManager = new QuestManager(this);
         this.dailyTaskManager = new DailyTaskManager(this);
