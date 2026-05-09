@@ -368,23 +368,18 @@ public final class AbilityManager extends BasePlayerManager {
                 var targetEntity = this.player.getScene().getEntityById(head.getTargetId());
                 if(targetEntity != null) {
                     instancedAbility = targetEntity.getInstancedAbilities().get(head.getInstancedAbilityId());
-                    if(instancedAbility != null) instancedAbilityData = instancedAbility.getData();
                 }
             }
-
-            if(instancedAbilityData == null) {
-                //search on entity base id
-                if(entity != null) {
+            else {
+                // search on entity
                     instancedAbility = entity.getInstancedAbilities().get(head.getInstancedAbilityId());
-                    if(instancedAbility != null) instancedAbilityData = instancedAbility.getData();
-                }
             }
 
-            if(instancedAbilityData == null) {
-                //Search for the parent ability
-
-                //TODO: Research about hash
-
+            if (instancedAbility != null) {
+                instancedAbilityData = instancedAbility.getData();
+                }
+            else {
+                //Search for the parent ability. TODO: instancedAbility should not be null
                 val abilityName = modChange.getParentAbilityName();
                 if(abilityName != null) {
                     instancedAbilityData = GameData.getAbilityData(getAbilityName(abilityName));
@@ -396,13 +391,13 @@ public final class AbilityManager extends BasePlayerManager {
                 return; //TODO: Display error message
             }
 
-            var modifierArray = instancedAbilityData.modifiers.values().toArray();
-            if(modChange.getModifierLocalId() >= modifierArray.length)
+            var modifiers = instancedAbilityData.modifierList;
+            if(modChange.getModifierLocalId() >= modifiers.size())
             {
                 logger.info("handleModifierChange modifier local id {} not found", modChange.getModifierLocalId());
                 return;
             }
-            var modifierData = (AbilityModifier)modifierArray[modChange.getModifierLocalId()];
+            var modifierData = modifiers.get(modChange.getModifierLocalId());
             if(entity.getInstancedModifiers().containsKey(head.getInstancedModifierId())) {
                 logger.debug("Replacing entity {} modifier id {} with ability {} modifier {}", invoke.getEntityId(), head.getInstancedModifierId(), instancedAbilityData.abilityName, modifierData);
             } else {

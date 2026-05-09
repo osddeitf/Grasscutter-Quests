@@ -1,9 +1,9 @@
 package emu.grasscutter.data.binout;
 
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import emu.grasscutter.data.binout.AbilityModifier.AbilityModifierAction;
 import emu.grasscutter.game.ability.AbilityLocalIdGenerator;
@@ -30,8 +30,10 @@ public class AbilityData {
     // abilityMixins
     public AbilityMixinData[] abilityMixins;
 
+    // computed
     public final Map<Integer, AbilityModifierAction> localIdToAction = new HashMap<>();
     public final Map<Integer, AbilityMixinData> localIdToMixin = new HashMap<>();
+    public final List<AbilityModifier> modifierList = new LinkedList<>();
 
     private boolean _initialized = false;
     public void initialize() {
@@ -87,12 +89,14 @@ public class AbilityData {
     private void initializeModifiers() {
         if(modifiers == null) return;
 
-        List<AbilityModifier> _modifiers = modifiers.entrySet().stream()
-        .sorted(Map.Entry.comparingByKey()).map(entry -> entry.getValue()).collect(Collectors.toList());
-        long modifierIndex = 0;
-        for(int i = 0; i < _modifiers.size(); i++) {
+        var names = modifiers.keySet().stream().sorted().toList();
+        int modifierIndex = 0;
+        for(var modifierName: names) {
+            // Init the modifierList (sorted by name)
+            var modifier = modifiers.get(modifierName);
+            modifierList.add(modifier);
+
             long configIndex = 0L;
-            var modifier = _modifiers.get(i);
             initializeActionSubCategory(modifierIndex, configIndex++, modifier.onAdded, localIdToAction);
             initializeActionSubCategory(modifierIndex, configIndex++, modifier.onRemoved, localIdToAction);
             initializeActionSubCategory(modifierIndex, configIndex++, modifier.onBeingHit, localIdToAction);
