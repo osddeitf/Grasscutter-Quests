@@ -19,6 +19,7 @@ import io.netty.util.concurrent.FastThreadLocalThread;
 import lombok.Getter;
 import lombok.val;
 import org.anime_game_servers.multi_proto.gi.messages.ability.AbilityInvokeEntry;
+import org.anime_game_servers.multi_proto.gi.messages.ability.AbilityInvokeEntryHead;
 import org.anime_game_servers.multi_proto.gi.messages.ability.ModifierAction;
 import org.anime_game_servers.multi_proto.gi.messages.ability.meta.AbilityMetaAddAbility;
 import org.anime_game_servers.multi_proto.gi.messages.ability.meta.AbilityMetaModifierChange;
@@ -152,6 +153,7 @@ public final class AbilityManager extends BasePlayerManager {
             case ABILITY_META_GLOBAL_FLOAT_VALUE -> this.handleGlobalFloatValue(invoke);
             case ABILITY_META_MODIFIER_DURABILITY_CHANGE -> this.handleModifierDurabilityChange(invoke);
             case ABILITY_META_ADD_NEW_ABILITY -> this.handleAddNewAbility(invoke);
+            case ABILITY_META_REMOVE_ABILITY -> this.handleRemoveAbility(invoke);
             case ABILITY_META_TRIGGER_ELEMENT_REACTION -> this.handleTriggerElementReaction(invoke);
             default -> {}
         }
@@ -506,9 +508,20 @@ public final class AbilityManager extends BasePlayerManager {
             return;
         }
 
-        entity.getInstancedAbilities().add(new Ability(ability, entity, player));
+        entity.getInstancedAbilities().computeIfAbsent(
+            addAbility.getAbility().getInstancedAbilityId(),
+            (id) -> new Ability(ability, entity, player)
+        );
 
         logger.debug("Ability added to entity {} at index {}", entity.getId(), entity.getInstancedAbilities().size());
+    }
+
+    private void handleRemoveAbility(AbilityInvokeEntry invoke) {
+        var entity = this.player.getScene().getEntityById(invoke.getEntityId());
+        if (entity == null) return;
+        Optional.ofNullable(invoke.getHead())
+            .map(AbilityInvokeEntryHead::getInstancedAbilityId)
+            .ifPresent(id -> entity.getInstancedAbilities().remove((int)id));
     }
 
     /**
@@ -528,15 +541,10 @@ public final class AbilityManager extends BasePlayerManager {
             .ifPresent(sceneChallenge -> sceneChallenge.onElementReaction(targetEntity, reactionType));
     }
 
-    public void addAbilityToEntity(GameEntity entity, String name) {
-        AbilityData data = GameData.getAbilityData(name);
-        if(data != null)
-            addAbilityToEntity(entity, data);
-    }
-
     public void addAbilityToEntity(GameEntity entity, AbilityData abilityData) {
-        Ability ability = new Ability(abilityData, entity, this.player);
-        entity.getInstancedAbilities().add(ability); //This are in order
+        var ability = new Ability(abilityData, entity, this.player);
+        var id = entity.getInstancedAbilities().size();
+        entity.getInstancedAbilities().putIfAbsent(id, ability); //This are in order
     }
 }
 

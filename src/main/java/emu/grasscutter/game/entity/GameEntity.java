@@ -51,7 +51,7 @@ public abstract class GameEntity<T extends CreateEntityConfig<?>> {
     @Getter @Setter private EntityController entityController;
     @Getter private ElementType lastAttackType = ElementType.None;
 
-    @Getter private List<Ability> instancedAbilities = new ArrayList<>();
+    @Getter private Int2ObjectMap<Ability> instancedAbilities = new Int2ObjectOpenHashMap<>();
     @Getter private Int2ObjectMap<AbilityModifierController> instancedModifiers = new Int2ObjectOpenHashMap<>();
     @Getter private Map<String, Float> globalAbilityValues = new HashMap<>();
     @Getter private Set<String> entityTags = new HashSet<>();
