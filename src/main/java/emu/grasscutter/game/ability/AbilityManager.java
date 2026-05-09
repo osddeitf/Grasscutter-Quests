@@ -162,25 +162,25 @@ public final class AbilityManager extends BasePlayerManager {
     public void handleServerInvoke(AbilityInvokeEntry invoke) {
         var head = invoke.getHead();
 
-        var entity = this.player.getScene().getEntityById(invoke.getEntityId());
+        var entity = head != null && head.getTargetId() != 0
+            ? this.player.getScene().getEntityById(head.getTargetId())
+            : this.player.getScene().getEntityById(invoke.getEntityId());
+
         if(entity == null) {
             logger.info("handleServerInvoke entity not found: {}", invoke.getEntityId());
             return;
         }
 
-        var target = this.player.getScene().getEntityById(head.getTargetId());
-        if(target == null) target = entity;
-
         Ability ability = null;
 
-        //Seems that target is used, but need to be sure, TODO: Research
-
         //Find ability or modifier's ability
-        if(head.getInstancedModifierId() != 0 && entity.getInstancedModifiers().containsKey(head.getInstancedModifierId())) {
-            ability = entity.getInstancedModifiers().get(head.getInstancedModifierId()).getAbility();
+        if (head.getInstancedModifierId() != 0) {
+            var modifier = entity.getInstancedModifiers().get(head.getInstancedModifierId());
+            if (modifier != null) {
+                ability = modifier.getAbility();
         }
-
-        if(ability == null && head.getInstancedAbilityId() != 0) {
+        }
+        else if (head.getInstancedAbilityId() != 0) {
             ability = entity.getInstancedAbilities().get(head.getInstancedAbilityId());
         }
 
@@ -194,7 +194,7 @@ public final class AbilityManager extends BasePlayerManager {
         if(action != null) {
             //Executing action
 
-            executeAction(ability, action, invoke.getAbilityData(), target);
+            executeAction(ability, action, invoke.getAbilityData(), entity);
 
             return;
         } else {
