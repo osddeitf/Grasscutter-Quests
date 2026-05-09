@@ -179,7 +179,7 @@ public final class AbilityManager extends BasePlayerManager {
             var modifier = entity.getInstancedModifiers().get(head.getInstancedModifierId());
             if (modifier != null) {
                 ability = modifier.getAbility();
-        }
+            }
         }
         else if (head.getInstancedAbilityId() != 0) {
             ability = entity.getInstancedAbilities().get(head.getInstancedAbilityId());
