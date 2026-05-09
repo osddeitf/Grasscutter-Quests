@@ -38,11 +38,8 @@ public class EntityRegion extends GameEntity<CreateRegionEntityConfig> {
     }
 
     public void addEntity(GameEntity<?> entity) {
-        if (this.entities.contains(entity)) {
-            return;
-        }
-        this.entities.add(entity);
-        if (this.notContainEntities.remove(entity)) {
+        if (this.entities.add(entity)) {
+            this.notContainEntities.remove(entity);
             this.newEntities.add(entity);
             this.hasNewEntities = true;
         }
