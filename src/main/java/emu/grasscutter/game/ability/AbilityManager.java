@@ -31,6 +31,7 @@ import org.anime_game_servers.multi_proto.gi.messages.general.ability.AbilityStr
 import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
@@ -531,15 +532,15 @@ public final class AbilityManager extends BasePlayerManager {
             .ifPresent(sceneChallenge -> sceneChallenge.onElementReaction(targetEntity, reactionType));
     }
 
-    /**
-     * This adds ability to entity 1-indexed
-     * @param entity an entity with static ability (i.e. not Avatar or Team)
-     * @param abilityData resolved ability data
-     */
-    public void addAbilityToEntity(GameEntity entity, AbilityData abilityData) {
-        var ability = new Ability(abilityData, entity, this.player);
-        var id = entity.getInstancedAbilities().size();
-        entity.getInstancedAbilities().putIfAbsent(id + 1, ability);
+    public void initEntityAbilities(GameEntity<?> entity, Collection<String> abilityNames) {
+        int id = 0;
+        for (var abilityName : abilityNames) {
+            ++id;
+            var abilityData = GameData.getAbilityData(abilityName);
+            if (abilityData == null) continue;  // skip missing. TODO: logging
+            var ability = new Ability(abilityData, entity, this.player);
+            entity.getInstancedAbilities().put(id, ability);
+        }
     }
 }
 
