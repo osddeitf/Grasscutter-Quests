@@ -373,12 +373,12 @@ public final class AbilityManager extends BasePlayerManager {
             }
             else {
                 // search on entity
-                    instancedAbility = entity.getInstancedAbilities().get(head.getInstancedAbilityId());
+                instancedAbility = entity.getInstancedAbilities().get(head.getInstancedAbilityId());
             }
 
             if (instancedAbility != null) {
                 instancedAbilityData = instancedAbility.getData();
-                }
+            }
             else {
                 //Search for the parent ability. TODO: instancedAbility should not be null
                 val abilityName = modChange.getParentAbilityName();
