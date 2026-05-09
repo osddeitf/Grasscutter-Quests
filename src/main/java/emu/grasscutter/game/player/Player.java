@@ -74,6 +74,8 @@ import emu.grasscutter.utils.DateHelper;
 import emu.grasscutter.utils.MessageHandler;
 import emu.grasscutter.utils.Position;
 import emu.grasscutter.utils.Utils;
+import it.unimi.dsi.fastutil.ints.Int2IntMap;
+import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import lombok.Getter;
@@ -175,6 +177,7 @@ public class Player {
     @Getter @Setter private transient MessageHandler messageHandler;
     @Getter private transient AbilityManager abilityManager;
     @Getter private transient AbilityGroupManager abilityGroupManager;
+    @Getter private final transient Int2IntMap regionAbilitySources = new Int2IntOpenHashMap();
     @Getter @Setter private transient QuestManager questManager;
     @Getter private DailyTaskManager dailyTaskManager;
     @Getter private transient TowerManager towerManager;

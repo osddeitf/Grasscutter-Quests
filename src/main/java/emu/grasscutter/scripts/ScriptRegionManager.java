@@ -1,10 +1,12 @@
 package emu.grasscutter.scripts;
 
+import emu.grasscutter.Grasscutter;
 import emu.grasscutter.Loggers;
 import emu.grasscutter.game.entity.EntityAvatar;
 import emu.grasscutter.game.entity.EntityRegion;
 import emu.grasscutter.game.entity.GameEntity;
 import emu.grasscutter.game.entity.create_config.CreateRegionEntityConfig;
+import emu.grasscutter.game.player.Player;
 import emu.grasscutter.game.props.EntityType;
 import emu.grasscutter.game.quest.enums.QuestCond;
 import emu.grasscutter.game.world.Scene;
@@ -53,7 +55,13 @@ public class ScriptRegionManager {
         var instance = regions.values().stream()
             .filter(r -> r.getConfigId() == region.getConfigId() && r.getGroupId() == region.getGroupId())
             .findFirst();
-        instance.ifPresent(entityRegion -> regions.remove(entityRegion.getId()));
+        instance.ifPresent(entityRegion -> {
+            entityRegion.getEntities().stream()
+                .filter(e -> e instanceof EntityAvatar)
+                .map(e -> ((EntityAvatar) e).getPlayer())
+                .forEach(player -> detachRegionAbilities(entityRegion, player));
+            regions.remove(entityRegion.getId());
+        });
     }
 
     public void checkRegions() {
@@ -90,8 +98,33 @@ public class ScriptRegionManager {
             .setSourceEntityId(region.getId())
             .setTargetEntityId(entity.getId())
         );
-        if (eventType == EventType.EVENT_ENTER_REGION && entity instanceof EntityAvatar avatar) {
-            avatar.getPlayer().getQuestManager().queueEvent(QuestCond.QUEST_COND_PLAYER_ENTER_REGION, region.getGroupId(), region.getConfigId());
+        if (entity instanceof EntityAvatar avatar) {
+            if (eventType == EventType.EVENT_ENTER_REGION) {
+                avatar.getPlayer().getQuestManager().queueEvent(QuestCond.QUEST_COND_PLAYER_ENTER_REGION, region.getGroupId(), region.getConfigId());
+                attachRegionAbilities(region, avatar.getPlayer());
+            } else if (eventType == EventType.EVENT_LEAVE_REGION) {
+                detachRegionAbilities(region, avatar.getPlayer());
+            }
         }
+    }
+
+    private void attachRegionAbilities(EntityRegion region, Player player) {
+        var groups = region.getAbilityGroups();
+        var name = "Region(groupId=" + region.getGroupId() + ", configId=" + region.getConfigId() + ")";
+        Grasscutter.getLogger().debug("Enter region: {}", name);
+        if (groups.isEmpty()) return;
+        var mgr = player.getAbilityGroupManager();
+        int sourceId = mgr.registerByNames(name, groups);
+        player.getRegionAbilitySources().put(region.getId(), sourceId);
+        mgr.commit();
+    }
+
+    private void detachRegionAbilities(EntityRegion region, Player player) {
+        var sources = player.getRegionAbilitySources();
+        if (!sources.containsKey(region.getId())) return;
+        int sourceId = sources.remove(region.getId());
+        var mgr = player.getAbilityGroupManager();
+        mgr.unregister(sourceId);
+        mgr.commit();
     }
 }

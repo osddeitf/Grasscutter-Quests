@@ -11,6 +11,8 @@ import org.anime_game_servers.core.gi.models.Vector;
 import org.anime_game_servers.multi_proto.gi.messages.scene.entity.SceneEntityInfo;
 import org.anime_game_servers.gi_lua.models.scene.group.SceneRegion;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -87,6 +89,15 @@ public class EntityRegion extends GameEntity<CreateRegionEntityConfig> {
             return region.contains(position);
         }
         return false;
+    }
+
+    public List<String> getAbilityGroups() {
+        val initialDataSource = getSpawnConfig().getInitDataSource();
+        if (initialDataSource instanceof SceneRegion region) {
+            val list = region.getAbilityGroupList();
+            if (list != null) return list;
+        }
+        return Collections.emptyList();
     }
 
     @Override public Int2FloatMap getFightProperties() {return null;}
