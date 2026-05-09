@@ -180,8 +180,8 @@ public final class AbilityManager extends BasePlayerManager {
             ability = entity.getInstancedModifiers().get(head.getInstancedModifierId()).getAbility();
         }
 
-        if(ability == null && head.getInstancedAbilityId() != 0 && (head.getInstancedAbilityId() - 1) < entity.getInstancedAbilities().size()) {
-            ability = entity.getInstancedAbilities().get(head.getInstancedAbilityId() - 1);
+        if(ability == null && head.getInstancedAbilityId() != 0) {
+            ability = entity.getInstancedAbilities().get(head.getInstancedAbilityId());
         }
 
         if(ability == null) {
@@ -307,15 +307,14 @@ public final class AbilityManager extends BasePlayerManager {
             return;
         }
 
-        var instancedAbilityIndex = head.getInstancedAbilityId() - 1;
-        if(instancedAbilityIndex >= entity.getInstancedAbilities().size()) {
+        var ability = entity.getInstancedAbilities().get(head.getInstancedAbilityId());
+        if(ability == null) {
             logger.error("handleOverrideParam ability not found {}", head.getInstancedAbilityId());
             return;
         }
 
         var valueChange = AbilityScalarValueEntry.parseBy(invoke.getAbilityData(), player.getSession().getVersion());
 
-        var ability = entity.getInstancedAbilities().get(instancedAbilityIndex);
         setAbilityOverrideValue(ability, valueChange);
     }
 
@@ -328,13 +327,12 @@ public final class AbilityManager extends BasePlayerManager {
             return;
         }
 
-        var instancedAbilityIndex = head.getInstancedAbilityId() - 1;
-        if(instancedAbilityIndex >= entity.getInstancedAbilities().size()) {
+        var ability = entity.getInstancedAbilities().get(head.getInstancedAbilityId());
+        if(ability == null) {
             logger.error("handleReinitOverrideMap ability not found {}", head.getInstancedAbilityId());
             return;
         }
 
-        var ability = entity.getInstancedAbilities().get(instancedAbilityIndex);
         var valueChanges = AbilityMetaReInitOverrideMap.parseBy(invoke.getAbilityData(), player.getSession().getVersion());
         for (var variableChange : valueChanges.getOverrideMap()) {
             setAbilityOverrideValue(ability, variableChange);
@@ -369,20 +367,16 @@ public final class AbilityManager extends BasePlayerManager {
                 //Get ability from target entity
                 var targetEntity = this.player.getScene().getEntityById(head.getTargetId());
                 if(targetEntity != null) {
-                    if((head.getInstancedAbilityId() - 1) < targetEntity.getInstancedAbilities().size()) {
-                        instancedAbility = targetEntity.getInstancedAbilities().get(head.getInstancedAbilityId() - 1);
-                        if(instancedAbility != null) instancedAbilityData = instancedAbility.getData();
-                    }
+                    instancedAbility = targetEntity.getInstancedAbilities().get(head.getInstancedAbilityId());
+                    if(instancedAbility != null) instancedAbilityData = instancedAbility.getData();
                 }
             }
 
             if(instancedAbilityData == null) {
                 //search on entity base id
                 if(entity != null) {
-                    if((head.getInstancedAbilityId() - 1) < entity.getInstancedAbilities().size()) {
-                        instancedAbility = entity.getInstancedAbilities().get(head.getInstancedAbilityId() - 1);
-                        if(instancedAbility != null) instancedAbilityData = instancedAbility.getData();
-                    }
+                    instancedAbility = entity.getInstancedAbilities().get(head.getInstancedAbilityId());
+                    if(instancedAbility != null) instancedAbilityData = instancedAbility.getData();
                 }
             }
 
@@ -508,12 +502,13 @@ public final class AbilityManager extends BasePlayerManager {
             return;
         }
 
+        var instancedAbilityId = addAbility.getAbility().getInstancedAbilityId();
         entity.getInstancedAbilities().computeIfAbsent(
-            addAbility.getAbility().getInstancedAbilityId(),
+            instancedAbilityId,
             (id) -> new Ability(ability, entity, player)
         );
 
-        logger.debug("Ability added to entity {} at index {}", entity.getId(), entity.getInstancedAbilities().size());
+        logger.debug("Ability added to entity {} at index {}", entity.getId(), instancedAbilityId);
     }
 
     private void handleRemoveAbility(AbilityInvokeEntry invoke) {
@@ -541,10 +536,15 @@ public final class AbilityManager extends BasePlayerManager {
             .ifPresent(sceneChallenge -> sceneChallenge.onElementReaction(targetEntity, reactionType));
     }
 
+    /**
+     * This adds ability to entity 1-indexed
+     * @param entity an entity with static ability (i.e. not Avatar or Team)
+     * @param abilityData resolved ability data
+     */
     public void addAbilityToEntity(GameEntity entity, AbilityData abilityData) {
         var ability = new Ability(abilityData, entity, this.player);
         var id = entity.getInstancedAbilities().size();
-        entity.getInstancedAbilities().putIfAbsent(id, ability); //This are in order
+        entity.getInstancedAbilities().putIfAbsent(id + 1, ability);
     }
 }
 
