@@ -2,7 +2,6 @@ package emu.grasscutter.game.modules.widget.effect;
 
 import emu.grasscutter.data.binout.AbilityGroup;
 import emu.grasscutter.game.player.Player;
-import emu.grasscutter.game.player.TeamManager;
 import emu.grasscutter.utils.Utils;
 import lombok.NonNull;
 
@@ -17,6 +16,7 @@ public class AbilityWidgetEffect extends BaseWidgetEffect {
 
     protected final Player player;
     protected final Set<AbilityGroup> abilityGroups = new HashSet<>();
+    private int sourceId = 0;
 
     public AbilityWidgetEffect(@NonNull Player player, int materialId) {
         super(materialId);
@@ -25,36 +25,19 @@ public class AbilityWidgetEffect extends BaseWidgetEffect {
 
     @Override
     public void attach() {
-        player.getAbilityManager().getDynamicAbilityGroups().addAll(abilityGroups);
-        notifyAbilityChanges();
+        if (sourceId != 0) return;
+        var mgr = player.getAbilityGroupManager();
+        sourceId = mgr.register("Widget(" + materialId + ")", abilityGroups);
+        mgr.commit();
     }
 
     @Override
     public void detach() {
-        player.getAbilityManager().getDynamicAbilityGroups().removeAll(abilityGroups);
-        notifyAbilityChanges();
-    }
-
-    private void notifyAbilityChanges() {
-        var notifyTeam = abilityGroups.stream().anyMatch(group -> group.targetType == AbilityGroup.AbilityGroupTarget.ABILITY_GROUP_TARGET_TEAM);
-        var notifyAvatars = abilityGroups.stream().anyMatch(group -> group.targetType == AbilityGroup.AbilityGroupTarget.ABILITY_GROUP_TARGET_AVATAR);
-
-        if (notifyAvatars) {
-            TeamManager.updateCurrentTeamAvatars(player, avatar -> {
-                avatar.getAbilities().updateDynamicAbilities();
-                if (player.getSceneLoadState() != Player.SceneLoadState.LOADED) return;
-                avatar.getAbilities().notifyChanges();
-            });
-        }
-
-        if (notifyTeam) {
-            var team = player.getTeamManager().getEntity();
-            if (team != null) {
-                team.getAbilities().updateDynamicAbilities();
-                if (player.getSceneLoadState() != Player.SceneLoadState.LOADED) return;
-                team.getAbilities().notifyChanges();
-            }
-        }
+        if (sourceId == 0) return;
+        var mgr = player.getAbilityGroupManager();
+        mgr.unregister(sourceId);
+        mgr.commit();
+        sourceId = 0;
     }
 
     protected void compat_addAbilityGroup(AbilityGroup.AbilityGroupTarget target, Collection<String> names, Collection<Integer> hashes) {
