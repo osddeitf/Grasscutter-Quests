@@ -1,7 +1,6 @@
 package emu.grasscutter.game.modules.shop;
 
 import dev.morphia.annotations.Entity;
-import dev.morphia.query.filters.Filters;
 import emu.grasscutter.config.GameSchedule;
 import emu.grasscutter.database.DatabaseManager;
 import emu.grasscutter.game.inventory.GameItem;
@@ -111,13 +110,7 @@ public class MoonCardManager extends GameModuleData {
     }
 
     public static MoonCardManager loadFromDatabase(@NonNull Player player) {
-        // Experimental module system persists only on the Morphia backend for now (Phase 6).
-        if (DatabaseManager.getGameDatastore() == null) return new MoonCardManager(player);
-        var saved = DatabaseManager.getGameDatastore()
-            .find(MoonCardManager.class)
-            .filter(Filters.eq("ownerId", player.getUid()))
-            .first();
-
+        var saved = DatabaseManager.getRepository().loadModule(MoonCardManager.class, player.getUid());
         if (saved == null) {
             return new MoonCardManager(player);
         }
@@ -128,7 +121,6 @@ public class MoonCardManager extends GameModuleData {
     }
 
     private void saveToDatabase() {
-        if (DatabaseManager.getGameDatastore() == null) return;
-        DatabaseManager.getGameDatastore().save(this);
+        DatabaseManager.getRepository().saveModule(this);
     }
 }
