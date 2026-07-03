@@ -78,7 +78,7 @@ public final class SurrealGameRepository implements GameRepository {
         } else {
             dispatchDb = gameDb;
         }
-        defineIndexes();
+        defineSchema();
     }
 
     /** Generic upsert of any entity. Used by the migration tool to copy arbitrary collections. */
@@ -94,15 +94,27 @@ public final class SurrealGameRepository implements GameRepository {
         return s;
     }
 
-    /** Emits {@code DEFINE INDEX} for every collection entity's Morphia index metadata. */
-    private void defineIndexes() {
-        Grasscutter.reflector.getTypesAnnotatedWith(Entity.class).stream()
+    /** Defines every collection's table (so reads on an empty table return [] rather than erroring)
+     *  and its {@code DEFINE INDEX}es from the Morphia index metadata. */
+    private void defineSchema() {
+        List<Class<?>> collections = Grasscutter.reflector.getTypesAnnotatedWith(Entity.class).stream()
             .filter(cls -> {
                 Entity e = cls.getAnnotation(Entity.class);
                 return e != null && !e.value().equals(Mapper.IGNORED_FIELDNAME);
             })
-            // Modules are keyed by a composite record id (modules:[ownerId, discriminator]), so they
-            // need no DEFINE INDEX (their Morphia @Indexes targets the _t field, which is not stored here).
+            .toList();
+
+        // Ensure every table exists. SurrealDB errors on SELECT from an undefined table, which would
+        // otherwise break reads of any collection before its first write (e.g. a fresh database).
+        collections.stream()
+            .map(cls -> MorphiaMappingAdapter.of(cls).table())
+            .filter(table -> table != null)
+            .distinct()
+            .forEach(table -> runDdl("DEFINE TABLE IF NOT EXISTS " + table + " SCHEMALESS;"));
+
+        // Modules are keyed by a composite record id (modules:[ownerId, discriminator]), so they
+        // need no DEFINE INDEX (their Morphia @Indexes targets the _t field, which is not stored here).
+        collections.stream()
             .filter(cls -> !cls.getName().startsWith("emu.grasscutter.game.modules"))
             .forEach(cls -> {
                 EntityMapping m = MorphiaMappingAdapter.of(cls);
@@ -111,15 +123,18 @@ public final class SurrealGameRepository implements GameRepository {
                 for (EntityMapping.Index idx : m.indexes()) {
                     String name = m.table() + "_idx_" + (i++);
                     String fields = String.join(", ", idx.fields());
-                    String sql = "DEFINE INDEX IF NOT EXISTS " + name + " ON TABLE " + m.table()
-                        + " FIELDS " + fields + (idx.unique() ? " UNIQUE" : "") + ";";
-                    try {
-                        gameDb.query(sql);
-                    } catch (RuntimeException ex) {
-                        Grasscutter.getLogger().warn("Failed to define index: {}", sql, ex);
-                    }
+                    runDdl("DEFINE INDEX IF NOT EXISTS " + name + " ON TABLE " + m.table()
+                        + " FIELDS " + fields + (idx.unique() ? " UNIQUE" : "") + ";");
                 }
             });
+    }
+
+    private void runDdl(String sql) {
+        try {
+            gameDb.query(sql);
+        } catch (RuntimeException ex) {
+            Grasscutter.getLogger().warn("Failed schema DDL: {}", sql, ex);
+        }
     }
 
     // region core mapping helpers
