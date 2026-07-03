@@ -162,6 +162,8 @@ public class WidgetSwitchManager extends GameModuleData {
     }
 
     public static WidgetSwitchManager loadFromDatabase(@NonNull Player player) {
+        // Experimental module system persists only on the Morphia backend for now (Phase 6).
+        if (DatabaseManager.getGameDatastore() == null) return new WidgetSwitchManager(player);
         var saved = DatabaseManager.getGameDatastore()
             .find(WidgetSwitchManager.class)
             .filter(Filters.eq("ownerId", player.getUid()))
@@ -180,6 +182,7 @@ public class WidgetSwitchManager extends GameModuleData {
     }
 
     private void saveToDatabase() {
+        if (DatabaseManager.getGameDatastore() == null) return;
         DatabaseManager.getGameDatastore().save(this);
     }
 }

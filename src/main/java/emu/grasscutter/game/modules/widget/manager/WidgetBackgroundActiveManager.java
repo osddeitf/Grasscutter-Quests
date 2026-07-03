@@ -47,6 +47,8 @@ public class WidgetBackgroundActiveManager extends GameModuleData {
     }
 
     public static WidgetBackgroundActiveManager loadFromDatabase(@NonNull Player player) {
+        // Experimental module system persists only on the Morphia backend for now (Phase 6).
+        if (DatabaseManager.getGameDatastore() == null) return new WidgetBackgroundActiveManager(player);
         var saved = DatabaseManager.getGameDatastore()
             .find(WidgetBackgroundActiveManager.class)
             .filter(Filters.eq("ownerId", player.getUid()))
@@ -65,6 +67,7 @@ public class WidgetBackgroundActiveManager extends GameModuleData {
     }
 
     private void saveToDatabase() {
+        if (DatabaseManager.getGameDatastore() == null) return;
         DatabaseManager.getGameDatastore().save(this);
     }
 }
