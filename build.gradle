@@ -31,6 +31,10 @@ plugins {
 compileJava.options.encoding = "UTF-8"
 compileTestJava.options.encoding = "UTF-8"
 
+// Emit method/constructor parameter names so Morphia can map constructor parameters to fields for
+// entities without a no-arg constructor (e.g. Lombok @Builder value objects).
+compileJava.options.compilerArgs.add('-parameters')
+
 //sourceCompatibility = JavaVersion.VERSION_17
 //targetCompatibility = JavaVersion.VERSION_17
 
@@ -126,6 +130,14 @@ application {
     getMainClass().set('emu.grasscutter.Grasscutter')
 }
 
+// The SurrealDB SDK bundles native binaries for every platform (~300 MB) and is only needed when
+// database.game.backend=surreal. It is kept as a normal dependency (so it is available when
+// running/debugging from the IDE or `gradlew run`) but excluded from the packaged jars to keep
+// builds fast and the distribution small. To run the built jar on the SurrealDB backend, drop the
+// SDK jar (any 2.x; the API is stable within the major version) next to grasscutter.jar renamed to
+// surrealdb.jar -- it is picked up via the manifest Class-Path below.
+def surrealJarName = 'surrealdb.jar'
+
 shadowJar {
     zip64 = true
     duplicatesStrategy = DuplicatesStrategy.INCLUDE
@@ -136,12 +148,20 @@ shadowJar {
         archiveFileName = "${jarFilename}.${extension}"
     }
 
+    dependencies {
+        exclude(dependency('com.surrealdb:surrealdb:.*'))
+    }
+    manifest {
+        attributes 'Class-Path': surrealJarName
+    }
+
     destinationDirectory = file(".")
 }
 
 jar {
     manifest {
-        attributes 'Main-Class': 'emu.grasscutter.Grasscutter'
+        attributes 'Main-Class': 'emu.grasscutter.Grasscutter',
+                   'Class-Path': surrealJarName
     }
     zip64 = true
 
@@ -151,7 +171,9 @@ jar {
     }
 
     from {
-        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+        configurations.runtimeClasspath
+            .findAll { !it.name.contains('surrealdb') }
+            .collect { it.isDirectory() ? it : zipTree(it) }
     }
 
     duplicatesStrategy = DuplicatesStrategy.INCLUDE
