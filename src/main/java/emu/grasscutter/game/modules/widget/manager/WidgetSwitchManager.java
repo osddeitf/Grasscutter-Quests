@@ -2,7 +2,6 @@ package emu.grasscutter.game.modules.widget.manager;
 
 import dev.morphia.annotations.Entity;
 import dev.morphia.annotations.Property;
-import dev.morphia.query.filters.Filters;
 import emu.grasscutter.database.DatabaseManager;
 import emu.grasscutter.game.modules.GameModuleData;
 import emu.grasscutter.game.modules.widget.WidgetModule;
@@ -162,13 +161,7 @@ public class WidgetSwitchManager extends GameModuleData {
     }
 
     public static WidgetSwitchManager loadFromDatabase(@NonNull Player player) {
-        // Experimental module system persists only on the Morphia backend for now (Phase 6).
-        if (DatabaseManager.getGameDatastore() == null) return new WidgetSwitchManager(player);
-        var saved = DatabaseManager.getGameDatastore()
-            .find(WidgetSwitchManager.class)
-            .filter(Filters.eq("ownerId", player.getUid()))
-            .first();
-
+        var saved = DatabaseManager.getRepository().loadModule(WidgetSwitchManager.class, player.getUid());
         if (saved == null) {
             return new WidgetSwitchManager(player);
         }
@@ -182,7 +175,6 @@ public class WidgetSwitchManager extends GameModuleData {
     }
 
     private void saveToDatabase() {
-        if (DatabaseManager.getGameDatastore() == null) return;
-        DatabaseManager.getGameDatastore().save(this);
+        DatabaseManager.getRepository().saveModule(this);
     }
 }

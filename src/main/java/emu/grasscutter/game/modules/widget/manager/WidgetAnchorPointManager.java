@@ -1,7 +1,6 @@
 package emu.grasscutter.game.modules.widget.manager;
 
 import dev.morphia.annotations.Entity;
-import dev.morphia.query.filters.Filters;
 import emu.grasscutter.database.DatabaseManager;
 import emu.grasscutter.game.modules.GameModuleData;
 import emu.grasscutter.game.entity.EntityGadget;
@@ -145,17 +144,11 @@ public class WidgetAnchorPointManager extends GameModuleData {
     }
 
     public static WidgetAnchorPointManager loadFromDatabase(@NonNull Player player) {
-        // Experimental module system persists only on the Morphia backend for now (Phase 6).
-        if (DatabaseManager.getAccountDatastore() == null) return new WidgetAnchorPointManager(player);
-        var saved = DatabaseManager.getAccountDatastore()
-            .find(WidgetAnchorPointManager.class)
-            .filter(Filters.eq("ownerId", player.getUid()))
-            .first();
+        var saved = DatabaseManager.getRepository().loadModule(WidgetAnchorPointManager.class, player.getUid());
         return Objects.requireNonNullElseGet(saved, () -> new WidgetAnchorPointManager(player));
     }
 
     private static void saveToDatabase(WidgetAnchorPointManager instance) {
-        if (DatabaseManager.getGameDatastore() == null) return;
-        DatabaseManager.getGameDatastore().save(instance);
+        DatabaseManager.getRepository().saveModule(instance);
     }
 }
