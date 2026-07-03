@@ -17,11 +17,13 @@ import emu.grasscutter.game.gacha.GachaRecord;
 import emu.grasscutter.game.home.GameHome;
 import emu.grasscutter.game.inventory.GameItem;
 import emu.grasscutter.game.mail.Mail;
+import emu.grasscutter.game.modules.GameModuleData;
 import emu.grasscutter.game.player.Player;
 import emu.grasscutter.game.quest.GameMainQuest;
 import emu.grasscutter.game.world.SceneGroupInstance;
 import emu.grasscutter.game.world.SceneInstanceData;
 
+import java.lang.reflect.Modifier;
 import java.util.Iterator;
 import java.util.List;
 
@@ -85,6 +87,13 @@ public final class SurrealMigrationTool {
             grandTotal += counts[0];
             grandFailed += counts[1];
         }
+
+        // The `modules` collection is polymorphic (single table, discriminated by _t); migrate it via
+        // the module API so each record keeps its composite [ownerId, discriminator] identity.
+        long[] moduleCounts = migrateModules(source, target);
+        grandTotal += moduleCounts[0];
+        grandFailed += moduleCounts[1];
+
         Grasscutter.getLogger().info("Migration complete: {} records migrated, {} failed.", grandTotal, grandFailed);
     }
 
@@ -112,6 +121,43 @@ public final class SurrealMigrationTool {
                 cls.getSimpleName(), ok, e.getMessage(), e);
         }
         Grasscutter.getLogger().info("  {}: {} migrated, {} failed", cls.getSimpleName(), ok, failed);
+        return new long[] {ok, failed};
+    }
+
+    /**
+     * Migrates the polymorphic {@code modules} collection. Morphia decodes each row into its concrete
+     * {@link GameModuleData} subtype (via the {@code _t} discriminator); each is written through the
+     * module API so it keeps its composite {@code [ownerId, discriminator]} identity on SurrealDB.
+     *
+     * @return {@code [migratedCount, failedCount]}
+     */
+    private static long[] migrateModules(GameRepository source, SurrealGameRepository target) {
+        long ok = 0;
+        long failed = 0;
+        // GameModuleData is abstract and single-table: querying the base type returns nothing because
+        // Morphia filters by the base discriminator, which no stored document has. Iterate each
+        // concrete subtype so Morphia applies the correct discriminator filter per type.
+        for (Class<? extends GameModuleData> subtype : Grasscutter.reflector.getSubTypesOf(GameModuleData.class)) {
+            if (Modifier.isAbstract(subtype.getModifiers())) continue;
+            try {
+                Iterator<? extends GameModuleData> it = source.getByClass(subtype).iterator();
+                while (it.hasNext()) {
+                    GameModuleData module = it.next();
+                    try {
+                        target.saveModule(module);
+                        ok++;
+                    } catch (RuntimeException e) {
+                        Grasscutter.getLogger().warn("Failed to write a module ({}) to SurrealDB",
+                            module == null ? "?" : module.getClass().getSimpleName(), e);
+                        failed++;
+                    }
+                }
+            } catch (RuntimeException e) {
+                Grasscutter.getLogger().error("Aborted migrating module type {}: {}",
+                    subtype.getSimpleName(), e.getMessage(), e);
+            }
+        }
+        Grasscutter.getLogger().info("  modules: {} migrated, {} failed", ok, failed);
         return new long[] {ok, failed};
     }
 }
