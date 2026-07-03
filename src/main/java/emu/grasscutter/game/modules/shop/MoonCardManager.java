@@ -111,6 +111,8 @@ public class MoonCardManager extends GameModuleData {
     }
 
     public static MoonCardManager loadFromDatabase(@NonNull Player player) {
+        // Experimental module system persists only on the Morphia backend for now (Phase 6).
+        if (DatabaseManager.getGameDatastore() == null) return new MoonCardManager(player);
         var saved = DatabaseManager.getGameDatastore()
             .find(MoonCardManager.class)
             .filter(Filters.eq("ownerId", player.getUid()))
@@ -126,6 +128,7 @@ public class MoonCardManager extends GameModuleData {
     }
 
     private void saveToDatabase() {
+        if (DatabaseManager.getGameDatastore() == null) return;
         DatabaseManager.getGameDatastore().save(this);
     }
 }
