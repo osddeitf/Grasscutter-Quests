@@ -159,12 +159,12 @@ public class Player {
     @Getter @Setter private Map<Integer, Set<Integer>> unlockedScenePoints;
     @Getter @Setter private List<Integer> chatEmojiIdList;
 
-    @Transient private long nextGuid = 0;
-    @Transient @Getter @Setter private int peerId;
-    @Transient private World world;  // Synchronized getter and setter
-    @Transient private Scene scene;  // Synchronized getter and setter
-    @Transient @Getter private int weatherId = 0;
-    @Transient @Getter private ClimateType climate = ClimateType.CLIMATE_SUNNY;
+    transient private long nextGuid = 0;
+    transient @Getter @Setter private int peerId;
+    transient private World world;  // Synchronized getter and setter
+    transient private Scene scene;  // Synchronized getter and setter
+    transient @Getter private int weatherId = 0;
+    transient @Getter private ClimateType climate = ClimateType.CLIMATE_SUNNY;
 
     // Player managers go here
     @Getter private transient AvatarStorage avatars;
@@ -217,11 +217,11 @@ public class Player {
     @Getter @Setter private int moonCardDuration;
     @Getter @Setter private Set<Date> moonCardGetTimes;
 
-    @Transient @Getter private boolean paused;
-    @Transient @Getter @Setter private int enterSceneToken;
-    @Transient @Getter @Setter private SceneLoadState sceneLoadState = SceneLoadState.NONE;
-    @Transient private boolean hasSentLoginPackets;
-    @Transient private long nextSendPlayerLocTime = 0;
+    transient @Getter private boolean paused;
+    transient @Getter @Setter private int enterSceneToken;
+    transient @Getter @Setter private SceneLoadState sceneLoadState = SceneLoadState.NONE;
+    transient private boolean hasSentLoginPackets;
+    transient private long nextSendPlayerLocTime = 0;
 
     private transient final Int2ObjectMap<CoopRequest> coopRequests;  // Synchronized getter
     @Getter private transient final Queue<AttackResult> attackResults;

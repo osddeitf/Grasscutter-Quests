@@ -1,7 +1,6 @@
 package emu.grasscutter.game.player;
 
 import dev.morphia.annotations.Entity;
-import dev.morphia.annotations.Transient;
 import emu.grasscutter.GameConstants;
 import emu.grasscutter.data.GameData;
 import emu.grasscutter.data.excels.AvatarSkillDepotData;
@@ -45,19 +44,19 @@ public class TeamManager extends BasePlayerDataManager {
     @Setter private int currentTeamId;
     private int currentCharacterIndex;
 
-    @Transient @Setter private EntityTeam entity;
-    @Transient private final List<EntityAvatar> activeTeam;
-    @Transient private final Set<EntityBaseGadget> gadgets;
-    @Transient private final IntSet teamResonances;
-    @Transient private final IntSet teamResonancesConfig;
-    @Transient @Setter private TeamInfo mpTeam;
-    @Transient @Setter private int temporaryTeamIndex = -1;
-    @Transient private final List<TeamInfo> temporaryTeam; // Temporary Team for tower
-    @Transient @Setter private boolean useTrialTeam;
-    @Transient @Setter private TeamInfo trialAvatarTeam;
+    transient @Setter private EntityTeam entity;
+    transient private final List<EntityAvatar> activeTeam;
+    transient private final Set<EntityBaseGadget> gadgets;
+    transient private final IntSet teamResonances;
+    transient private final IntSet teamResonancesConfig;
+    transient @Setter private TeamInfo mpTeam;
+    transient @Setter private int temporaryTeamIndex = -1;
+    transient private final List<TeamInfo> temporaryTeam; // Temporary Team for tower
+    transient @Setter private boolean useTrialTeam;
+    transient @Setter private TeamInfo trialAvatarTeam;
     // used to hold temp team's avatar guid, trial avatar, tower team etc
-    @Transient private final LinkedHashMap<Integer, Long> entityGuids;
-    @Transient @Setter private int previousIndex = -1; // index of character selection in team before adding trial avatar
+    transient private final LinkedHashMap<Integer, Long> entityGuids;
+    transient @Setter private int previousIndex = -1; // index of character selection in team before adding trial avatar
 
     public TeamManager() {
         this.mpTeam = new TeamInfo();

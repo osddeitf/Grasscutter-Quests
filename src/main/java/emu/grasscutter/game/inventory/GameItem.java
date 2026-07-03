@@ -32,8 +32,8 @@ public class GameItem {
     @Getter @Setter protected int itemId;
     @Getter @Setter protected int count;
 
-    @Transient @Getter protected long guid; // Player unique id
-    @Transient @Getter @Setter protected ItemData itemData;
+    transient @Getter protected long guid; // Player unique id
+    transient @Getter @Setter protected ItemData itemData;
 
     // Equips
     @Getter @Setter protected int level;
@@ -51,8 +51,8 @@ public class GameItem {
     @Getter protected final List<Integer> appendPropIdList = new ArrayList<>();
 
     @Getter @Setter protected int equipCharacter;
-    @Transient @Getter @Setter private EntityWeapon weaponEntity;
-    @Transient @Getter protected boolean newItem = false;
+    transient @Getter @Setter private EntityWeapon weaponEntity;
+    transient @Getter protected boolean newItem = false;
 
     public GameItem() {
         // Morphia only

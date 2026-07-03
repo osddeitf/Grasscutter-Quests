@@ -1,7 +1,6 @@
 package emu.grasscutter.game.player;
 
 import dev.morphia.annotations.Entity;
-import dev.morphia.annotations.Transient;
 import emu.grasscutter.data.GameData;
 import emu.grasscutter.data.excels.CodexAnimalData;
 import emu.grasscutter.data.excels.CodexViewpointData;
@@ -17,7 +16,7 @@ import java.util.*;
 
 @Entity
 public class PlayerCodex {
-    @Transient private Player player;
+    transient private Player player;
 
     //itemId is not codexId!
     @Getter private Set<Integer> unlockedWeapon;

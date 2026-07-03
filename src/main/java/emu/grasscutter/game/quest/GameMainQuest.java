@@ -3,7 +3,6 @@ package emu.grasscutter.game.quest;
 import dev.morphia.annotations.Entity;
 import dev.morphia.annotations.Id;
 import dev.morphia.annotations.Indexed;
-import dev.morphia.annotations.Transient;
 import emu.grasscutter.Grasscutter;
 import emu.grasscutter.Loggers;
 import emu.grasscutter.data.GameData;
@@ -40,8 +39,8 @@ public class GameMainQuest {
     public static final Logger logger = Loggers.getQuestSystem();
     @Id private ObjectId id;
     @Indexed @Getter private int ownerUid;
-    @Transient @Getter private Player owner;
-    @Transient @Getter private QuestManager questManager;
+    transient @Getter private Player owner;
+    transient @Getter private QuestManager questManager;
     @Getter private Map<Integer, GameQuest> childQuests;
     @Getter private int parentQuestId;
     @Getter private int[] questVars;

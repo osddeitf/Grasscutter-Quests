@@ -1,7 +1,6 @@
 package emu.grasscutter.game.tower;
 
 import dev.morphia.annotations.Entity;
-import dev.morphia.annotations.Transient;
 import emu.grasscutter.game.avatar.TowerAvatar;
 import emu.grasscutter.game.player.Player;
 import org.anime_game_servers.multi_proto.gi.messages.spiral_abyss.TowerTeam;
@@ -18,7 +17,7 @@ import java.util.Optional;
 public class TowerTeamInfo {
     private int teamId;
     private final List<TowerAvatar> avatars = new ArrayList<>();
-    @Transient private List<TowerAvatar> tempAvatars;
+    transient private List<TowerAvatar> tempAvatars;
 
     public static TowerTeamInfo create(TowerTeam newTeam, Player player) {
         val info = TowerTeamInfo.of().teamId(newTeam.getTowerTeamId()).build();

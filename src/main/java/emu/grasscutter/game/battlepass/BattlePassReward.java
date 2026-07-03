@@ -1,7 +1,6 @@
 package emu.grasscutter.game.battlepass;
 
 import dev.morphia.annotations.Entity;
-import dev.morphia.annotations.Transient;
 import emu.grasscutter.data.excels.BattlePassMissionData;
 import lombok.val;
 import org.anime_game_servers.multi_proto.gi.messages.battle_pass.BattlePassRewardTag;
@@ -13,7 +12,7 @@ public class BattlePassReward {
 	private int rewardId;
 	private boolean paid;
 
-	@Transient
+	transient
 	private BattlePassMissionData data;
 
 	@Deprecated // Morphia only

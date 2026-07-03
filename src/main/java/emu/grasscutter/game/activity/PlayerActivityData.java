@@ -2,7 +2,6 @@ package emu.grasscutter.game.activity;
 
 import dev.morphia.annotations.Entity;
 import dev.morphia.annotations.Id;
-import dev.morphia.annotations.Transient;
 import emu.grasscutter.data.GameData;
 import emu.grasscutter.data.common.ItemParamData;
 import emu.grasscutter.data.excels.ActivityWatcherData;
@@ -36,8 +35,8 @@ public class PlayerActivityData {
      * the detail data of each type of activity (Json format)
      */
     String detail;
-    @Transient Player player;
-    @Transient ActivityHandler activityHandler;
+    transient Player player;
+    transient ActivityHandler activityHandler;
     public void save() {
         DatabaseHelper.savePlayerActivityData(this);
     }

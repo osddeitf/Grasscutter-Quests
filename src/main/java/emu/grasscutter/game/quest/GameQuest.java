@@ -1,7 +1,6 @@
 package emu.grasscutter.game.quest;
 
 import dev.morphia.annotations.Entity;
-import dev.morphia.annotations.Transient;
 import emu.grasscutter.Grasscutter;
 import emu.grasscutter.data.GameData;
 import emu.grasscutter.data.common.quest.SubQuestData;
@@ -31,8 +30,8 @@ import java.util.Map;
 
 @Entity
 public class GameQuest {
-    @Transient @Getter @Setter private GameMainQuest mainQuest;
-    @Transient @Getter private SubQuestData questData;
+    transient @Getter @Setter private GameMainQuest mainQuest;
+    transient @Getter private SubQuestData questData;
 
     @Getter private int subQuestId;
     @Getter private int mainQuestId;
@@ -47,7 +46,7 @@ public class GameQuest {
 
     @Getter private int[] finishProgressList;
     @Getter private int[] failProgressList;
-    @Transient @Getter private Map<String, TriggerExcelConfigData> triggerData;
+    transient @Getter private Map<String, TriggerExcelConfigData> triggerData;
     @Getter private Map<String, Boolean> triggers;
     private transient Bindings bindings;
 
