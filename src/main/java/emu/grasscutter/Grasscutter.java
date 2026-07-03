@@ -119,6 +119,12 @@ public final class Grasscutter {
         // Initialize database.
         DatabaseManager.initialize();
 
+        // One-shot MongoDB -> SurrealDB migration (-migrate-surreal=<uri>), then exit.
+        if (StartupArguments.getMigrateSurrealTarget() != null) {
+            emu.grasscutter.database.surreal.SurrealMigrationTool.run(StartupArguments.getMigrateSurrealTarget());
+            System.exit(0);
+        }
+
         // Initialize the default systems.
         authenticationSystem = new DefaultAuthentication();
         permissionHandler = new DefaultPermissionHandler();

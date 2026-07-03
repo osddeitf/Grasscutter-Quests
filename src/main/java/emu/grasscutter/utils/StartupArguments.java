@@ -22,6 +22,13 @@ public final class StartupArguments {
         // This class is not meant to be instantiated.
     }
 
+    /** Target SurrealDB connection URI for a one-shot migration, or null if not requested. */
+    private static String migrateSurrealTarget = null;
+
+    public static String getMigrateSurrealTarget() {
+        return migrateSurrealTarget;
+    }
+
     /* A map of parameter -> argument handler. */
     private static final Map<String, Function<String, Boolean>> argumentHandlers = Map.of(
         "-version", StartupArguments::printVersion,
@@ -32,6 +39,10 @@ public final class StartupArguments {
             Grasscutter.setRunModeOverride(ServerRunMode.GAME_ONLY); return false;
         },"-dispatch", parameter -> {
             Grasscutter.setRunModeOverride(ServerRunMode.DISPATCH_ONLY); return false;
+        },
+        // Copy all MongoDB data into the given SurrealDB target, then exit (handled in main()).
+        "-migrate-surreal", parameter -> {
+            migrateSurrealTarget = parameter; return false;
         },
 
         // Aliases.

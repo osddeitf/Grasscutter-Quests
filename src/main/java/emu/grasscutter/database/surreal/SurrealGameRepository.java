@@ -66,13 +66,23 @@ public final class SurrealGameRepository implements GameRepository {
 
     @Override
     public void initialize() {
-        gameDb = open(DATABASE.game.connectionUri, DATABASE.game.collection);
+        initialize(DATABASE.game.connectionUri, DATABASE.game.collection);
+    }
+
+    /** Initializes against an explicit connection. Used by the MongoDB-&gt;SurrealDB migration tool. */
+    public void initialize(String uri, String database) {
+        gameDb = open(uri, database);
         if (SERVER.runMode == ServerRunMode.GAME_ONLY) {
             dispatchDb = open(DATABASE.server.connectionUri, DATABASE.server.collection);
         } else {
             dispatchDb = gameDb;
         }
         defineIndexes();
+    }
+
+    /** Generic upsert of any entity. Used by the migration tool to copy arbitrary collections. */
+    public void save(Object entity) {
+        gameDb.upsert(recordId(entity), UpType.CONTENT, content(entity));
     }
 
     private Surreal open(String uri, String database) {
