@@ -92,24 +92,24 @@ public final class SurrealMigrationTool {
     private static <T> long[] migrate(GameRepository source, SurrealGameRepository target, Class<T> cls) {
         long ok = 0;
         long failed = 0;
-        Iterator<T> it = source.getByClass(cls).iterator();
-        while (it.hasNext()) {
-            T entity;
-            try {
-                entity = it.next();
-            } catch (RuntimeException e) {
-                // A single unreadable source document should not stop the whole collection.
-                Grasscutter.getLogger().warn("Failed to read a {} document from MongoDB", cls.getSimpleName(), e);
-                failed++;
-                continue;
+        // Morphia decodes documents lazily during iteration (including hasNext), so a single
+        // unreadable/unmappable collection can throw here. Contain it to this collection rather
+        // than aborting the whole migration.
+        try {
+            Iterator<T> it = source.getByClass(cls).iterator();
+            while (it.hasNext()) {
+                T entity = it.next();
+                try {
+                    target.save(entity);
+                    ok++;
+                } catch (RuntimeException e) {
+                    Grasscutter.getLogger().warn("Failed to write a {} record to SurrealDB", cls.getSimpleName(), e);
+                    failed++;
+                }
             }
-            try {
-                target.save(entity);
-                ok++;
-            } catch (RuntimeException e) {
-                Grasscutter.getLogger().warn("Failed to write a {} record to SurrealDB", cls.getSimpleName(), e);
-                failed++;
-            }
+        } catch (RuntimeException e) {
+            Grasscutter.getLogger().error("Aborted migrating {} after {} record(s): {}",
+                cls.getSimpleName(), ok, e.getMessage(), e);
         }
         Grasscutter.getLogger().info("  {}: {} migrated, {} failed", cls.getSimpleName(), ok, failed);
         return new long[] {ok, failed};
