@@ -15,7 +15,9 @@ import org.bson.Document;
 import org.bson.types.ObjectId;
 
 import java.lang.reflect.Method;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -60,6 +62,20 @@ public final class DocumentMapper {
                         return MapMarkPointType.UNRECOGNISED;
                     }
                 })
+            // Dates as epoch millis (a sortable number) so SurrealQL ORDER BY works correctly
+            // (Gson's default renders Date as a locale string, which would sort lexically).
+            .registerTypeAdapter(Date.class,
+                (com.google.gson.JsonSerializer<Date>) (src, t, c) ->
+                    src == null ? JsonNull.INSTANCE : new JsonPrimitive(src.getTime()))
+            .registerTypeAdapter(Date.class,
+                (com.google.gson.JsonDeserializer<Date>) (json, t, c) ->
+                    json == null || json.isJsonNull() ? null : new Date(json.getAsLong()))
+            .registerTypeAdapter(Instant.class,
+                (com.google.gson.JsonSerializer<Instant>) (src, t, c) ->
+                    src == null ? JsonNull.INSTANCE : new JsonPrimitive(src.toEpochMilli()))
+            .registerTypeAdapter(Instant.class,
+                (com.google.gson.JsonDeserializer<Instant>) (json, t, c) ->
+                    json == null || json.isJsonNull() ? null : Instant.ofEpochMilli(json.getAsLong()))
             .create();
     }
 

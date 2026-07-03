@@ -7,6 +7,7 @@ import com.mongodb.client.MongoDatabase;
 import dev.morphia.Datastore;
 import emu.grasscutter.Grasscutter;
 import emu.grasscutter.database.morphia.MorphiaGameRepository;
+import emu.grasscutter.database.surreal.SurrealGameRepository;
 
 public final class DatabaseManager {
     private static GameRepository repository;
@@ -49,8 +50,7 @@ public final class DatabaseManager {
         String backend = DATABASE.game.backend;
         repository = switch (backend == null ? "mongodb" : backend.toLowerCase()) {
             case "mongodb", "mongo", "morphia" -> new MorphiaGameRepository();
-            case "surreal", "surrealdb" -> throw new UnsupportedOperationException(
-                "The SurrealDB backend is not yet implemented. Use backend=mongodb.");
+            case "surreal", "surrealdb" -> new SurrealGameRepository();
             default -> {
                 Grasscutter.getLogger().warn("Unknown database backend '{}', falling back to mongodb.", backend);
                 yield new MorphiaGameRepository();
