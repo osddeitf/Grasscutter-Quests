@@ -125,6 +125,12 @@ public final class Grasscutter {
             System.exit(0);
         }
 
+        // One-shot MongoDB vs SurrealDB verification (-verify-surreal=<uri>), then exit.
+        if (StartupArguments.getVerifySurrealTarget() != null) {
+            emu.grasscutter.database.surreal.SurrealMigrationTool.verify(StartupArguments.getVerifySurrealTarget());
+            System.exit(0);
+        }
+
         // Initialize the default systems.
         authenticationSystem = new DefaultAuthentication();
         permissionHandler = new DefaultPermissionHandler();

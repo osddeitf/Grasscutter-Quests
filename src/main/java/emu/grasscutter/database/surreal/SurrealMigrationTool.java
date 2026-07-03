@@ -6,6 +6,7 @@ import emu.grasscutter.Grasscutter;
 import emu.grasscutter.database.DatabaseCounter;
 import emu.grasscutter.database.DatabaseManager;
 import emu.grasscutter.database.GameRepository;
+import emu.grasscutter.database.mapping.DocumentMapper;
 import emu.grasscutter.database.morphia.MorphiaGameRepository;
 import emu.grasscutter.game.Account;
 import emu.grasscutter.game.activity.PlayerActivityData;
@@ -26,6 +27,7 @@ import emu.grasscutter.game.world.SceneInstanceData;
 import java.lang.reflect.Modifier;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 /**
  * One-shot copy of every game collection from the running MongoDB/Morphia backend into a target
@@ -96,6 +98,104 @@ public final class SurrealMigrationTool {
 
         Grasscutter.getLogger().info("Migration complete: {} records migrated, {} failed.", grandTotal, grandFailed);
     }
+
+    /**
+     * Verifies that data read from MongoDB matches data read back from an already-migrated SurrealDB
+     * target, by comparing each entity's canonical mapped form per collection. Triggered by
+     * {@code -verify-surreal=<connection-uri>}; the server must run with {@code backend=mongodb}.
+     */
+    public static void verify(String targetUri) {
+        GameRepository source = DatabaseManager.getRepository();
+        if (!(source instanceof MorphiaGameRepository)) {
+            Grasscutter.getLogger().error("SurrealDB verify requires the source backend to be mongodb.");
+            return;
+        }
+        DocumentMapper dm = new DocumentMapper();
+        SurrealGameRepository target = new SurrealGameRepository();
+        try {
+            target.initialize(targetUri, DATABASE.game.collection);
+        } catch (RuntimeException e) {
+            Grasscutter.getLogger().error("Could not open SurrealDB target at {}", targetUri, e);
+            return;
+        }
+
+        Grasscutter.getLogger().info("Verifying MongoDB vs SurrealDB ({}) ...", targetUri);
+        boolean all = true;
+        for (Class<?> cls : COLLECTIONS) all &= verifyCollection(dm, source, target, cls);
+        all &= verifyModuleParity(dm, source, target);
+        Grasscutter.getLogger().info(all
+            ? "VERIFY: all collections match between MongoDB and SurrealDB."
+            : "VERIFY: MISMATCHES found (see above).");
+    }
+
+    private static <T> boolean verifyCollection(DocumentMapper dm, GameRepository source,
+                                                SurrealGameRepository target, Class<T> cls) {
+        try {
+            List<String> m = source.getByClass(cls).map(e -> canon(dm.toDocument(e))).sorted().collect(java.util.stream.Collectors.toList());
+            List<String> s = target.getByClass(cls).map(e -> canon(dm.toDocument(e))).sorted().collect(java.util.stream.Collectors.toList());
+            return reportParity(cls.getSimpleName(), m, s);
+        } catch (RuntimeException e) {
+            Grasscutter.getLogger().error("  {}: verify ERROR: {}", cls.getSimpleName(), e.getMessage(), e);
+            return false;
+        }
+    }
+
+    private static boolean verifyModuleParity(DocumentMapper dm, GameRepository source, SurrealGameRepository target) {
+        try {
+            List<String> m = new java.util.ArrayList<>();
+            List<String> s = new java.util.ArrayList<>();
+            for (Class<? extends GameModuleData> subtype : Grasscutter.reflector.getSubTypesOf(GameModuleData.class)) {
+                if (Modifier.isAbstract(subtype.getModifiers())) continue;
+                for (GameModuleData mod : source.getByClass(subtype).collect(java.util.stream.Collectors.toList())) {
+                    m.add(canonModule(dm, mod));
+                    GameModuleData back = target.loadModule(mod.getClass(), mod.getOwnerId());
+                    s.add(back == null ? "<MISSING>" : canonModule(dm, back));
+                }
+            }
+            java.util.Collections.sort(m);
+            java.util.Collections.sort(s);
+            return reportParity("modules", m, s);
+        } catch (RuntimeException e) {
+            Grasscutter.getLogger().error("  modules: verify ERROR: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
+    private static String canonModule(DocumentMapper dm, GameModuleData mod) {
+        Map<String, Object> doc = dm.toDocument(mod);
+        doc.remove("id");   // ObjectId @Id is Morphia-only for modules (Surreal uses the composite record id)
+        return canon(doc);
+    }
+
+    private static boolean reportParity(String name, List<String> mongo, List<String> surreal) {
+        boolean match = mongo.equals(surreal);
+        Grasscutter.getLogger().info("  {}: mongo={} surreal={} -> {}",
+            name, mongo.size(), surreal.size(), match ? "MATCH" : "*** MISMATCH ***");
+        if (!match) {
+            List<String> onlyMongo = new java.util.ArrayList<>(mongo); onlyMongo.removeAll(surreal);
+            List<String> onlySurreal = new java.util.ArrayList<>(surreal); onlySurreal.removeAll(mongo);
+            if (!onlyMongo.isEmpty()) Grasscutter.getLogger().warn("    only in mongo (sample): {}", trunc(onlyMongo.get(0)));
+            if (!onlySurreal.isEmpty()) Grasscutter.getLogger().warn("    only in surreal (sample): {}", trunc(onlySurreal.get(0)));
+        }
+        return match;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static String canon(Object o) {
+        if (o instanceof Map) {
+            return ((Map<String, Object>) o).entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(en -> en.getKey() + "=" + canon(en.getValue()))
+                .collect(java.util.stream.Collectors.joining(",", "{", "}"));
+        }
+        if (o instanceof List) {
+            return ((List<?>) o).stream().map(SurrealMigrationTool::canon)
+                .collect(java.util.stream.Collectors.joining(",", "[", "]"));
+        }
+        return String.valueOf(o);
+    }
+
+    private static String trunc(String s) { return s.length() > 400 ? s.substring(0, 400) + "..." : s; }
 
     /** @return {@code [migratedCount, failedCount]} */
     private static <T> long[] migrate(GameRepository source, SurrealGameRepository target, Class<T> cls) {

@@ -24,9 +24,15 @@ public final class StartupArguments {
 
     /** Target SurrealDB connection URI for a one-shot migration, or null if not requested. */
     private static String migrateSurrealTarget = null;
+    /** Target SurrealDB connection URI for a one-shot migration verification, or null. */
+    private static String verifySurrealTarget = null;
 
     public static String getMigrateSurrealTarget() {
         return migrateSurrealTarget;
+    }
+
+    public static String getVerifySurrealTarget() {
+        return verifySurrealTarget;
     }
 
     /* A map of parameter -> argument handler. */
@@ -43,6 +49,10 @@ public final class StartupArguments {
         // Copy all MongoDB data into the given SurrealDB target, then exit (handled in main()).
         "-migrate-surreal", parameter -> {
             migrateSurrealTarget = parameter; return false;
+        },
+        // Compare MongoDB against an already-migrated SurrealDB target, then exit (handled in main()).
+        "-verify-surreal", parameter -> {
+            verifySurrealTarget = parameter; return false;
         },
 
         // Aliases.
