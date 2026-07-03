@@ -85,12 +85,6 @@ public class GameServerPacketHandler {
 
     public void handle(GameSession session, int opcode, byte[] header, byte[] payload) {
         String packageName = session.getPackageIdProvider().getPacketName(opcode);
-        if (packageName != null) {
-            if (session.getProtoRuntime() != null) {
-                String alias = session.getProtoRuntime().getDeobfuscatedName(packageName);
-                if (alias != null) packageName = alias;
-            }
-        }
         PacketHandler handler = getHandler(packageName, opcode);
 
         if (handler != null) {

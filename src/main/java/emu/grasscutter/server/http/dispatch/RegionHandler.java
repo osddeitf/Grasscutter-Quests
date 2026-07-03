@@ -6,6 +6,7 @@ import emu.grasscutter.Grasscutter;
 import emu.grasscutter.Grasscutter.ServerRunMode;
 import emu.grasscutter.server.event.dispatch.QueryAllRegionsEvent;
 import emu.grasscutter.server.event.dispatch.QueryCurrentRegionEvent;
+import emu.grasscutter.server.game.GameSession;
 import emu.grasscutter.server.http.Router;
 import emu.grasscutter.server.http.objects.QueryCurRegionRspJson;
 import emu.grasscutter.utils.Crypto;
@@ -14,19 +15,19 @@ import emu.grasscutter.utils.Utils;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
 import lombok.val;
-import org.anime_game_servers.multi_proto.gi.ProtoRuntimeProvider;
+import org.anime_game_servers.core.base.Version;
 import org.anime_game_servers.multi_proto.gi.messages.general.server.RegionInfo;
 import org.anime_game_servers.multi_proto.gi.messages.login.QueryCurrRegionHttpRsp;
-import org.anime_game_servers.core.base.Version;
 import org.anime_game_servers.multi_proto.gi.messages.login.QueryRegionListHttpRsp;
 import org.anime_game_servers.multi_proto.gi.messages.login.RegionSimpleInfo;
+import org.anime_game_servers.multi_proto.gi.packet_id.PacketIds;
 import org.anime_game_servers.multi_proto.gi.utils.VersionIdentify;
 
 import javax.crypto.Cipher;
 import java.io.ByteArrayOutputStream;
+import java.security.Signature;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.security.Signature;
 
 import static emu.grasscutter.config.Configuration.*;
 
@@ -143,28 +144,21 @@ public final class RegionHandler implements Router {
      * @param baseRegionList The filled out region list response model
      */
     private void setRegionListResponses(RegionType regionType, byte[] customConfig, QueryRegionListHttpRsp baseRegionList) {
-        var protoService = ProtoRuntimeProvider.INSTANCE.getService();
         versionIdentifies.clear();
 
         baseRegionList.setClientCustomConfigEncrypted(customConfig);
         Arrays.stream(Version.values()).forEach(version -> {
+            var runtime = GameSession.loadVersionRuntime(version);
+            if (runtime == null) return;
             val encoded = baseRegionList.encodeToByteArray(version);
             if (encoded != null) {
                 Grasscutter.getLogger().info("Added version {}, length {}, hex {}", version.getNamespace(), encoded.length, Utils.bytesToHex(encoded));
                 // todo actually save region specific responses, and not just the newest success
                 regionListResponses.put(regionType, Utils.base64Encode(encoded));
 
-                var mapper = protoService.getPacketMapper(version);
+                var mapper = PacketIds.getMapper(version);
                 if (mapper != null) {
                     var opcode = mapper.getPacketId("GetPlayerTokenReq");
-                    if (opcode <= 0 || opcode == 999999) {
-                        var obfuscated = Optional.ofNullable(protoService.getVersionRuntime(version))
-                            .map(runtime -> runtime.getObfuscatedName("GetPlayerTokenReq"))
-                            .orElse(null);
-                        if (obfuscated != null) {
-                            opcode = mapper.getPacketId(obfuscated);
-                        }
-                    }
                     if (opcode <= 0 || opcode == 999999) return;
 
                     var list = versionIdentifies.computeIfAbsent(opcode, k -> new ArrayList<>());

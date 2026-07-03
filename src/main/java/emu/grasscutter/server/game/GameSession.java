@@ -19,9 +19,9 @@ import lombok.val;
 import org.anime_game_servers.core.base.Version;
 import org.anime_game_servers.multi_proto.core.interfaces.PacketIdProvider;
 import org.anime_game_servers.multi_proto.gi.messages.player.ServerDisconnectClientNotify;
-import org.anime_game_servers.multi_proto.gi.ProtoRuntimeProvider;
-import org.anime_game_servers.multi_proto.gi.ProtoVersionRuntime;
-import org.anime_game_servers.multi_proto.gi.utils.VersionIdentify;
+import org.anime_game_servers.multi_proto.gi.packet_id.PacketIds;
+import org.anime_game_servers.multi_proto.runtime.descriptor.DynamicProtoRuntime;
+import org.anime_game_servers.multi_proto.runtime.descriptor.ProtoDescriptorRuntime;
 
 import java.io.File;
 import java.net.InetSocketAddress;
@@ -50,7 +50,18 @@ public class GameSession implements GameSessionManager.KcpChannel {
     @Getter private Version version;
     @Getter private boolean isTemporaryVersion;
     @Getter private PacketIdProvider packageIdProvider;
-    @Getter private ProtoVersionRuntime protoRuntime;
+
+    public static ProtoDescriptorRuntime loadVersionRuntime(Version version) {
+        try {
+            var runtime = DynamicProtoRuntime.registerVersion(version, "config/" + version.getNamespace());
+            runtime.setLogger(Grasscutter.getLogger());
+            return runtime;
+        }
+        catch (Exception ex) {
+            Grasscutter.getLogger().error("ERROR: failed to get version {} runtime", version, ex);
+            return null;
+        }
+    }
 
     public GameSession(GameServer server) {
         this.server = server;
@@ -186,10 +197,15 @@ public class GameSession implements GameSessionManager.KcpChannel {
 
     public void updateVersion(Version version, boolean isTemporaryVersion) {
         this.version = version;
+        var runtime = loadVersionRuntime(version);
+        if (runtime == null) {
+            Grasscutter.getLogger().error("Session invalid, version {} is not supported", version);
+            if (!isTemporaryVersion) this.close();
+            return;
+        }
+
         this.isTemporaryVersion = isTemporaryVersion;
-        var service = ProtoRuntimeProvider.INSTANCE.getService();
-        this.protoRuntime = service.getVersionRuntime(version);
-        this.packageIdProvider = service.getPacketMapper(version);
+        this.packageIdProvider = PacketIds.getMapper(version);
     }
 
     @Override

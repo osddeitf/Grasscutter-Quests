@@ -1,19 +1,8 @@
 package emu.grasscutter.net.packet;
 
-import java.io.FileWriter;
-import java.io.IOException;
-import java.lang.reflect.Field;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.stream.Collectors;
-
-import emu.grasscutter.GameConstants;
-import emu.grasscutter.Grasscutter;
 import emu.grasscutter.server.game.GameSession;
-import emu.grasscutter.utils.JsonUtils;
-import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+
+import java.util.Set;
 
 public class PacketOpcodesUtils {
 
@@ -43,11 +32,6 @@ public class PacketOpcodesUtils {
         if (name == null) {
             return "UNKNOWN";
         }
-        if (session.getProtoRuntime() != null) {
-            var alias = session.getProtoRuntime().getDeobfuscatedName(name);
-            if (alias != null) return alias;
-        }
-
         return name;
     }
 }
