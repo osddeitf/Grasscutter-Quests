@@ -29,6 +29,7 @@ import emu.grasscutter.game.gacha.GachaRecord;
 import emu.grasscutter.game.home.GameHome;
 import emu.grasscutter.game.inventory.GameItem;
 import emu.grasscutter.game.mail.Mail;
+import emu.grasscutter.game.modules.GameModuleData;
 import emu.grasscutter.game.player.Player;
 import emu.grasscutter.game.quest.GameMainQuest;
 import emu.grasscutter.game.world.SceneGroupInstance;
@@ -100,7 +101,8 @@ public final class SurrealGameRepository implements GameRepository {
                 Entity e = cls.getAnnotation(Entity.class);
                 return e != null && !e.value().equals(Mapper.IGNORED_FIELDNAME);
             })
-            // The experimental module system (single-table discriminator) is out of scope (Phase 6).
+            // Modules are keyed by a composite record id (modules:[ownerId, discriminator]), so they
+            // need no DEFINE INDEX (their Morphia @Indexes targets the _t field, which is not stored here).
             .filter(cls -> !cls.getName().startsWith("emu.grasscutter.game.modules"))
             .forEach(cls -> {
                 EntityMapping m = MorphiaMappingAdapter.of(cls);
@@ -192,8 +194,12 @@ public final class SurrealGameRepository implements GameRepository {
             Object v;
             if (ft == int.class || ft == Integer.class) v = (int) id.getLong();
             else if (ft == long.class || ft == Long.class) v = id.getLong();
-            else if (ft == ObjectId.class) v = new ObjectId(id.getString());
-            else v = id.isString() ? id.getString() : String.valueOf(id.getLong());
+            else if (ft == ObjectId.class) {
+                // Composite/array record ids (e.g. modules:[ownerId, discriminator]) have no hex to
+                // restore; the ObjectId @Id is Morphia-only there, so leave it null.
+                if (!id.isString()) return;
+                v = new ObjectId(id.getString());
+            } else v = id.isString() ? id.getString() : String.valueOf(id.getLong());
             idField.set(entity, v);
         } catch (IllegalAccessException e) {
             throw new RuntimeException(e);
@@ -555,6 +561,26 @@ public final class SurrealGameRepository implements GameRepository {
         return queryFirst(gameDb, SceneInstanceData.class,
             "SELECT * FROM " + table(SceneInstanceData.class) + " WHERE ownerUid = $o AND sceneId = $s",
             Map.of("o", ownerUid, "s", sceneId));
+    }
+    // endregion
+
+    // region modules
+    // Single-table polymorphism: one record per (owner, discriminator), keyed by a composite record
+    // id modules:[ownerId, discriminator]. The concrete type is known on load, so the discriminator
+    // does not need to be stored as a field.
+    @Override
+    public <T extends GameModuleData> T loadModule(Class<T> type, int ownerId) {
+        EntityMapping m = MorphiaMappingAdapter.of(type);
+        return selectOne(gameDb, type, new RecordId(m.table(), Array.of(ownerId, m.discriminator())));
+    }
+
+    @Override
+    public void saveModule(GameModuleData module) {
+        EntityMapping m = MorphiaMappingAdapter.of(module.getClass());
+        RecordId rid = new RecordId(m.table(), Array.of(module.getOwnerId(), m.discriminator()));
+        Map<String, Object> content = mapper.toDocument(module);
+        content.remove(m.idField().getName());
+        gameDb.upsert(rid, UpType.CONTENT, content);
     }
     // endregion
 

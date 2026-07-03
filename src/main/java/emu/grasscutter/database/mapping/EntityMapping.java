@@ -16,6 +16,7 @@ public final class EntityMapping {
 
     private final Class<?> type;
     private final String table;              // @Entity value; null when this class is embedded-only
+    private final String discriminator;      // @Entity discriminator (for single-table polymorphism)
     private final Field idField;             // @Id field (may be null for embedded value objects)
     private final List<Index> indexes;
     private final Method preLoad;            // @PreLoad
@@ -23,10 +24,11 @@ public final class EntityMapping {
     private final Method prePersist;         // @PrePersist
     private final Method postPersist;        // @PostPersist
 
-    EntityMapping(Class<?> type, String table, Field idField, List<Index> indexes,
+    EntityMapping(Class<?> type, String table, String discriminator, Field idField, List<Index> indexes,
                   Method preLoad, Method postLoad, Method prePersist, Method postPersist) {
         this.type = type;
         this.table = table;
+        this.discriminator = discriminator;
         this.idField = idField;
         this.indexes = indexes;
         this.preLoad = preLoad;
@@ -37,6 +39,9 @@ public final class EntityMapping {
 
     public Class<?> type() { return type; }
     public String table() { return table; }
+
+    /** The discriminator value distinguishing this type within a shared collection. */
+    public String discriminator() { return discriminator; }
     public boolean isCollection() { return table != null; }
     public Field idField() { return idField; }
     public List<Index> indexes() { return indexes; }

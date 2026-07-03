@@ -8,6 +8,9 @@ import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 
+import dev.morphia.annotations.Property;
+import dev.morphia.mapping.Mapper;
+
 import emu.grasscutter.Grasscutter;
 
 import org.anime_game_servers.multi_proto.gi.messages.scene.map.MapMarkPointType;
@@ -42,6 +45,11 @@ public final class DocumentMapper {
 
     public DocumentMapper() {
         this.gson = new GsonBuilder()
+            // Honor Morphia @Property field renames (e.g. WidgetSwitchManager's slots field).
+            .setFieldNamingStrategy(field -> {
+                Property p = field.getAnnotation(Property.class);
+                return (p != null && !p.value().equals(Mapper.IGNORED_FIELDNAME)) ? p.value() : field.getName();
+            })
             // ObjectId has no natural JSON form; persist as its hex string.
             .registerTypeAdapter(ObjectId.class,
                 (com.google.gson.JsonSerializer<ObjectId>) (src, t, c) ->

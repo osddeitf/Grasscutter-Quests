@@ -10,6 +10,7 @@ import emu.grasscutter.game.gacha.GachaRecord;
 import emu.grasscutter.game.home.GameHome;
 import emu.grasscutter.game.inventory.GameItem;
 import emu.grasscutter.game.mail.Mail;
+import emu.grasscutter.game.modules.GameModuleData;
 import emu.grasscutter.game.player.Player;
 import emu.grasscutter.game.quest.GameMainQuest;
 import emu.grasscutter.game.world.SceneGroupInstance;
@@ -160,6 +161,17 @@ public interface GameRepository {
     void saveSceneInstanceData(SceneInstanceData instance);
 
     SceneInstanceData loadSceneInstanceData(int ownerUid, int sceneId);
+    // endregion
+
+    // region modules
+    /**
+     * Loads the owner's instance of a {@link GameModuleData} subtype, or {@code null} if none is
+     * stored. Modules share one collection distinguished by the entity's discriminator.
+     */
+    <T extends GameModuleData> T loadModule(Class<T> type, int ownerId);
+
+    /** Inserts or replaces the owner's instance of a module (keyed by owner + discriminator). */
+    void saveModule(GameModuleData module);
     // endregion
 
     // region generic

@@ -120,7 +120,5 @@ in `build.gradle` and re-test.
 
 ## Current limitations
 
-- The experimental in-house **module system** (widget managers, moon card) is not yet persisted on
-  the SurrealDB backend — it uses in-memory defaults there and persists only on MongoDB.
 - The embedded `Surreal` connection is shared across concurrent players; heavy concurrency has not
   been hardened. Report issues if you hit contention.

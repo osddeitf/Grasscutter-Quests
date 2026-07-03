@@ -33,6 +33,7 @@ import emu.grasscutter.game.gacha.GachaRecord;
 import emu.grasscutter.game.home.GameHome;
 import emu.grasscutter.game.inventory.GameItem;
 import emu.grasscutter.game.mail.Mail;
+import emu.grasscutter.game.modules.GameModuleData;
 import emu.grasscutter.game.player.Player;
 import emu.grasscutter.game.quest.GameMainQuest;
 import emu.grasscutter.game.world.SceneGroupInstance;
@@ -440,6 +441,19 @@ public final class MorphiaGameRepository implements GameRepository {
     @Override
     public SceneInstanceData loadSceneInstanceData(int ownerUid, int sceneId) {
         return gameDatastore.find(SceneInstanceData.class).filter(Filters.and(Filters.eq("ownerUid", ownerUid), Filters.eq("sceneId", sceneId))).first();
+    }
+    // endregion
+
+    // region modules
+    @Override
+    public <T extends GameModuleData> T loadModule(Class<T> type, int ownerId) {
+        // Morphia adds the discriminator (_t) filter automatically for the concrete type.
+        return gameDatastore.find(type).filter(Filters.eq("ownerId", ownerId)).first();
+    }
+
+    @Override
+    public void saveModule(GameModuleData module) {
+        gameDatastore.save(module);
     }
     // endregion
 

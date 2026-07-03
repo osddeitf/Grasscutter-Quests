@@ -23,4 +23,8 @@ public abstract class GameModuleData {
     public GameModuleData(int ownerId) {
         this.ownerId = ownerId;
     }
+
+    public int getOwnerId() {
+        return ownerId;
+    }
 }

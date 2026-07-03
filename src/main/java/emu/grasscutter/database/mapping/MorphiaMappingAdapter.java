@@ -39,9 +39,14 @@ public final class MorphiaMappingAdapter {
         // Table name: @Entity(value). A missing/IGNORED value means the class is used only as an
         // embedded value object and has no collection of its own.
         String table = null;
+        String discriminator = null;
         Entity entity = type.getAnnotation(Entity.class);
         if (entity != null && !Mapper.IGNORED_FIELDNAME.equals(entity.value())) {
             table = entity.value();
+        }
+        if (entity != null) {
+            // Explicit discriminator, else Morphia's default (the simple class name).
+            discriminator = entity.discriminator().isEmpty() ? type.getSimpleName() : entity.discriminator();
         }
 
         List<Field> fields = allFields(type);
@@ -53,7 +58,7 @@ public final class MorphiaMappingAdapter {
         List<EntityMapping.Index> indexes = collectIndexes(type, fields);
 
         return new EntityMapping(
-            type, table, idField, indexes,
+            type, table, discriminator, idField, indexes,
             findHook(type, PreLoad.class),
             findHook(type, PostLoad.class),
             findHook(type, PrePersist.class),
