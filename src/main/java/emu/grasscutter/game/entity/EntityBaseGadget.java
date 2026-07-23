@@ -77,6 +77,12 @@ public abstract class EntityBaseGadget extends GameEntity<CreateGadgetEntityConf
             this.content = gadgetCreateConfig.getContent();
         }
 
+        if (this.configGadget != null
+            && this.configGadget.getGlobalValue() != null
+            && this.configGadget.getGlobalValue().getInitServerGlobalValues() != null) {
+            this.getGlobalAbilityValues()
+                .putAll(this.configGadget.getGlobalValue().getInitServerGlobalValues());
+        }
         fillFightProps(configGadget);
         initAbilities();
     }

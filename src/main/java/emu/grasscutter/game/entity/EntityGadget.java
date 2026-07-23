@@ -18,12 +18,16 @@ import emu.grasscutter.server.packet.send.PacketPlatformStartRouteNotify;
 import emu.grasscutter.server.packet.send.PacketPlatformStopRouteNotify;
 import emu.grasscutter.server.packet.send.PacketSceneTimeNotify;
 import emu.grasscutter.utils.ProtoHelper;
+import emu.grasscutter.utils.Utils;
 import it.unimi.dsi.fastutil.ints.Int2FloatMap;
 import it.unimi.dsi.fastutil.ints.Int2FloatOpenHashMap;
 import lombok.*;
 import org.anime_game_servers.gi_lua.models.ScriptArgs;
 import org.anime_game_servers.gi_lua.models.constants.EventType;
 import org.anime_game_servers.multi_proto.gi.messages.gadget.GadgetInteractReq;
+import org.anime_game_servers.multi_proto.gi.messages.general.ability.AbilityScalarType;
+import org.anime_game_servers.multi_proto.gi.messages.general.ability.AbilityScalarValueEntry;
+import org.anime_game_servers.multi_proto.gi.messages.general.ability.AbilityString;
 import org.anime_game_servers.multi_proto.gi.messages.general.ability.AbilitySyncStateInfo;
 import org.anime_game_servers.multi_proto.gi.messages.scene.entity.*;
 
@@ -253,7 +257,21 @@ public class EntityGadget extends EntityBaseGadget implements ConfigAbilityDataA
         val protoBornPos = getBornPos().toProto();
         val protoCurPos = getPosition().toProto();
         val protoCurRot = getRotation().toProto();
-        val authority = new EntityAuthorityInfo(new AbilitySyncStateInfo(), new EntityRendererChangedInfo(),
+        val syncState = new AbilitySyncStateInfo();
+        syncState.setSgvDynamicValueMap(
+            this.getGlobalAbilityValues().entrySet().stream().map(entry ->
+                new AbilityScalarValueEntry(
+                    new AbilityString(
+                        new AbilityString.Type.Str(entry.getKey())  // should be this when ability string is enabled
+                    ),
+                    AbilityScalarType.ABILITY_SCALAR_TYPE_FLOAT,
+                    new AbilityScalarValueEntry.Value.FloatValue(entry.getValue())
+                )
+            ).toList()
+        );
+        val authority = new EntityAuthorityInfo(
+            syncState,
+            new EntityRendererChangedInfo(),
             new SceneEntityAiInfo(true, protoBornPos), protoBornPos);
 
         val entityInfo = new SceneEntityInfo(ProtEntityType.PROT_ENTITY_GADGET, getId());
