@@ -46,7 +46,8 @@ public class AvatarAbilityManager extends BaseAbilityManager {
     }
 
     public void updateElementalResonanceAbilities() {
-        var abilities = avatar.getPlayer().getTeamManager().getElementalResonances().stream()
+        var player = avatar.getPlayer();
+        var abilities = player == null? IntStream.of(): player.getTeamManager().getElementalResonances().stream()
             .flatMapToInt(config -> getAbilitiesByOpenConfig(config.getOpenConfig()));
         updateAbilityEmbryos(AbilityType.RESONANCE_ELEMENTAL, abilities);
     }

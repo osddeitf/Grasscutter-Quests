@@ -618,6 +618,7 @@ public class Avatar {
     }
 
     public EntityAvatar getAsEntity() {
+        if (getPlayer() == null) return null;
         for (EntityAvatar entity : getPlayer().getTeamManager().getActiveTeam()) {
             if (entity.getAvatar() == this) {
                 return entity;
