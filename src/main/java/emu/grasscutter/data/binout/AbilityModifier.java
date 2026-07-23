@@ -40,6 +40,7 @@ public class AbilityModifier implements Serializable {
 
     public static class AbilityModifierAction implements Serializable {
         public enum Type {
+            ChangeGadgetState,
             ActCameraRadialBlur, ActCameraShake, AddAvatarSkillInfo, AddChargeBarValue,
             AddClimateMeter, AddElementDurability, AddGlobalValue, AddGlobalValueToTarget,
             AddRegionalPlayVarValue, ApplyModifier, AttachAbilityStateResistance, AttachBulletAimPoint,
@@ -157,6 +158,9 @@ public class AbilityModifier implements Serializable {
         public String sourceName;
         @SerializedName(value = "callParamList", alternate = "CallParamList")
         public int[] callParamList;
+
+        // ChangeGadgetState
+        public int state;
 
         public enum DropType {
             LevelControl,
