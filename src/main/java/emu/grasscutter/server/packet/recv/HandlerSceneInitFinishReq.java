@@ -1,5 +1,7 @@
 package emu.grasscutter.server.packet.recv;
 
+import emu.grasscutter.Grasscutter;
+import emu.grasscutter.data.GameData;
 import emu.grasscutter.game.dungeons.DungeonManager;
 import emu.grasscutter.game.player.Player.SceneLoadState;
 import emu.grasscutter.net.packet.*;
@@ -31,6 +33,14 @@ public class HandlerSceneInitFinishReq extends TypedPacketHandler<SceneInitFinis
 		session.send(new PacketSceneDataNotify(session.getPlayer()));
 		session.send(new PacketSceneTimeNotify(session.getPlayer()));
 		session.send(new PacketPlayerGameTimeNotify(session.getPlayer()));
+
+		// Refresh avatar abilities with level entity
+		var scene = session.getPlayer().getScene();
+		session.getPlayer().setAvatarsAbilityForScene(scene);
+		var levelEntity = GameData.getConfigLevelEntityDataMap().get(scene.getSceneData().getLevelEntityConfig());
+		if (levelEntity != null) {
+				session.getPlayer().getTeamManager().getEntity().getAbilities().updateLevelEntityAbilities(levelEntity);
+		}
 		session.send(new PacketPlayerEnterSceneInfoNotify(session.getPlayer()));
 
 		session.getPlayer().getScene().reloadWeathers();
@@ -41,9 +51,6 @@ public class HandlerSceneInitFinishReq extends TypedPacketHandler<SceneInitFinis
 		else //TODO: Remove old climate implementation, you can use areaId 0 and climate type none, but needs testing
 			session.send(new PacketSceneAreaWeatherNotify(session.getPlayer()));
 		session.send(new PacketScenePlayerInfoNotify(session.getPlayer().getWorld()));
-
-		// Refresh avatar abilities with level entity
-		session.getPlayer().setAvatarsAbilityForScene(session.getPlayer().getScene());
 
 		// Team info
 		session.send(new PacketSceneTeamUpdateNotify(session.getPlayer()));

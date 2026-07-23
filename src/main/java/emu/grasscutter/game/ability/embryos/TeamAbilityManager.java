@@ -1,6 +1,8 @@
 package emu.grasscutter.game.ability.embryos;
 
 import emu.grasscutter.data.GameData;
+import emu.grasscutter.data.binout.config.ConfigLevelEntity;
+import emu.grasscutter.data.binout.config.fields.ConfigAbilityData;
 import emu.grasscutter.data.excels.WorldAreaData;
 import emu.grasscutter.game.entity.EntityTeam;
 import emu.grasscutter.server.packet.send.PacketAbilityChangeNotify;
@@ -34,6 +36,14 @@ public class TeamAbilityManager extends BaseAbilityManager {
             .filter(Objects::nonNull)
             .flatMap(group -> group.getTeamAbilities().stream())
             .mapToInt(Integer::intValue)
+        );
+    }
+
+    public void updateLevelEntityAbilities(@NonNull ConfigLevelEntity config) {
+        List<ConfigAbilityData> abilities = Objects.requireNonNullElse(config.getTeamAbilities(), List.of());
+        updateAbilityEmbryos(AbilityType.LEVEL_ENTITY, abilities.stream()
+            .map(ConfigAbilityData::getAbilityName)
+            .mapToInt(Utils::abilityHash)
         );
     }
 
