@@ -83,7 +83,7 @@ public final class SurrealGameRepository implements GameRepository {
 
     /** Generic upsert of any entity. Used by the migration tool to copy arbitrary collections. */
     public void save(Object entity) {
-        gameDb.upsert(recordId(entity), UpType.CONTENT, content(entity));
+        upsert(entity);
     }
 
     private Surreal open(String uri, String database) {
@@ -180,7 +180,65 @@ public final class SurrealGameRepository implements GameRepository {
     }
 
     private <T> void upsert(T entity) {
-        gameDb.upsert(recordId(entity), UpType.CONTENT, content(entity));
+        writeUpsert(gameDb, recordId(entity), content(entity));
+    }
+
+    // --- writes with automatic retry on SurrealDB optimistic-concurrency conflicts ---
+    // SurrealDB (surrealkv) uses MVCC: concurrent writes touching overlapping data throw a
+    // "Transaction write conflict" that the engine explicitly marks retryable. Retry with a short
+    // randomized backoff so concurrent game threads (quest/player/avatar saves) don't fail.
+    private static final int MAX_WRITE_ATTEMPTS = 8;
+
+    private void writeUpsert(Surreal db, RecordId rid, Object content) {
+        withRetry(() -> db.upsert(rid, UpType.CONTENT, content));
+    }
+
+    private void writeDelete(Surreal db, RecordId rid) {
+        withRetry(() -> db.delete(rid));
+    }
+
+    private Response writeQuery(Surreal db, String sql, Map<String, ?> params) {
+        return withRetry(() -> params == null ? db.query(sql) : db.queryBind(sql, params));
+    }
+
+    private <T> T withRetry(java.util.function.Supplier<T> op) {
+        RuntimeException last = null;
+        for (int attempt = 1; attempt <= MAX_WRITE_ATTEMPTS; attempt++) {
+            try {
+                return op.get();
+            } catch (RuntimeException e) {
+                if (!isRetryableConflict(e)) throw e;
+                last = e;
+                try {
+                    Thread.sleep(Math.min(2L * attempt, 20L)
+                        + java.util.concurrent.ThreadLocalRandom.current().nextInt(4));
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw e;
+                }
+            }
+        }
+        Grasscutter.getLogger().warn("SurrealDB write still conflicting after {} attempts", MAX_WRITE_ATTEMPTS);
+        throw last;
+    }
+
+    private void withRetry(Runnable op) {
+        withRetry(() -> {
+            op.run();
+            return null;
+        });
+    }
+
+    /** True for SurrealDB optimistic-concurrency conflicts, which are safe to retry. */
+    private static boolean isRetryableConflict(Throwable e) {
+        for (Throwable t = e; t != null; t = t.getCause()) {
+            String msg = t.getMessage();
+            if (msg != null && (msg.contains("write conflict") || msg.contains("can be retried")
+                    || msg.contains("Transaction conflict"))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Reconstructs an entity from a result Value, restoring its {@code @Id} from the record id. */
@@ -268,8 +326,8 @@ public final class SurrealGameRepository implements GameRepository {
     @Override
     public synchronized int getNextId(Class<?> c) {
         String name = c.getSimpleName();
-        Response r = gameDb.query("UPSERT counters:" + name
-            + " SET count = (count ?? 10000) + 1 RETURN AFTER;");
+        Response r = writeQuery(gameDb, "UPSERT counters:" + name
+            + " SET count = (count ?? 10000) + 1 RETURN AFTER;", null);
         Object j = valueToJava(r.take(0));
         if (j instanceof List<?> list && !list.isEmpty() && list.get(0) instanceof Map<?, ?> row
                 && row.get("count") instanceof Number n) {
@@ -323,23 +381,23 @@ public final class SurrealGameRepository implements GameRepository {
 
     @Override
     public void saveAccount(Account account) {
-        accountDb().upsert(recordId(account), UpType.CONTENT, content(account));
+        writeUpsert(accountDb(), recordId(account), content(account));
     }
 
     @Override
     public synchronized void deleteAccountAndData(Account target, int uid) {
         Map<String, Object> p = Map.of("u", uid);
-        gameDb.queryBind("DELETE activities WHERE uid = $u", p);
-        gameDb.queryBind("DELETE homes WHERE ownerUid = $u", p);
-        gameDb.queryBind("DELETE mail WHERE ownerUid = $u", p);
-        gameDb.queryBind("DELETE avatars WHERE ownerId = $u", p);
-        gameDb.queryBind("DELETE gachas WHERE ownerId = $u", p);
-        gameDb.queryBind("DELETE items WHERE ownerId = $u", p);
-        gameDb.queryBind("DELETE quests WHERE ownerUid = $u", p);
-        gameDb.queryBind("DELETE battlepass WHERE ownerUid = $u", p);
-        gameDb.queryBind("DELETE friendships WHERE ownerId = $u OR friendId = $u", p);
-        gameDb.delete(new RecordId(table(Player.class), uid));
-        accountDb().delete(new RecordId(table(Account.class), target.getId()));
+        writeQuery(gameDb, "DELETE activities WHERE uid = $u", p);
+        writeQuery(gameDb, "DELETE homes WHERE ownerUid = $u", p);
+        writeQuery(gameDb, "DELETE mail WHERE ownerUid = $u", p);
+        writeQuery(gameDb, "DELETE avatars WHERE ownerId = $u", p);
+        writeQuery(gameDb, "DELETE gachas WHERE ownerId = $u", p);
+        writeQuery(gameDb, "DELETE items WHERE ownerId = $u", p);
+        writeQuery(gameDb, "DELETE quests WHERE ownerUid = $u", p);
+        writeQuery(gameDb, "DELETE battlepass WHERE ownerUid = $u", p);
+        writeQuery(gameDb, "DELETE friendships WHERE ownerId = $u OR friendId = $u", p);
+        writeDelete(gameDb, new RecordId(table(Player.class), uid));
+        writeDelete(accountDb(), new RecordId(table(Account.class), target.getId()));
     }
     // endregion
 
@@ -392,7 +450,7 @@ public final class SurrealGameRepository implements GameRepository {
 
     @Override
     public boolean deleteItem(GameItem item) {
-        gameDb.delete(recordId(item));
+        writeDelete(gameDb, recordId(item));
         return true;
     }
 
@@ -423,7 +481,7 @@ public final class SurrealGameRepository implements GameRepository {
 
     @Override
     public void deleteFriendship(Friendship friendship) {
-        gameDb.delete(recordId(friendship));
+        writeDelete(gameDb, recordId(friendship));
     }
 
     @Override
@@ -476,7 +534,7 @@ public final class SurrealGameRepository implements GameRepository {
 
     @Override
     public boolean deleteMail(Mail mail) {
-        gameDb.delete(recordId(mail));
+        writeDelete(gameDb, recordId(mail));
         return true;
     }
     // endregion
@@ -495,7 +553,7 @@ public final class SurrealGameRepository implements GameRepository {
 
     @Override
     public boolean deleteQuest(GameMainQuest quest) {
-        gameDb.delete(recordId(quest));
+        writeDelete(gameDb, recordId(quest));
         return true;
     }
     // endregion
@@ -595,7 +653,7 @@ public final class SurrealGameRepository implements GameRepository {
         RecordId rid = new RecordId(m.table(), Array.of(module.getOwnerId(), m.discriminator()));
         Map<String, Object> content = mapper.toDocument(module);
         content.remove(m.idField().getName());
-        gameDb.upsert(rid, UpType.CONTENT, content);
+        writeUpsert(gameDb, rid, content);
     }
     // endregion
 
