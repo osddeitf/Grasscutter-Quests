@@ -163,10 +163,7 @@ public final class AbilityManager extends BasePlayerManager {
     public void handleServerInvoke(AbilityInvokeEntry invoke) {
         var head = invoke.getHead();
 
-        var entity = head != null && head.getTargetId() != 0
-            ? this.player.getScene().getEntityById(head.getTargetId())
-            : this.player.getScene().getEntityById(invoke.getEntityId());
-
+        var entity = this.player.getScene().getEntityById(invoke.getEntityId());
         if(entity == null) {
             logger.info("handleServerInvoke entity not found: {}", invoke.getEntityId());
             return;
@@ -194,8 +191,10 @@ public final class AbilityManager extends BasePlayerManager {
         var action = ability.getData().localIdToAction.get(head.getLocalId());
         if(action != null) {
             //Executing action
-
-            executeAction(ability, action, invoke.getAbilityData(), entity);
+            var target = head.getTargetId() != 0
+                ? this.player.getScene().getEntityById(head.getTargetId())
+                : entity;
+            executeAction(ability, action, invoke.getAbilityData(), target);
 
             return;
         } else {
