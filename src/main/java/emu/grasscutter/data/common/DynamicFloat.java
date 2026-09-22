@@ -85,11 +85,22 @@ public class DynamicFloat {
     }
 
     public float get(Ability ability, float defaultValue) {
-        return get(ability.getAbilitySpecials(), defaultValue);
+        return get(resolveKeys(ability), defaultValue);
     }
 
     public float get(Ability ability) {
-        return get(ability.getAbilitySpecials(), 0f);
+        return get(ability, 0f);
+    }
+
+    // Resolves the keys referenced by this expression through the ability (override map, then ability specials)
+    private Object2FloatMap<String> resolveKeys(Ability ability) {
+        var props = new Object2FloatArrayMap<String>();
+        if (this.dynamic && ability != null) {
+            for (var op : this.ops) {
+                if (op.op == StackOp.Op.KEY) props.put(op.sValue, ability.evaluateValue(op.sValue));
+            }
+        }
+        return props;
     }
 
     public float get(Object2FloatMap<String> props, float defaultValue) {

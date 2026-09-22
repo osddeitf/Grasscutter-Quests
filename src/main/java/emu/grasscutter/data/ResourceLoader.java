@@ -35,6 +35,7 @@ import emu.grasscutter.scripts.ScriptSystem;
 import emu.grasscutter.utils.FileUtils;
 import emu.grasscutter.utils.JsonUtils;
 import emu.grasscutter.utils.TsvUtils;
+import emu.grasscutter.utils.Utils;
 import it.unimi.dsi.fastutil.Pair;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -433,7 +434,7 @@ public class ResourceLoader {
     }
     private static void loadAbilityData(AbilityData data) {
         GameData.abilityDataMap.put(data.abilityName, data);
-        GameData.getAbilityHashes().put(Ability.AbilityHash(data.abilityName), data.abilityName);
+        GameData.getAbilityHashes().put(Utils.abilityHash(data.abilityName), data.abilityName);
 
         val modifiers = data.modifiers;
         if (modifiers == null || modifiers.size() == 0) return;

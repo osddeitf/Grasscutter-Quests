@@ -1,8 +1,10 @@
 package emu.grasscutter.game.ability.actions;
 
 import emu.grasscutter.data.binout.AbilityModifier.AbilityModifierAction;
+import emu.grasscutter.data.common.DynamicFloat;
 import emu.grasscutter.game.ability.Ability;
 import emu.grasscutter.game.entity.GameEntity;
+import emu.grasscutter.utils.Utils;
 import org.anime_game_servers.multi_proto.gi.messages.ability.action.AbilityActionSetRandomOverrideMapValue;
 
 @AbilityAction(AbilityModifierAction.Type.SetRandomOverrideMapValue)
@@ -30,7 +32,7 @@ public class ActionSetRandomOverrideMapValue extends AbilityActionHandler {
             return true;
         }
 
-        ability.getAbilitySpecials().put(action.overrideMapKey, value);
+        ability.getServerOverrideMap().put(Utils.abilityHash(action.overrideMapKey), new DynamicFloat(value));
 
         return true;
     }
