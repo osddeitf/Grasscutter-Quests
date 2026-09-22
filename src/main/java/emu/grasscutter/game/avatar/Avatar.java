@@ -410,11 +410,10 @@ public class Avatar {
         this.stats.calculateTalentStats();
         this.stats.refreshStats();
 
-        this.abilities.updateWeaponAbilities();
-        this.abilities.updateReliquaryAbilities();
-        this.abilities.updateProudSkillAbilities();
-        this.abilities.updateTalentAbilities();
-        this.abilities.updateElementalResonanceAbilities();
+        this.abilities.attachOpenConfigs(AvatarAbilityManager.SOURCE_WEAPON, this.stats.getWeaponAffixes());
+        this.abilities.attachOpenConfigs(AvatarAbilityManager.SOURCE_RELIQUARY, this.stats.getReliquaryAffixes());
+        this.abilities.attachOpenConfigs(AvatarAbilityManager.SOURCE_PROUD_SKILL, this.stats.getProudSkills());
+        this.abilities.attachOpenConfigs(AvatarAbilityManager.SOURCE_TALENT, this.stats.getTalents());
         this.abilities.updateSkillDepotAbilities();
         this.abilities.notifyChanges();
 

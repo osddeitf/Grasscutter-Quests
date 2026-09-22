@@ -5,6 +5,7 @@ import emu.grasscutter.data.common.DynamicFloat;
 import emu.grasscutter.game.props.ElementType;
 
 import java.io.Serializable;
+import java.util.Map;
 
 public class AbilityModifier implements Serializable {
     private static final long serialVersionUID = -2001232313615923575L;
@@ -33,6 +34,8 @@ public class AbilityModifier implements Serializable {
     public DynamicFloat thinkInterval = DynamicFloat.ZERO;
     public String stacking;
 
+    public boolean isLimitedProperties;
+    public Map<String, DynamicFloat> properties;
     public AbilityMixinData[] modifierMixins;
 
     public ElementType elementType;
