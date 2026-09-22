@@ -1,6 +1,7 @@
 package emu.grasscutter.game.entity;
 
 import emu.grasscutter.data.GameData;
+import emu.grasscutter.data.common.StackedValue;
 import emu.grasscutter.game.ability.Ability;
 import emu.grasscutter.game.ability.AbilityModifierController;
 import emu.grasscutter.game.entity.create_config.CreateEntityConfig;
@@ -55,6 +56,42 @@ public abstract class GameEntity<T extends CreateEntityConfig<?>> {
     @Getter private Int2ObjectMap<AbilityModifierController> instancedModifiers = new Int2ObjectOpenHashMap<>();
     @Getter private Map<String, Float> globalAbilityValues = new HashMap<>();
     @Getter private Set<String> entityTags = new HashSet<>();
+    private final Map<EntityAbilityProperty, StackedValue> abilityPropertyMap = new HashMap<>();
+
+    public float getAbilityProperty(EntityAbilityProperty prop) {
+        return abilityPropertyMap.get(prop).getValue();
+    }
+
+    public int addAbilityProperty(String name, float value) {
+        try {
+            // TODO: default value + bounded
+            var key = EntityAbilityProperty.valueOf(name);
+            var val = abilityPropertyMap.computeIfAbsent(key, (k) -> {
+                var ret = new StackedValue(0f, key.getStackingType());
+//                ret.setLimit(); TODO: set limit from AbilityPropExcel
+                return ret;
+            });
+            return val.add(value, false);
+        }
+        catch (IllegalArgumentException ex) {
+            // logging
+        }
+        return -1;
+    }
+
+    public void removeAbilityProperty(String name, int idx) {
+        try {
+            // TODO: default value + bounded
+            var key = EntityAbilityProperty.valueOf(name);
+            var val = abilityPropertyMap.get(key);
+            if (val != null) {
+                val.del(idx);
+            }
+        }
+        catch (IllegalArgumentException ex) {
+            // logging
+        }
+    }
 
     protected GameEntity(Scene scene) {
         this.scene = scene;

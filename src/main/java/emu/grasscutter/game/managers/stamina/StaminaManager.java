@@ -3,6 +3,7 @@ package emu.grasscutter.game.managers.stamina;
 import emu.grasscutter.Grasscutter;
 import emu.grasscutter.game.avatar.Avatar;
 import emu.grasscutter.game.entity.EntityAvatar;
+import emu.grasscutter.game.entity.EntityAbilityProperty;
 import emu.grasscutter.game.entity.GameEntity;
 import emu.grasscutter.game.player.BasePlayerManager;
 import emu.grasscutter.game.player.Player;
@@ -129,33 +130,6 @@ public class StaminaManager extends BasePlayerManager {
     private int vehicleId = -1;
     private int vehicleStamina = GlobalVehicleMaxStamina;
     private static final Set<Integer> TalentMovements = Set.of(10013, 10413);
-    private static final HashMap<Integer, Float> ClimbFoodReductionMap = new HashMap<>() {{
-        // TODO: get real food id
-        put(0, 0.8f); // Sample food
-    }};
-    private static final HashMap<Integer, Float> DashFoodReductionMap = new HashMap<>() {{
-        // TODO: get real food id
-        put(0, 0.8f); // Sample food
-    }};
-    private static final HashMap<Integer, Float> FlyFoodReductionMap = new HashMap<>() {{
-        // TODO: get real food id
-        put(0, 0.8f); // Sample food
-    }};
-    private static final HashMap<Integer, Float> SwimFoodReductionMap = new HashMap<>() {{
-        // TODO: get real food id
-        put(0, 0.8f); // Sample food
-    }};
-    private static final HashMap<Integer, Float> ClimbTalentReductionMap = new HashMap<>() {{
-        put(262301, 0.8f);
-    }};
-    private static final HashMap<Integer, Float> FlyTalentReductionMap = new HashMap<>() {{
-        put(212301, 0.8f);
-        put(222301, 0.8f);
-    }};
-    private static final HashMap<Integer, Float> SwimTalentReductionMap = new HashMap<>() {{
-        put(242301, 0.8f);
-        put(542301, 0.8f);
-    }};
 
     public static void initialize() {
         // TODO: Initialize foods etc.
@@ -482,12 +456,7 @@ public class StaminaManager extends BasePlayerManager {
                     return;
                 }
 
-                if (consumption.amount < 0 && isCharacterStamina) {
-                    // Do not apply reduction factor when recovering stamina
-                    if (player.getTeamManager().getElementalResonances().stream().anyMatch(r -> r.getId() == 10301)) {
-                        consumption.amount *= 0.85f;
-                    }
-                }
+                logger.debug("Consume stamina {} with state {}", consumption.amount, currentState);
                 // Delay 1 seconds before starts recovering stamina
                 if (consumption.amount != 0 && cachedSession != null) {
                     if (consumption.amount < 0) {
@@ -525,8 +494,14 @@ public class StaminaManager extends BasePlayerManager {
     }
 
     // Consumption Calculators
-
     // Stamina Consumption Reduction: https://genshin-impact.fandom.com/wiki/Stamina
+    private float getStaminaCostRatio() {
+        var entity = player.getTeamManager().getCurrentAvatarEntity();
+        var ratio = entity.getAbilityProperty(EntityAbilityProperty.Actor_CostStaminaRatio);
+        var value = 1f + ratio;
+        logger.info("Current stamina cost ratio: {}", value);
+        return value;
+    }
 
     private Consumption getFightConsumption(int skillCasting) {
         // Talent moving
@@ -553,9 +528,7 @@ public class StaminaManager extends BasePlayerManager {
             consumption.type = ConsumptionType.CLIMBING;
             consumption.amount = ConsumptionType.CLIMBING.amount;
         }
-        // Climbing specific reductions
-        consumption.amount *= getFoodCostReductionFactor(ClimbFoodReductionMap);
-        consumption.amount *= getTalentCostReductionFactor(ClimbTalentReductionMap);
+        consumption.amount *= getStaminaCostRatio();
         return consumption;
     }
 
@@ -570,9 +543,7 @@ public class StaminaManager extends BasePlayerManager {
             consumption.type = ConsumptionType.SWIM_DASH;
             consumption.amount = ConsumptionType.SWIM_DASH.amount;
         }
-        // Swimming specific reductions
-        consumption.amount *= getFoodCostReductionFactor(SwimFoodReductionMap);
-        consumption.amount *= getTalentCostReductionFactor(SwimTalentReductionMap);
+        consumption.amount *= getStaminaCostRatio();
         return consumption;
     }
 
@@ -581,8 +552,7 @@ public class StaminaManager extends BasePlayerManager {
         if (currentState == MotionState.MOTION_DASH) {
             consumption.type = ConsumptionType.DASH;
             consumption.amount = ConsumptionType.DASH.amount;
-            // Dashing specific reductions
-            consumption.amount *= getFoodCostReductionFactor(DashFoodReductionMap);
+            consumption.amount *= getStaminaCostRatio();
         }
         return consumption;
     }
@@ -593,9 +563,7 @@ public class StaminaManager extends BasePlayerManager {
             return new Consumption(ConsumptionType.POWERED_FLY);
         }
         Consumption consumption = new Consumption(ConsumptionType.FLY);
-        // Flying specific reductions
-        consumption.amount *= getFoodCostReductionFactor(FlyFoodReductionMap);
-        consumption.amount *= getTalentCostReductionFactor(FlyTalentReductionMap);
+        consumption.amount *= getStaminaCostRatio();
         return consumption;
     }
 
@@ -622,31 +590,6 @@ public class StaminaManager extends BasePlayerManager {
         }
 
         return new Consumption();
-    }
-
-    // Reduction getter
-
-    private float getTalentCostReductionFactor(HashMap<Integer, Float> talentReductionMap) {
-        // All known talents reductions are not stackable
-        float reduction = 1;
-        for (EntityAvatar entity : cachedSession.getPlayer().getTeamManager().getActiveTeam()) {
-            for (int skillId : entity.getAvatar().getProudSkillList()) {
-                if (talentReductionMap.containsKey(skillId)) {
-                    float potentialLowerReduction = talentReductionMap.get(skillId);
-                    if (potentialLowerReduction < reduction) {
-                        reduction = potentialLowerReduction;
-                    }
-                }
-            }
-        }
-        return reduction;
-    }
-
-    private float getFoodCostReductionFactor(HashMap<Integer, Float> foodReductionMap) {
-        // All known food reductions are not stackable
-        // TODO: Check consumed food (buff?) and return proper factor
-        float reduction = 1;
-        return reduction;
     }
 
     private Consumption getTalentMovingSustainedCost(int skillId) {

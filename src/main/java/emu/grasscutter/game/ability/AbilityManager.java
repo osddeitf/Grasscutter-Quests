@@ -373,36 +373,16 @@ public final class AbilityManager extends BasePlayerManager {
         }
 
         if(modChange.getAction() == ModifierAction.ADDED) {
-            AbilityData instancedAbilityData = null;
-            Ability instancedAbility = null;
+            var modifierOwner = head.getTargetId() != 0
+                ? this.player.getScene().getEntityById(head.getTargetId())
+                : entity;
+            var instancedAbility = modifierOwner.getInstancedAbilities().get(head.getInstancedAbilityId());
 
-            if(head.getTargetId() != 0) {
-                //Get ability from target entity
-                var targetEntity = this.player.getScene().getEntityById(head.getTargetId());
-                if(targetEntity != null) {
-                    instancedAbility = targetEntity.getInstancedAbilities().get(head.getInstancedAbilityId());
-                }
-            }
-            else {
-                // search on entity
-                instancedAbility = entity.getInstancedAbilities().get(head.getInstancedAbilityId());
-            }
-
-            if (instancedAbility != null) {
-                instancedAbilityData = instancedAbility.getData();
-            }
-            else {
-                //Search for the parent ability. TODO: instancedAbility should not be null
-                val abilityName = modChange.getParentAbilityName();
-                if(abilityName != null) {
-                    instancedAbilityData = GameData.getAbilityData(getAbilityName(abilityName));
-                }
-            }
-
-            if(instancedAbilityData == null ||  instancedAbilityData.modifiers == null) {
+            if (instancedAbility == null) {
                 logger.info("handleModifierChange No ability found. modChange: {}", modChange);
                 return; //TODO: Display error message
             }
+            var instancedAbilityData = instancedAbility.getData();
 
             var modifiers = instancedAbilityData.modifierList;
             if(modChange.getModifierLocalId() >= modifiers.size())
@@ -417,17 +397,16 @@ public final class AbilityManager extends BasePlayerManager {
                 logger.debug("Adding entity {} modifier id {} with ability {} modifier {}", invoke.getEntityId(), head.getInstancedModifierId(), instancedAbilityData.abilityName, modifierData);
             }
 
-            AbilityModifierController modifier = new AbilityModifierController(instancedAbility, instancedAbilityData, modifierData);
-
-            entity.getInstancedModifiers().put(head.getInstancedModifierId(), modifier);
-
-            //TODO: Add all the ability modifier property change
+            var modifier = new AbilityModifierController(instancedAbility, instancedAbilityData, modifierData);
+            var replaced = entity.getInstancedModifiers().put(head.getInstancedModifierId(), modifier);
+            if (replaced != null) replaced.detach(entity);
+            modifier.attach(entity);
         } else if(modChange.getAction() == ModifierAction.REMOVED) {
             logger.debug("Removed on entity {} modifier id {}: {}", invoke.getEntityId(), head.getInstancedModifierId(), entity.getInstancedModifiers().get(head.getInstancedModifierId()));
 
             //TODO: Add debug log
-
-            entity.getInstancedModifiers().remove(head.getInstancedModifierId());
+            var modifier = entity.getInstancedModifiers().remove(head.getInstancedModifierId());
+            if (modifier != null) modifier.detach(entity);
         } else {
             //TODO: Display error message
             logger.debug("handleModifierChange unknown action");
