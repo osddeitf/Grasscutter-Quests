@@ -37,12 +37,8 @@ public abstract class BaseAbilityManager {
     protected enum AbilityType {
         DEFAULT,
         SKILL_DEPOT,
-        PROUD_SKILL,
-        TALENT,
-        RESONANCE_ELEMENTAL,
+        OPEN_CONFIG,
         RESONANCE_MOON_SIGN,
-        WEAPON,
-        RELIQUARY,
         WORLD_AREA_LEVEL_1,
         WORLD_AREA_LEVEL_2,
         LEVEL_ENTITY,

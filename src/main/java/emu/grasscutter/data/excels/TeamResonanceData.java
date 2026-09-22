@@ -2,6 +2,7 @@ package emu.grasscutter.data.excels;
 
 import emu.grasscutter.data.GameResource;
 import emu.grasscutter.data.ResourceType;
+import emu.grasscutter.data.binout.OpenConfigSource;
 import emu.grasscutter.game.player.Player;
 import emu.grasscutter.game.player.TeamInfo;
 import emu.grasscutter.game.props.ElementType;
@@ -13,7 +14,7 @@ import java.util.Objects;
 
 @Getter
 @ResourceType(name = "TeamResonanceExcelConfigData.json")
-public class TeamResonanceData extends GameResource {
+public class TeamResonanceData extends GameResource implements OpenConfigSource {
     private int teamResonanceId;
     private int teamResonanceGroupId;
     private String openConfig;

@@ -4,6 +4,7 @@ import dev.morphia.annotations.Entity;
 import emu.grasscutter.GameConstants;
 import emu.grasscutter.data.GameData;
 import emu.grasscutter.data.excels.TeamResonanceData;
+import emu.grasscutter.game.ability.embryos.AvatarAbilityManager;
 import emu.grasscutter.game.avatar.Avatar;
 import emu.grasscutter.game.avatar.AvatarStorage;
 import emu.grasscutter.game.avatar.TrialAvatar;
@@ -13,7 +14,9 @@ import emu.grasscutter.game.entity.EntityTeam;
 import emu.grasscutter.game.props.EnterReason;
 import emu.grasscutter.game.props.FightProperty;
 import emu.grasscutter.game.world.World;
+import emu.grasscutter.net.packet.BaseTypedPacket;
 import emu.grasscutter.server.event.player.PlayerTeamDeathEvent;
+import emu.grasscutter.server.packet.ability.PacketTeamResonanceChangeNotify;
 import emu.grasscutter.server.packet.send.*;
 import emu.grasscutter.utils.Position;
 import emu.grasscutter.utils.Utils;
@@ -27,10 +30,13 @@ import org.anime_game_servers.multi_proto.gi.messages.general.PlayerDieType;
 import org.anime_game_servers.multi_proto.gi.messages.general.Retcode;
 import org.anime_game_servers.multi_proto.gi.messages.scene.EnterType;
 import org.anime_game_servers.multi_proto.gi.messages.scene.entity.MotionState;
+import org.anime_game_servers.multi_proto.gi.messages.team.skill.AvatarTeamResonanceInfo;
+import org.anime_game_servers.multi_proto.gi.messages.team.skill.TeamResonanceChangeNotify;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static emu.grasscutter.config.Configuration.GAME_OPTIONS;
@@ -45,7 +51,7 @@ public class TeamManager extends BasePlayerDataManager {
     transient @Setter private EntityTeam entity;
     transient private final List<EntityAvatar> activeTeam;
     transient private final Set<EntityBaseGadget> gadgets;
-    transient private final List<TeamResonanceData> elementalResonances;
+    transient private final Set<TeamResonanceData> elementalResonances;
     transient @Setter private TeamInfo mpTeam;
     transient @Setter private int temporaryTeamIndex = -1;
     transient private final List<TeamInfo> temporaryTeam; // Temporary Team for tower
@@ -59,7 +65,7 @@ public class TeamManager extends BasePlayerDataManager {
         this.mpTeam = new TeamInfo();
         this.activeTeam = new ArrayList<>();
         this.gadgets = new HashSet<>();
-        this.elementalResonances = new ArrayList<>();
+        this.elementalResonances = new HashSet<>();
         this.temporaryTeam = new ArrayList<>();
         this.trialAvatarTeam = new TeamInfo();
         this.entityGuids = new LinkedHashMap<>();
@@ -181,13 +187,25 @@ public class TeamManager extends BasePlayerDataManager {
     }
 
     private void updateTeamResonances() {
-        elementalResonances.clear();
-        elementalResonances.addAll(GameData.getTeamResonanceDataMap().values().stream()
+        var updated = GameData.getTeamResonanceDataMap().values().stream()
             .filter(config -> config.isResonanceActive(player, getCurrentTeamInfo()))
-            .toList()
-        );
+            .collect(Collectors.toSet());
+        var added = updated.stream().filter(config -> !elementalResonances.contains(config)).toList();
+        var removed = elementalResonances.stream().filter(config -> !updated.contains(config)).toList();
+        if (!added.isEmpty() || !removed.isEmpty()) {
+            // NOTE: notify so client will set up the override maps correctly
+            player.sendPacket(new PacketTeamResonanceChangeNotify(
+                player,
+                added.stream().map(TeamResonanceData::getId).toList(),
+                removed.stream().map(TeamResonanceData::getId).toList()
+            ));
+        }
+        elementalResonances.clear();
+        elementalResonances.addAll(updated);
+
+        // update abilities for avatars
         updateCurrentTeamAvatars(player, avatar -> {
-            avatar.getAbilities().updateElementalResonanceAbilities();
+            avatar.getAbilities().attachOpenConfigs(AvatarAbilityManager.SOURCE_RESONANCE, elementalResonances);
             avatar.getAbilities().notifyChanges();
         });
     }

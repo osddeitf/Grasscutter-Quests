@@ -38,7 +38,6 @@ public class GameData {
     @Getter private static final Int2ObjectMap<String> abilityHashes = new Int2ObjectOpenHashMap<>();
     @Deprecated(forRemoval = true)
     @Getter private static final Map<String, AbilityModifierEntry> abilityModifiers = new HashMap<>();
-    @Getter private static final Map<String, List<TalentData>> talents = new HashMap<>();
     @Getter private static final Map<String, ConfigEntityAvatar> avatarConfigData = new HashMap<>();
     @Getter private static final Map<String, ConfigEntityGadget> gadgetConfigData = new HashMap<>();
     @Getter private static final Map<String, ConfigEntityMonster> monsterConfigData = new HashMap<>();

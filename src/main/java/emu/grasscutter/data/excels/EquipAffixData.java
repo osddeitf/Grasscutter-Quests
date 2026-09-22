@@ -3,10 +3,11 @@ package emu.grasscutter.data.excels;
 import java.util.ArrayList;
 import emu.grasscutter.data.GameResource;
 import emu.grasscutter.data.ResourceType;
+import emu.grasscutter.data.binout.OpenConfigSource;
 import emu.grasscutter.data.common.FightPropData;
 
 @ResourceType(name = "EquipAffixExcelConfigData.json")
-public class EquipAffixData extends GameResource {
+public class EquipAffixData extends GameResource implements OpenConfigSource {
 
     private int affixId;
     private int id;

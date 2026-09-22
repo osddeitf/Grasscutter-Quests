@@ -4,10 +4,11 @@ import java.util.ArrayList;
 import emu.grasscutter.data.GameResource;
 import emu.grasscutter.data.ResourceType;
 import emu.grasscutter.data.ResourceType.LoadPriority;
+import emu.grasscutter.data.binout.OpenConfigSource;
 import emu.grasscutter.data.common.FightPropData;
 
 @ResourceType(name = "AvatarTalentExcelConfigData.json", loadPriority = LoadPriority.HIGHEST)
-public class AvatarTalentData extends GameResource {
+public class AvatarTalentData extends GameResource implements OpenConfigSource {
 	private int talentId;
 	private int prevTalent;
     private long nameTextMapHash;
