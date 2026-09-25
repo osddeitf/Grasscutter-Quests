@@ -10,7 +10,7 @@ import emu.grasscutter.data.excels.WorldAreaData;
 import emu.grasscutter.game.avatar.Avatar;
 import emu.grasscutter.server.packet.send.PacketAbilityChangeNotify;
 import emu.grasscutter.utils.Utils;
-import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntLinkedOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import lombok.NonNull;
 
@@ -26,7 +26,7 @@ public class AvatarAbilityManager extends BaseAbilityManager {
 
     private final Avatar avatar;
     private final Map<String, Set<OpenConfigSource>> openConfigSources = new LinkedHashMap<>();
-    private final IntSet openConfigAbilities = new IntOpenHashSet();
+    private final IntSet openConfigAbilities = new IntLinkedOpenHashSet();
 
     public AvatarAbilityManager(@NonNull Avatar avatar) {
         this.avatar = avatar;
@@ -55,7 +55,7 @@ public class AvatarAbilityManager extends BaseAbilityManager {
         onOpenConfigsAttached(added);
 
         // Snapshot so BaseAbilityManager's prev-vs-new diff has a stable reference.
-        updateAbilityEmbryos(AbilityType.OPEN_CONFIG, new IntOpenHashSet(openConfigAbilities));
+        updateAbilityEmbryos(AbilityType.OPEN_CONFIG, new IntLinkedOpenHashSet(openConfigAbilities));
     }
 
     private void onOpenConfigsDetached(List<OpenConfigSource> removed) {
@@ -104,7 +104,7 @@ public class AvatarAbilityManager extends BaseAbilityManager {
             .filter(config -> config.type == OpenConfigData.Type.AddAbility)
             .map(config -> config.abilityName)
             .mapToInt(Utils::abilityHash);
-        return IntOpenHashSet.toSet(stream);
+        return IntLinkedOpenHashSet.toSet(stream);
     }
 
     public void updateSkillDepotAbilities() {

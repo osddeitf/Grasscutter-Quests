@@ -1,6 +1,6 @@
 package emu.grasscutter.game.ability.embryos;
 
-import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntLinkedOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import lombok.Getter;
 import org.anime_game_servers.multi_proto.gi.messages.general.ability.AbilityControlBlock;
@@ -22,7 +22,7 @@ public abstract class BaseAbilityManager {
     }
 
     protected void updateAbilityEmbryos(AbilityType type, IntStream hashes) {
-        updateAbilityEmbryos(type, IntOpenHashSet.toSet(hashes));
+        updateAbilityEmbryos(type, IntLinkedOpenHashSet.toSet(hashes));
     }
 
     protected void updateAbilityEmbryos(AbilityType type, IntSet hashes) {
