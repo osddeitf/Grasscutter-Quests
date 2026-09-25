@@ -84,12 +84,7 @@ public class GameServerPacketHandler {
     }
 
     public void handle(GameSession session, int opcode, byte[] header, byte[] payload) {
-        val provider = session.getPackageIdProvider();
-        if (provider == null) {
-            Grasscutter.getLogger().warn("No package id provider found for version {}", session.getVersion());
-            return;
-        }
-        String packageName = provider.getPacketName(opcode);
+        String packageName = session.getPackageIdProvider().getPacketName(opcode);
         PacketHandler handler = getHandler(packageName, opcode);
 
         if (handler != null) {
@@ -128,6 +123,7 @@ public class GameServerPacketHandler {
             } catch (Exception ex) {
                 // TODO Remove this when no more needed
                 ex.printStackTrace();
+                Grasscutter.getLogger().error("Failed to handle packet", ex);
             }
             return; // Packet successfully handled
         }

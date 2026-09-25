@@ -168,6 +168,7 @@ public class ConfigContainer {
         public GameOptions gameOptions = new GameOptions();
         public JoinOptions joinOptions = new JoinOptions();
         public ConsoleAccount serverAccount = new ConsoleAccount();
+        public CompatOptions compatOptions = new CompatOptions();
 
         public VisionOptions[] visionOptions = new VisionOptions[] {
             new VisionOptions("VISION_LEVEL_NORMAL"         , 80    , 20),
@@ -279,6 +280,14 @@ public class ConfigContainer {
             public int cap = 160;
             public int rechargeTime = 480;
         }
+    }
+
+    public static class CompatOptions {
+        /* Support v6.1+ where entity id (in bits) is shorter. This is a temporary solution. */
+        public boolean useShortenedEntityId = false;
+
+        /* Packet XOR encryption before sending over network */
+        public boolean usePacketXorEncryption = true;
     }
 
     public static class VisionOptions {

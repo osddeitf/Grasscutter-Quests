@@ -6,7 +6,6 @@ import emu.grasscutter.BuildConfig;
 import emu.grasscutter.Grasscutter;
 import emu.grasscutter.Grasscutter.ServerRunMode;
 import emu.grasscutter.Loggers;
-import emu.grasscutter.net.packet.PacketOpcodesUtils;
 import lombok.val;
 import org.slf4j.LoggerFactory;
 

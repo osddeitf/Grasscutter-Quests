@@ -9,6 +9,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Stream;
 
+import static emu.grasscutter.config.Configuration.GAME_INFO;
+
 /**
  * This comes from [ProtEntityType].
  * Either the client or GC seems to expect ids to have this type in them, with these specific numbers.
@@ -47,14 +49,17 @@ public enum EntityIdType {
         });
     }
 
+//    private static final int BIT_OFFSET = GAME_INFO.compatOptions.useShortenedEntityId? 22: 24;
+    private static final int BIT_OFFSET = GAME_INFO.compatOptions.useShortenedEntityId? 21: 24; // hardcode for 6.5
+
     public static EntityIdType fromEntityId(int id) {
-        return map.getOrDefault(id >> 24, NONE);
+        return map.getOrDefault(id >> BIT_OFFSET, NONE);
     }
     public static int idFromEntityId(int id) {
-        return id >> 24;
+        return id >> BIT_OFFSET;
     }
 
     public int toTypedEntityId(int nextEid) {
-        return (getId() << 24) + nextEid;
+        return (getId() << BIT_OFFSET) + nextEid;
     }
 }

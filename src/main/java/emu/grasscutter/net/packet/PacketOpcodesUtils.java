@@ -1,20 +1,8 @@
 package emu.grasscutter.net.packet;
 
-import java.io.FileWriter;
-import java.io.IOException;
-import java.lang.reflect.Field;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.stream.Collectors;
-
-import emu.grasscutter.GameConstants;
-import emu.grasscutter.Grasscutter;
 import emu.grasscutter.server.game.GameSession;
-import emu.grasscutter.utils.JsonUtils;
-import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
-import lombok.val;
+
+import java.util.Set;
 
 public class PacketOpcodesUtils {
 
@@ -40,11 +28,10 @@ public class PacketOpcodesUtils {
 
     public static String getOpcodeName(int opcode, GameSession session) {
         if (opcode <= 0) return "UNKNOWN";
-        val provider = session.getPackageIdProvider();
-        if (provider != null) {
-            val name = provider.getPacketName(opcode);
-            if (name != null) return name;
+        var name = session.getPackageIdProvider().getPacketName(opcode);
+        if (name == null) {
+            return "UNKNOWN";
         }
-        return "UNKNOWN";
+        return name;
     }
 }

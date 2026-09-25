@@ -8,9 +8,9 @@ import emu.grasscutter.net.packet.BasePacket;
 import emu.grasscutter.net.packet.BaseTypedPacket;
 import emu.grasscutter.net.packet.PacketOpcodesUtils;
 import emu.grasscutter.server.event.game.SendPacketEvent;
+import emu.grasscutter.server.http.dispatch.RegionHandler;
 import emu.grasscutter.utils.Crypto;
 import emu.grasscutter.utils.FileUtils;
-import emu.grasscutter.utils.Utils;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import lombok.Getter;
@@ -18,13 +18,16 @@ import lombok.Setter;
 import lombok.val;
 import org.anime_game_servers.core.base.Version;
 import org.anime_game_servers.multi_proto.core.interfaces.PacketIdProvider;
-import org.anime_game_servers.multi_proto.gi.packet_id.PacketIds;
 import org.anime_game_servers.multi_proto.gi.messages.player.ServerDisconnectClientNotify;
-import org.anime_game_servers.multi_proto.gi.utils.VersionIdentify;
+import org.anime_game_servers.multi_proto.gi.packet_id.PacketIds;
+import org.anime_game_servers.multi_proto.runtime.descriptor.DynamicProtoRuntime;
+import org.anime_game_servers.multi_proto.runtime.descriptor.ProtoDescriptorRuntime;
 
 import java.io.File;
 import java.net.InetSocketAddress;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.Optional;
 
 import static emu.grasscutter.config.Configuration.*;
 import static emu.grasscutter.utils.Language.translate;
@@ -44,14 +47,27 @@ public class GameSession implements GameSessionManager.KcpChannel {
     @Getter private int clientTime;
     @Getter private long lastPingTime;
     private int lastClientSeq = 10;
-    @Getter private Version version = Version.DEFAULT;
-    @Getter private boolean isTemporaryVersion = true;
-    @Getter private PacketIdProvider packageIdProvider = PacketIds.getMapper(version);
+    @Getter private Version version;
+    @Getter private boolean isTemporaryVersion;
+    @Getter private PacketIdProvider packageIdProvider;
+
+    public static ProtoDescriptorRuntime loadVersionRuntime(Version version) {
+        try {
+            var runtime = DynamicProtoRuntime.registerVersion(version, "config/" + version.getNamespace());
+            runtime.setLogger(Grasscutter.getLogger());
+            return runtime;
+        }
+        catch (Exception ex) {
+            Grasscutter.getLogger().error("ERROR: failed to get version {} runtime", version, ex);
+            return null;
+        }
+    }
 
     public GameSession(GameServer server) {
         this.server = server;
         this.state = SessionState.WAITING_FOR_TOKEN;
         this.lastPingTime = System.currentTimeMillis();
+        this.updateVersion(Version.DEFAULT, true);
     }
 
     public GameServer getServer() {
@@ -103,10 +119,25 @@ public class GameSession implements GameSessionManager.KcpChannel {
         send(basePacket);
     }
 
-    public void logPacket(String sendOrRecv, int opcode, byte[] payload) {
-        Grasscutter.getLogger().info("{}: {} ({})", sendOrRecv, PacketOpcodesUtils.getOpcodeName(opcode, this), opcode);
-        if (GAME_INFO.isShowPacketPayload)
-            System.out.println(Utils.bytesToHex(payload));
+    private void logPacketSummary(String method, int opcode) {
+        Grasscutter.getLogger().info(method + ": " + PacketOpcodesUtils.getOpcodeName(opcode, this) + " (" + opcode + ")");
+    }
+
+    public void logPacket(String method, int opcode, BasePacket packet) {
+        logPacketSummary(method, opcode);
+        if (GAME_INFO.isShowPacketPayload) {
+            var header = Optional.ofNullable(packet.getHeader())
+                .map(p -> p.encodeToByteArray(version))
+                .orElse(new byte[0]);
+            PacketLogger.logPacket(method, opcode, packet.getData(this.version), header);
+        }
+    }
+
+    public void logPacket(String method, int opcode, byte[] payload, byte[] header) {
+        logPacketSummary(method, opcode);
+        if (GAME_INFO.isShowPacketPayload) {
+            PacketLogger.logPacket(method, opcode, payload, header);
+        }
     }
 
     public void send(BasePacket packet) {
@@ -133,17 +164,17 @@ public class GameSession implements GameSessionManager.KcpChannel {
         switch (DEBUG_MODE_INFO.logPackets) {
             case ALL -> {
                 if (!PacketOpcodesUtils.LOOP_PACKETS.contains(paketName) || GAME_INFO.isShowLoopPackets) {
-                    logPacket("SEND", opcode, packet.getData(version));
+                    logPacket("SEND", opcode, packet);
                 }
             }
             case WHITELIST -> {
                 if (SERVER.debugWhitelist.contains(paketName)) {
-                    logPacket("SEND", opcode, packet.getData(version));
+                    logPacket("SEND", opcode, packet);
                 }
             }
             case BLACKLIST -> {
                 if (!SERVER.debugBlacklist.contains(paketName)) {
-                    logPacket("SEND", opcode, packet.getData(version));
+                    logPacket("SEND", opcode, packet);
                 }
             }
             default -> {
@@ -165,19 +196,27 @@ public class GameSession implements GameSessionManager.KcpChannel {
     }
 
     public void updateVersion(Version version, boolean isTemporaryVersion) {
-        this.packageIdProvider = PacketIds.getMapper(version);
         this.version = version;
+        var runtime = loadVersionRuntime(version);
+        if (runtime == null) {
+            Grasscutter.getLogger().error("Session invalid, version {} is not supported", version);
+            if (!isTemporaryVersion) this.close();
+            return;
+        }
+
         this.isTemporaryVersion = isTemporaryVersion;
+        this.packageIdProvider = PacketIds.getMapper(version);
     }
 
     @Override
     public void handleReceive(byte[] bytes) {
         // Decrypt and turn back into a packet
+        // for 4.7.50 should be disabled
+        if (GAME_INFO.compatOptions.usePacketXorEncryption) {
         Crypto.xor(bytes, useSecretKey() ? Crypto.ENCRYPT_KEY : Crypto.DISPATCH_KEY);
+        }
         ByteBuf packet = Unpooled.wrappedBuffer(bytes);
 
-        // Log
-        //logPacket(packet);
         // Handle
         try {
             boolean allDebug = DEBUG_MODE_INFO.logPackets == ServerDebugMode.ALL;
@@ -213,7 +252,11 @@ public class GameSession implements GameSessionManager.KcpChannel {
                 }
 
                 if(version == Version.DEFAULT) {
-                    val versions = VersionIdentify.getClientVersionsFromFirstPacket(opcode, payload);
+                    val versions =
+                        Optional.<List<Version>>ofNullable(null)
+                        //Optional.ofNullable(VersionIdentify.getClientVersionsFromFirstPacket(opcode, payload))
+                        .orElseGet(() -> RegionHandler.versionIdentifies.get(opcode));
+
                     if(versions == null || versions.isEmpty()) {
                         Grasscutter.getLogger().error("Failed to identify client version for opcode: {}", opcode);
                         return;
@@ -230,17 +273,17 @@ public class GameSession implements GameSessionManager.KcpChannel {
                 switch (DEBUG_MODE_INFO.logPackets) {
                     case ALL -> {
                         if (!PacketOpcodesUtils.LOOP_PACKETS.contains(paketName) || GAME_INFO.isShowLoopPackets) {
-                            logPacket("RECV", opcode, payload);
+                            logPacket("RECV", opcode, payload, header);
                         }
                     }
                     case WHITELIST -> {
                         if (SERVER.debugWhitelist.contains(paketName)) {
-                            logPacket("RECV", opcode, payload);
+                            logPacket("RECV", opcode, payload, header);
                         }
                     }
                     case BLACKLIST -> {
                         if (!(SERVER.debugBlacklist.contains(paketName))) {
-                            logPacket("RECV", opcode, payload);
+                            logPacket("RECV", opcode, payload, header);
                         }
                     }
                     default -> { /* nothing to log */}
