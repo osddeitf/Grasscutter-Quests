@@ -95,11 +95,14 @@ public class AvatarAbilityManager extends BaseAbilityManager {
     }
 
     private IntSet getAddAbilityNames(String openConfig) {
+        if (openConfig.isEmpty()) return IntSet.of();
+
         var entry = GameData.getOpenConfigEntries().get(openConfig);
         if (entry == null) {
             // Missing resource -> fallback to the name itself, as the ability may share the same name.
             return IntSet.of(Utils.abilityHash(openConfig));
         }
+
         var stream = entry.getConfigTalents().stream()
             .filter(config -> config.type == OpenConfigData.Type.AddAbility)
             .map(config -> config.abilityName)
