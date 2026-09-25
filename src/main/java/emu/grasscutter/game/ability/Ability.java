@@ -6,10 +6,11 @@ import java.util.Map;
 import emu.grasscutter.Grasscutter;
 import emu.grasscutter.data.GameData;
 import emu.grasscutter.data.binout.AbilityData;
+import emu.grasscutter.data.common.DynamicFloat;
 import emu.grasscutter.game.entity.GameEntity;
 import emu.grasscutter.game.player.Player;
-import it.unimi.dsi.fastutil.objects.Object2FloatMap;
-import it.unimi.dsi.fastutil.objects.Object2FloatOpenHashMap;
+import emu.grasscutter.utils.Utils;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import lombok.Getter;
 import org.anime_game_servers.multi_proto.gi.messages.general.ability.AbilityString;
 
@@ -19,43 +20,34 @@ public class Ability {
     @Getter private AbilityData data;
     @Getter private GameEntity<?> owner;
     @Getter private Player playerOwner;
-
-    @Getter private AbilityManager manager;
-
-    @Getter private Map<String, AbilityModifierController> modifiers = new HashMap<>();
-    @Getter private Object2FloatMap<String> abilitySpecials = new Object2FloatOpenHashMap<String>();
-
-    @Getter private static Map<String, Object2FloatMap<String>> abilitySpecialsModified = new HashMap<String, Object2FloatMap<String>>();
-
-    @Getter private int hash;
+    @Getter private final Int2ObjectOpenHashMap<DynamicFloat> overrideMap = new Int2ObjectOpenHashMap<>();
+    @Getter private final Int2ObjectOpenHashMap<DynamicFloat> serverOverrideMap = new Int2ObjectOpenHashMap<>();
 
     public Ability(AbilityData data, GameEntity<?> owner, Player playerOwner) {
         this.data = data;
         this.owner = owner;
-        this.manager = owner.getWorld().getHost().getAbilityManager();
-        if(this.data.abilitySpecials != null)
-            for(var entry : this.data.abilitySpecials.entrySet())
-                abilitySpecials.put(entry.getKey(), entry.getValue().floatValue());
-        //if(abilitySpecialsModified.containsKey(this.data.abilityName)) {//Modify talent data
-        //    abilitySpecials.putAll(abilitySpecialsModified.get(this.data.abilityName));
-        //}
-
         this.playerOwner = playerOwner;
-
-        hash = AbilityHash(data.abilityName);
-
         data.initialize();
+        refreshServerOverrideMap();
     }
 
-    public static int AbilityHash(String str)
-    {
-        long hash = 0;
-        char[] asCharArray = str.toCharArray();
-        for (int i = 0; i < str.length(); i++)
-        {
-            hash = ((asCharArray[i] + 131 * hash) & 0xFFFFFFFF);
-        }
-        return (int)hash;
+    public void refreshServerOverrideMap() {
+        if(this.data.abilitySpecials != null)
+            for(var entry : this.data.abilitySpecials.entrySet())
+                serverOverrideMap.put(
+                    Utils.abilityHash(entry.getKey()),
+                    new DynamicFloat(entry.getValue())
+                );
+        // TODO: investigate and implement overrides from AbilityOverrideExcelConfigData
+    }
+
+    public float evaluateValue(String key) {
+        var hash = Utils.abilityHash(key);
+        // TODO: implement a config, when set to true, get from server override map, then return early (ignore other map)
+        var value = overrideMap.get(hash);
+        if (value == null) return data.abilitySpecials == null ? 0f : data.abilitySpecials.getOrDefault(key, 0f);
+        // continue evaluating the value
+        return value.get(this);
     }
 
     @Nullable
@@ -70,5 +62,18 @@ public class Ability {
             return GameData.getAbilityHashes().get((int)abHash.getValue());
         }
         return null;
+    }
+
+    public static int getAbilityHash(AbilityString abString) {
+        if (abString == null) {
+            return 0;
+        }
+        if (abString.getType() instanceof AbilityString.Type.Str abStr){
+            return Utils.abilityHash(abStr.getValue());
+        }
+        if (abString.getType() instanceof AbilityString.Type.Hash abHash){
+            return abHash.getValue();
+        }
+        return 0;
     }
 }

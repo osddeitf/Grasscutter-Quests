@@ -5,7 +5,6 @@ import emu.grasscutter.GameConstants;
 import emu.grasscutter.Grasscutter;
 import emu.grasscutter.data.GameData;
 import emu.grasscutter.data.binout.config.ConfigLevelEntity;
-import emu.grasscutter.data.binout.config.fields.ConfigAbilityData;
 import emu.grasscutter.data.excels.AvatarData;
 import emu.grasscutter.data.excels.PlayerLevelData;
 import emu.grasscutter.data.excels.SceneTagData;
@@ -13,6 +12,7 @@ import emu.grasscutter.data.excels.WeatherData;
 import emu.grasscutter.database.DatabaseHelper;
 import emu.grasscutter.game.Account;
 import emu.grasscutter.game.CoopRequest;
+import emu.grasscutter.game.ability.AbilityGroupManager;
 import emu.grasscutter.game.ability.AbilityManager;
 import emu.grasscutter.game.activity.ActivityManager;
 import emu.grasscutter.game.avatar.Avatar;
@@ -174,6 +174,7 @@ public class Player {
     @Getter private transient MailHandler mailHandler;
     @Getter @Setter private transient MessageHandler messageHandler;
     @Getter private transient AbilityManager abilityManager;
+    @Getter private transient AbilityGroupManager abilityGroupManager;
     @Getter @Setter private transient QuestManager questManager;
     @Getter private DailyTaskManager dailyTaskManager;
     @Getter private transient TowerManager towerManager;
@@ -254,6 +255,7 @@ public class Player {
         this.mailHandler = new MailHandler(this);
         this.towerManager = new TowerManager(this);
         this.abilityManager = new AbilityManager(this);
+        this.abilityGroupManager = new AbilityGroupManager(this);
         this.deforestationManager = new DeforestationManager(this);
         this.questManager = new QuestManager(this);
         this.dailyTaskManager = new DailyTaskManager(this);
@@ -1009,7 +1011,7 @@ public class Player {
             List<Integer> avatarIds = scene.getSceneData().getSpecifiedAvatarList();
             List<EntityAvatar> specifiedAvatarList = getTeamManager().getActiveTeam();
 
-            if (avatarIds != null && avatarIds.size() > 0){
+            if (avatarIds != null && !avatarIds.isEmpty()){
                 // certain scene could limit specifc avatars' entry
                 specifiedAvatarList.clear();
                 for (int id : avatarIds){
@@ -1022,17 +1024,7 @@ public class Player {
             }
 
             for (EntityAvatar entityAvatar : specifiedAvatarList){
-                AvatarData avatarData = entityAvatar.getAvatar().getAvatarData();
-                if (avatarData == null){
-                    continue;
-                }
-                avatarData.rebuildAbilityEmbryo();
-                if (config.getAvatarAbilities() == null){
-                    continue; // continue and not break because has to rebuild ability for the next avatar if any
-                }
-                for (ConfigAbilityData abilities : config.getAvatarAbilities()){
-                    avatarData.getAbilities().add(Utils.abilityHash(abilities.getAbilityName()));
-                }
+                entityAvatar.getAvatar().getAbilities().updateLevelEntityAbilities(config);
             }
         } catch (Exception e){
             Grasscutter.getLogger().error("Error applying level entity config for scene {}", scene.getSceneData().getId(), e);

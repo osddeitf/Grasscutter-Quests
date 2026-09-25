@@ -5,6 +5,7 @@ import emu.grasscutter.data.common.DynamicFloat;
 import emu.grasscutter.game.props.ElementType;
 
 import java.io.Serializable;
+import java.util.Map;
 
 public class AbilityModifier implements Serializable {
     private static final long serialVersionUID = -2001232313615923575L;
@@ -33,6 +34,8 @@ public class AbilityModifier implements Serializable {
     public DynamicFloat thinkInterval = DynamicFloat.ZERO;
     public String stacking;
 
+    public boolean isLimitedProperties;
+    public Map<String, DynamicFloat> properties;
     public AbilityMixinData[] modifierMixins;
 
     public ElementType elementType;
@@ -40,6 +43,7 @@ public class AbilityModifier implements Serializable {
 
     public static class AbilityModifierAction implements Serializable {
         public enum Type {
+            ChangeGadgetState,
             ActCameraRadialBlur, ActCameraShake, AddAvatarSkillInfo, AddChargeBarValue,
             AddClimateMeter, AddElementDurability, AddGlobalValue, AddGlobalValueToTarget,
             AddRegionalPlayVarValue, ApplyModifier, AttachAbilityStateResistance, AttachBulletAimPoint,
@@ -157,6 +161,9 @@ public class AbilityModifier implements Serializable {
         public String sourceName;
         @SerializedName(value = "callParamList", alternate = "CallParamList")
         public int[] callParamList;
+
+        // ChangeGadgetState
+        public int state;
 
         public enum DropType {
             LevelControl,

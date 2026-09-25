@@ -150,13 +150,13 @@ public class AvatarStorage extends BasePlayerManager implements Iterable<Avatar>
             AvatarData avatarData = GameData.getAvatarDataMap().get(avatar.getAvatarId());
             AvatarSkillDepotData skillDepot = GameData.getAvatarSkillDepotDataMap().get(avatar.getSkillDepotId());
             if (avatarData == null || skillDepot == null) {
+                // TODO: logging - resource missing or data incorrect
                 continue;
             }
 
             // Set ownerships
-            avatar.setAvatarData(avatarData);
-            avatar.setSkillDepot(skillDepot);
             avatar.setOwner(getPlayer());
+            avatar.setAvatarData(avatarData);
 
             // Force recalc of const boosted skills
             avatar.recalcConstellations();

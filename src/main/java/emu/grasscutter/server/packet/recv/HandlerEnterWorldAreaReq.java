@@ -1,5 +1,7 @@
 package emu.grasscutter.server.packet.recv;
 
+import emu.grasscutter.data.GameData;
+import emu.grasscutter.game.player.TeamManager;
 import emu.grasscutter.net.packet.TypedPacketHandler;
 import emu.grasscutter.server.game.GameSession;
 import emu.grasscutter.server.packet.send.PacketEnterWorldAreaRsp;
@@ -11,6 +13,25 @@ public class HandlerEnterWorldAreaReq extends TypedPacketHandler<EnterWorldAreaR
     @Override
     public void handle(GameSession session, byte[] header, EnterWorldAreaReq req) throws Exception {
 		val head = PacketHead.parseBy(header, session.getVersion());
+        var areaId1 = req.getAreaType() == 1? req.getAreaId(): req.getAreaId() / 100;
+        var areaId2 = req.getAreaType() == 2? req.getAreaId(): 0;
+        var areaKey = (areaId2 << 16) + areaId1;
+        var area = GameData.getWorldAreaDataMap().get(areaKey);
+        var player = session.getPlayer();
+
+        if (area != null) {
+            TeamManager.updateCurrentTeamAvatars(player, avatar -> {
+                avatar.getAbilities().updateWorldAreaAbilities(area);
+                avatar.getAbilities().notifyChanges();
+            });
+        }
+
+        if (area != null) {
+            var team = player.getTeamManager().getEntity();
+            team.getAbilities().updateWorldAreaAbilities(area);
+            team.getAbilities().notifyChanges();
+        }
+
         session.send(new PacketEnterWorldAreaRsp(head.getClientSequenceId(), req));
 		//session.send(new PacketScenePlayerLocationNotify(session.getPlayer()));
 	}

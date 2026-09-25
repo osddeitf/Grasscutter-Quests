@@ -1,61 +1,44 @@
 package emu.grasscutter.data.binout;
 
+import lombok.Getter;
+
 import java.util.ArrayList;
 import java.util.List;
 
-import emu.grasscutter.data.ResourceLoader.OpenConfigData;
-
 public class OpenConfigEntry {
-	private String name;
-	private String[] addAbilities;
-	private int extraTalentIndex;
-	private SkillPointModifier[] skillPointModifiers;
+	@Getter private final String name;
+	@Getter private int extraTalentIndex;
+	@Getter private SkillPointModifier[] skillPointModifiers;
+    @Getter private final List<OpenConfigData> configTalents;
 
 	public OpenConfigEntry(String name, OpenConfigData[] data) {
 		this.name = name;
-		
-		List<String> abilityList = new ArrayList<>();
+        this.configTalents = List.of(data);
+
 		List<SkillPointModifier> modList = new ArrayList<>();
-		
-		for (OpenConfigData entry : data) {
-			if (entry.$type.contains("AddAbility")) {
-				abilityList.add(entry.abilityName);
-			} else if (entry.talentIndex > 0) {
-				this.extraTalentIndex = entry.talentIndex;
-			} else if (entry.$type.contains("ModifySkillPoint")) {
-				modList.add(new SkillPointModifier(entry.skillID, entry.pointDelta));
-			}
+
+		for (var entry : data) {
+            switch (entry.type) {
+                case AddTalentExtraLevel -> {
+                    if (entry.talentIndex > 0) {
+                        this.extraTalentIndex = entry.talentIndex;
+                    }
+                }
+                case ModifySkillPoint -> {
+                    modList.add(new SkillPointModifier(entry.skillID, entry.pointDelta));
+                }
+            }
 		}
-		
-		if (abilityList.size() > 0) {
-			this.addAbilities = abilityList.toArray(new String[0]);
-		}
-		
+
 		if (modList.size() > 0) {
 			this.skillPointModifiers = modList.toArray(new SkillPointModifier[0]);
 		}
 	}
 
-	public String getName() {
-		return name;
-	}
-
-	public String[] getAddAbilities() {
-		return addAbilities;
-	}
-
-	public int getExtraTalentIndex() {
-		return extraTalentIndex;
-	}
-	
-	public SkillPointModifier[] getSkillPointModifiers() {
-		return skillPointModifiers;
-	}
-
 	public static class SkillPointModifier {
 		private int skillId;
 		private int delta;
-		
+
 		public SkillPointModifier(int skillId, int delta) {
 			this.skillId = skillId;
 			this.delta = delta;

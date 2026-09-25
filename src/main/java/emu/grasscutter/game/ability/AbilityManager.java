@@ -3,6 +3,7 @@ package emu.grasscutter.game.ability;
 import emu.grasscutter.Grasscutter;
 import emu.grasscutter.Loggers;
 import emu.grasscutter.data.GameData;
+import emu.grasscutter.data.common.DynamicFloat;
 import emu.grasscutter.data.binout.AbilityData;
 import emu.grasscutter.data.binout.AbilityMixinData;
 import emu.grasscutter.data.binout.AbilityModifier;
@@ -18,7 +19,9 @@ import emu.grasscutter.game.props.ElementReactionType;
 import io.netty.util.concurrent.FastThreadLocalThread;
 import lombok.Getter;
 import lombok.val;
+import org.anime_game_servers.core.base.Version;
 import org.anime_game_servers.multi_proto.gi.messages.ability.AbilityInvokeEntry;
+import org.anime_game_servers.multi_proto.gi.messages.ability.AbilityInvokeEntryHead;
 import org.anime_game_servers.multi_proto.gi.messages.ability.ModifierAction;
 import org.anime_game_servers.multi_proto.gi.messages.ability.meta.AbilityMetaAddAbility;
 import org.anime_game_servers.multi_proto.gi.messages.ability.meta.AbilityMetaModifierChange;
@@ -30,6 +33,7 @@ import org.anime_game_servers.multi_proto.gi.messages.general.ability.AbilityStr
 import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
@@ -39,6 +43,7 @@ import java.util.concurrent.TimeUnit;
 
 
 public final class AbilityManager extends BasePlayerManager {
+
     @Getter
     private static final Logger logger = Loggers.getAbilitySystem();
 
@@ -152,6 +157,7 @@ public final class AbilityManager extends BasePlayerManager {
             case ABILITY_META_GLOBAL_FLOAT_VALUE -> this.handleGlobalFloatValue(invoke);
             case ABILITY_META_MODIFIER_DURABILITY_CHANGE -> this.handleModifierDurabilityChange(invoke);
             case ABILITY_META_ADD_NEW_ABILITY -> this.handleAddNewAbility(invoke);
+            case ABILITY_META_REMOVE_ABILITY -> this.handleRemoveAbility(invoke);
             case ABILITY_META_TRIGGER_ELEMENT_REACTION -> this.handleTriggerElementReaction(invoke);
             default -> {}
         }
@@ -166,20 +172,17 @@ public final class AbilityManager extends BasePlayerManager {
             return;
         }
 
-        var target = this.player.getScene().getEntityById(head.getTargetId());
-        if(target == null) target = entity;
-
         Ability ability = null;
 
-        //Seems that target is used, but need to be sure, TODO: Research
-
         //Find ability or modifier's ability
-        if(head.getInstancedModifierId() != 0 && entity.getInstancedModifiers().containsKey(head.getInstancedModifierId())) {
-            ability = entity.getInstancedModifiers().get(head.getInstancedModifierId()).getAbility();
+        if (head.getInstancedModifierId() != 0) {
+            var modifier = entity.getInstancedModifiers().get(head.getInstancedModifierId());
+            if (modifier != null) {
+                ability = modifier.getAbility();
+            }
         }
-
-        if(ability == null && head.getInstancedAbilityId() != 0 && (head.getInstancedAbilityId() - 1) < entity.getInstancedAbilities().size()) {
-            ability = entity.getInstancedAbilities().get(head.getInstancedAbilityId() - 1);
+        else if (head.getInstancedAbilityId() != 0) {
+            ability = entity.getInstancedAbilities().get(head.getInstancedAbilityId());
         }
 
         if(ability == null) {
@@ -191,7 +194,9 @@ public final class AbilityManager extends BasePlayerManager {
         var action = ability.getData().localIdToAction.get(head.getLocalId());
         if(action != null) {
             //Executing action
-
+            var target = head.getTargetId() != 0
+                ? this.player.getScene().getEntityById(head.getTargetId())
+                : entity;
             executeAction(ability, action, invoke.getAbilityData(), target);
 
             return;
@@ -258,8 +263,29 @@ public final class AbilityManager extends BasePlayerManager {
         this.abilityInvulnerable = false;
     }
 
+    // multi proto dynamic runtime only
+    private boolean isScalarFloat(AbilityScalarValueEntry entry) {
+        // compat: newer versions don't have valueType property, and only floatValue
+        if (player.getSession().getVersion().getId() >= Version.GI_4_8_0.getId()) return true;
+        return entry.getValueType() == AbilityScalarType.ABILITY_SCALAR_TYPE_FLOAT;
+    }
+
+    private static float getScalarFloatValue(AbilityScalarValueEntry entry) {
+        val wrapper = entry.getValue();
+        if (wrapper instanceof AbilityScalarValueEntry.Value.FloatValue floatValue) {
+            return floatValue.getValue();
+        }
+        if (wrapper instanceof AbilityScalarValueEntry.Value.UintValue uintValue) {
+            return uintValue.getValue().floatValue();
+        }
+        if (wrapper instanceof AbilityScalarValueEntry.Value.IntValue intValue) {
+            return intValue.getValue().floatValue();
+        }
+        return 0f;
+    }
+
     private void setAbilityOverrideValue(Ability ability, AbilityScalarValueEntry valueChange) {
-        if(valueChange.getValueType() != AbilityScalarType.ABILITY_SCALAR_TYPE_FLOAT) {
+        if (!isScalarFloat(valueChange)) {
             logger.info("setAbilityOverrideValue scalar type not supported: {}", valueChange.getValueType());
 
             return;
@@ -270,15 +296,16 @@ public final class AbilityManager extends BasePlayerManager {
             return;
         }
 
-        if(valueChange.getKey().getType() instanceof AbilityString.Type.Str str){
-            val key = str.getValue();
-            val value = ((AbilityScalarValueEntry.Value.FloatValue) valueChange.getValue()).getValue();
+        var hash = Ability.getAbilityHash(valueChange.getKey());
+        var value = getScalarFloatValue(valueChange);
+        ability.getOverrideMap().put(hash, new DynamicFloat(value));
 
-            ability.getAbilitySpecials().put(key, value);
+        if (valueChange.getKey().getType() instanceof AbilityString.Type.Str str){
+            val key = str.getValue();
             logger.debug("Ability {} changed {} to {}", ability.getData().abilityName, key, value);
         } else {
-            // TODO
-            logger.info("TODO: Calculate all the ability value hashes");
+            // TODO: Calculate all the ability value hashes
+            logger.info("Ability {} changed value with hash({}) to {}", ability.getData().abilityName, hash, value);
         }
 
     }
@@ -292,15 +319,13 @@ public final class AbilityManager extends BasePlayerManager {
             return;
         }
 
-        var instancedAbilityIndex = head.getInstancedAbilityId() - 1;
-        if(instancedAbilityIndex >= entity.getInstancedAbilities().size()) {
+        var ability = entity.getInstancedAbilities().get(head.getInstancedAbilityId());
+        if(ability == null) {
             logger.error("handleOverrideParam ability not found {}", head.getInstancedAbilityId());
             return;
         }
 
         var valueChange = AbilityScalarValueEntry.parseBy(invoke.getAbilityData(), player.getSession().getVersion());
-
-        var ability = entity.getInstancedAbilities().get(instancedAbilityIndex);
         setAbilityOverrideValue(ability, valueChange);
     }
 
@@ -313,14 +338,15 @@ public final class AbilityManager extends BasePlayerManager {
             return;
         }
 
-        var instancedAbilityIndex = head.getInstancedAbilityId() - 1;
-        if(instancedAbilityIndex >= entity.getInstancedAbilities().size()) {
+        var ability = entity.getInstancedAbilities().get(head.getInstancedAbilityId());
+        if(ability == null) {
             logger.error("handleReinitOverrideMap ability not found {}", head.getInstancedAbilityId());
             return;
         }
 
-        var ability = entity.getInstancedAbilities().get(instancedAbilityIndex);
         var valueChanges = AbilityMetaReInitOverrideMap.parseBy(invoke.getAbilityData(), player.getSession().getVersion());
+        ability.refreshServerOverrideMap();
+        ability.getOverrideMap().clear();
         for (var variableChange : valueChanges.getOverrideMap()) {
             setAbilityOverrideValue(ability, variableChange);
         }
@@ -347,70 +373,40 @@ public final class AbilityManager extends BasePlayerManager {
         }
 
         if(modChange.getAction() == ModifierAction.ADDED) {
-            AbilityData instancedAbilityData = null;
-            Ability instancedAbility = null;
+            var modifierOwner = head.getTargetId() != 0
+                ? this.player.getScene().getEntityById(head.getTargetId())
+                : entity;
+            var instancedAbility = modifierOwner.getInstancedAbilities().get(head.getInstancedAbilityId());
 
-            if(head.getTargetId() != 0) {
-                //Get ability from target entity
-                var targetEntity = this.player.getScene().getEntityById(head.getTargetId());
-                if(targetEntity != null) {
-                    if((head.getInstancedAbilityId() - 1) < targetEntity.getInstancedAbilities().size()) {
-                        instancedAbility = targetEntity.getInstancedAbilities().get(head.getInstancedAbilityId() - 1);
-                        if(instancedAbility != null) instancedAbilityData = instancedAbility.getData();
-                    }
-                }
-            }
-
-            if(instancedAbilityData == null) {
-                //search on entity base id
-                if(entity != null) {
-                    if((head.getInstancedAbilityId() - 1) < entity.getInstancedAbilities().size()) {
-                        instancedAbility = entity.getInstancedAbilities().get(head.getInstancedAbilityId() - 1);
-                        if(instancedAbility != null) instancedAbilityData = instancedAbility.getData();
-                    }
-                }
-            }
-
-            if(instancedAbilityData == null) {
-                //Search for the parent ability
-
-                //TODO: Research about hash
-
-                val abilityName = modChange.getParentAbilityName();
-                if(abilityName != null) {
-                    instancedAbilityData = GameData.getAbilityData(getAbilityName(abilityName));
-                }
-            }
-
-            if(instancedAbilityData == null ||  instancedAbilityData.modifiers == null) {
+            if (instancedAbility == null) {
                 logger.info("handleModifierChange No ability found. modChange: {}", modChange);
                 return; //TODO: Display error message
             }
+            var instancedAbilityData = instancedAbility.getData();
 
-            var modifierArray = instancedAbilityData.modifiers.values().toArray();
-            if(modChange.getModifierLocalId() >= modifierArray.length)
+            var modifiers = instancedAbilityData.modifierList;
+            if(modChange.getModifierLocalId() >= modifiers.size())
             {
                 logger.info("handleModifierChange modifier local id {} not found", modChange.getModifierLocalId());
                 return;
             }
-            var modifierData = (AbilityModifier)modifierArray[modChange.getModifierLocalId()];
+            var modifierData = modifiers.get(modChange.getModifierLocalId());
             if(entity.getInstancedModifiers().containsKey(head.getInstancedModifierId())) {
                 logger.debug("Replacing entity {} modifier id {} with ability {} modifier {}", invoke.getEntityId(), head.getInstancedModifierId(), instancedAbilityData.abilityName, modifierData);
             } else {
                 logger.debug("Adding entity {} modifier id {} with ability {} modifier {}", invoke.getEntityId(), head.getInstancedModifierId(), instancedAbilityData.abilityName, modifierData);
             }
 
-            AbilityModifierController modifier = new AbilityModifierController(instancedAbility, instancedAbilityData, modifierData);
-
-            entity.getInstancedModifiers().put(head.getInstancedModifierId(), modifier);
-
-            //TODO: Add all the ability modifier property change
+            var modifier = new AbilityModifierController(instancedAbility, instancedAbilityData, modifierData);
+            var replaced = entity.getInstancedModifiers().put(head.getInstancedModifierId(), modifier);
+            if (replaced != null) replaced.detach(entity);
+            modifier.attach(entity);
         } else if(modChange.getAction() == ModifierAction.REMOVED) {
             logger.debug("Removed on entity {} modifier id {}: {}", invoke.getEntityId(), head.getInstancedModifierId(), entity.getInstancedModifiers().get(head.getInstancedModifierId()));
 
             //TODO: Add debug log
-
-            entity.getInstancedModifiers().remove(head.getInstancedModifierId());
+            var modifier = entity.getInstancedModifiers().remove(head.getInstancedModifierId());
+            if (modifier != null) modifier.detach(entity);
         } else {
             //TODO: Display error message
             logger.debug("handleModifierChange unknown action");
@@ -444,27 +440,20 @@ public final class AbilityManager extends BasePlayerManager {
         if(entity == null) return;
 
         var entry = AbilityScalarValueEntry.parseBy(invoke.getAbilityData(), player.getSession().getVersion());
-        if(entry == null || !(entry.getValue() instanceof AbilityScalarValueEntry.Value.FloatValue)) return;
+        if(entry == null) return;
 
-        String key = getAbilityName(entry.getKey());
-
+        var key = getAbilityName(entry.getKey());
         if(key == null) return;
 
-        if(key.startsWith("SGV_")) return; //Server does not allow to change this variables I think
-        switch(entry.getValueType()) {
-            case ABILITY_SCALAR_TYPE_FLOAT: {
-                float value = ((AbilityScalarValueEntry.Value.FloatValue) entry.getValue()).getValue();
-                if (!Float.isNaN(value))
-                    entity.getGlobalAbilityValues().put(key, value);
-                break;
-            }
-            case ABILITY_SCALAR_TYPE_UINT:
-                float uvalue = ((AbilityScalarValueEntry.Value.UintValue) entry.getValue()).getValue();
-                entity.getGlobalAbilityValues().put(key, uvalue);
-                break;
-
-            default:
-                return;
+        if(key.startsWith("SGV_")) return; //Server does not allow to change these variables
+        if (isScalarFloat(entry)) {
+            float value = getScalarFloatValue(entry);
+            if (!Float.isNaN(value))
+                entity.getGlobalAbilityValues().put(key, value);
+        }
+        else if (entry.getValueType() == AbilityScalarType.ABILITY_SCALAR_TYPE_UINT) {
+            float uvalue = getScalarFloatValue(entry);
+            entity.getGlobalAbilityValues().put(key, uvalue);
         }
     }
 
@@ -484,19 +473,34 @@ public final class AbilityManager extends BasePlayerManager {
             return;
         }
 
-        var addAbility = AbilityMetaAddAbility.parseBy(invoke.getAbilityData(), player.getSession().getVersion());
+        var meta = AbilityMetaAddAbility.parseBy(invoke.getAbilityData(), player.getSession().getVersion());
 
-        var abilityName = Ability.getAbilityName(addAbility.getAbility().getAbilityName());
+        var abilityName = Ability.getAbilityName(meta.getAbility().getAbilityName());
 
-        var ability = GameData.getAbilityData(abilityName);
-        if(ability == null) {
+        var abilityData = GameData.getAbilityData(abilityName);
+        if(abilityData == null) {
             logger.info("handleAddNewAbility ability not found: {}", abilityName);
             return;
         }
 
-        entity.getInstancedAbilities().add(new Ability(ability, entity, player));
+        var instancedAbilityId = meta.getAbility().getInstancedAbilityId();
+        var ability = entity.getInstancedAbilities().computeIfAbsent(
+            instancedAbilityId,
+            (id) -> new Ability(abilityData, entity, player)
+        );
 
-        logger.debug("Ability added to entity {} at index {}", entity.getId(), entity.getInstancedAbilities().size());
+        meta.getAbility().getOverrideMap()
+            .forEach(entry -> setAbilityOverrideValue(ability, entry));
+
+        logger.debug("Ability added to entity {} at index {}", entity.getId(), instancedAbilityId);
+    }
+
+    private void handleRemoveAbility(AbilityInvokeEntry invoke) {
+        var entity = this.player.getScene().getEntityById(invoke.getEntityId());
+        if (entity == null) return;
+        Optional.ofNullable(invoke.getHead())
+            .map(AbilityInvokeEntryHead::getInstancedAbilityId)
+            .ifPresent(id -> entity.getInstancedAbilities().remove((int)id));
     }
 
     /**
@@ -516,15 +520,15 @@ public final class AbilityManager extends BasePlayerManager {
             .ifPresent(sceneChallenge -> sceneChallenge.onElementReaction(targetEntity, reactionType));
     }
 
-    public void addAbilityToEntity(GameEntity entity, String name) {
-        AbilityData data = GameData.getAbilityData(name);
-        if(data != null)
-            addAbilityToEntity(entity, data);
-    }
-
-    public void addAbilityToEntity(GameEntity entity, AbilityData abilityData) {
-        Ability ability = new Ability(abilityData, entity, this.player);
-        entity.getInstancedAbilities().add(ability); //This are in order
+    public void initEntityAbilities(GameEntity<?> entity, Collection<String> abilityNames) {
+        int id = 0;
+        for (var abilityName : abilityNames) {
+            ++id;
+            var abilityData = GameData.getAbilityData(abilityName);
+            if (abilityData == null) continue;  // skip missing. TODO: logging
+            var ability = new Ability(abilityData, entity, this.player);
+            entity.getInstancedAbilities().put(id, ability);
+        }
     }
 }
 

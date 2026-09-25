@@ -1,8 +1,5 @@
 package emu.grasscutter.data.excels;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import emu.grasscutter.data.GameData;
 import emu.grasscutter.data.GameResource;
 import emu.grasscutter.data.ResourceType;
@@ -11,11 +8,11 @@ import emu.grasscutter.data.binout.AbilityEmbryoEntry;
 import emu.grasscutter.data.common.PropGrowCurve;
 import emu.grasscutter.game.props.FightProperty;
 import emu.grasscutter.game.props.WeaponType;
-import emu.grasscutter.utils.Utils;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import lombok.Getter;
+
+import java.util.List;
 
 @ResourceType(name = "AvatarExcelConfigData.json", loadPriority = LoadPriority.LOW)
 public class AvatarData extends GameResource {
@@ -55,9 +52,6 @@ public class AvatarData extends GameResource {
     private float[] hpGrowthCurve;
     private float[] attackGrowthCurve;
     private float[] defenseGrowthCurve;
-    @Getter private AvatarSkillDepotData skillDepot;
-    @Getter private IntList abilities;
-    @Getter private List<String> abilitieNames = new ArrayList<>();
 
     @Getter private List<Integer> fetters;
     @Getter private int nameCardRewardId;
@@ -109,8 +103,6 @@ public class AvatarData extends GameResource {
 
     @Override
     public void onLoad() {
-        this.skillDepot = GameData.getAvatarSkillDepotDataMap().get(this.skillDepotId);
-
         // Get fetters from GameData
         this.fetters = GameData.getFetterDataEntries().get(this.id);
 
@@ -153,24 +145,18 @@ public class AvatarData extends GameResource {
         }
         */
 
-        rebuildAbilityEmbryo();
-    }
-
-    public void rebuildAbilityEmbryo(){// rebuild ability for different scene
-        // Cache abilities
-        String[] split = this.iconName.split("_");
+        var split = this.iconName.split("_");
         if (split.length > 0) {
             this.name = split[split.length - 1];
-
-            AbilityEmbryoEntry info = GameData.getAbilityEmbryoInfo().get(this.name);
-            if (info != null) {
-                this.abilities = new IntArrayList(info.getAbilities().length);
-                for (String ability : info.getAbilities()) {
-                    this.abilities.add(Utils.abilityHash(ability));
-                    abilitieNames.add(ability);
-                }
-            }
         }
     }
+
+    public AbilityEmbryoEntry getAbilityEmbryoInfo() {
+        if (this.name != null) {
+            return GameData.getAbilityEmbryoInfo().get(this.name);
+        }
+        return null;
+    }
+
 }
 

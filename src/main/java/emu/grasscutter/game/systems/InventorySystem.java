@@ -526,26 +526,11 @@ public class InventorySystem extends BaseGameSystem {
         // Update promote level
         avatar.setPromoteLevel(nextPromoteLevel);
 
-        // Update proud skills
-        Optional.ofNullable(GameData.getAvatarSkillDepotDataMap().get(avatar.getSkillDepotId()))
-            .map(AvatarSkillDepotData::getInherentProudSkillOpens)
-            .ifPresent(d -> d.stream()
-                .filter(openData -> openData.getProudSkillGroupId() > 0)
-                .filter(openData -> openData.getNeedAvatarPromoteLevel() == avatar.getPromoteLevel())
-                .mapToInt(openData -> (openData.getProudSkillGroupId() * 100) + 1)
-                .filter(GameData.getProudSkillDataMap()::containsKey)
-                .forEach(proudSkillId -> {
-                    avatar.getProudSkillList().add(proudSkillId);
-                    player.sendPacket(new PacketProudSkillChangeNotify(avatar));
-                })
-        );
-
-        // Packets
-        player.sendPacket(new PacketAvatarPropNotify(avatar));
-        player.sendPacket(new PacketAvatarPromoteRsp(avatar));
-
         // TODO Send entity prop update packet to world
         avatar.recalcStats(true);
+        player.sendPacket(new PacketAvatarPropNotify(avatar));
+        player.sendPacket(new PacketAvatarPromoteRsp(avatar));
+        player.sendPacket(new PacketProudSkillChangeNotify(avatar));
         avatar.save();
     }
 

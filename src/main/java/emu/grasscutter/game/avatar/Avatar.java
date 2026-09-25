@@ -4,11 +4,9 @@ import dev.morphia.annotations.*;
 import emu.grasscutter.data.GameData;
 import emu.grasscutter.data.binout.OpenConfigEntry;
 import emu.grasscutter.data.binout.OpenConfigEntry.SkillPointModifier;
-import emu.grasscutter.data.common.FightPropData;
 import emu.grasscutter.data.excels.*;
-import emu.grasscutter.data.excels.AvatarSkillDepotData.InherentProudSkillOpens;
-import emu.grasscutter.data.excels.ItemData.WeaponProperty;
 import emu.grasscutter.database.DatabaseHelper;
+import emu.grasscutter.game.ability.embryos.AvatarAbilityManager;
 import emu.grasscutter.game.entity.EntityAvatar;
 import emu.grasscutter.game.entity.EntityWeapon;
 import emu.grasscutter.game.entity.create_config.CreateGadgetEntityConfig;
@@ -46,7 +44,6 @@ public class Avatar {
 
     transient private Player owner;
     transient @Getter protected AvatarData data;
-    transient @Getter protected AvatarSkillDepotData skillDepot;
     transient @Getter protected long guid;	// Player unique id
     @Getter protected int avatarId;			// id of avatar
 
@@ -61,16 +58,14 @@ public class Avatar {
     transient @Getter protected final Int2ObjectMap<GameItem> equips = new Int2ObjectOpenHashMap<>();
     transient @Getter protected final Int2FloatOpenHashMap fightProperties = new Int2FloatOpenHashMap();
     transient @Getter protected final Int2FloatOpenHashMap fightPropOverrides = new Int2FloatOpenHashMap();
-    transient @Getter protected final Set<String> extraAbilityEmbryos = new HashSet<>();
 
     @Getter protected final Set<Integer> fetters = new HashSet<>();
 
-    protected final Map<Integer, Integer> skillLevelMap = new Int2IntArrayMap(7); // Talent levels
+    protected final Map<Integer, Integer> skillLevelMap = new Int2IntArrayMap(7); // Talent levels. TODO: keep levels of different elements for Traveler?
     transient @Getter protected final Map<Integer, Integer> skillExtraChargeMap = new Int2IntArrayMap(2); // Charges
     transient protected final Map<Integer, Integer> proudSkillBonusMap = new Int2IntArrayMap(2); // Talent bonus levels (from const)
-    @Getter private int skillDepotId;
+    @Getter protected int skillDepotId;
     protected Set<Integer> talentIdList; // Constellation id list
-    @Getter protected Set<Integer> proudSkillList; // Character passives
 
     @Getter @Setter private int weaponSkin;
     @Getter @Setter private int flyCloak;
@@ -82,6 +77,21 @@ public class Avatar {
 
     @Getter @Setter private int nameCardRewardId;
     @Getter @Setter private int nameCardId;
+
+    transient @Getter private AvatarStatsManager stats;
+    transient @Getter protected AvatarAbilityManager abilities;
+
+    // Character passives - derived from stats manager
+    public Set<Integer> getProudSkillList() {
+        if (this.stats == null) return Set.of();
+        return this.stats.getProudSkills().stream()
+            .map(ProudSkillData::getId)
+            .collect(Collectors.toSet());
+    }
+
+    public AvatarSkillDepotData getSkillDepot() {
+        return GameData.getAvatarSkillDepotDataMap().get(skillDepotId);
+    }
 
     @Deprecated // Do not use. Morphia only!
     public Avatar() {
@@ -97,12 +107,9 @@ public class Avatar {
         this.avatarId = data.getId();
         this.nameCardRewardId = data.getNameCardRewardId();
         this.nameCardId = data.getNameCardId();
-        this.data = data;
         this.bornTime = (int) (System.currentTimeMillis() / 1000);
         this.flyCloak = 140001;
-
         this.talentIdList = new HashSet<>();
-        this.proudSkillList = new HashSet<>();
 
         // Combat properties
         Stream.of(FightProperty.values())
@@ -110,8 +117,9 @@ public class Avatar {
             .filter(id -> (id > 0) && (id < 3000))
             .forEach(id -> this.setFightProperty(id, 0f));
 
-        // Skill depot
-        this.setSkillDepotData(data.getSkillDepot(), false);
+        // Init
+        this.setSkillDepotData(data.getSkillDepotId());
+        this.setAvatarData(data);
 
         // Set stats
         this.recalcStats();
@@ -136,7 +144,9 @@ public class Avatar {
 
     protected void setAvatarData(AvatarData data) {
         if (this.data != null) return;
-        this.data = data; // Used while loading this from the database
+        this.data = data;
+        this.stats = new AvatarStatsManager(this);
+        this.abilities = new AvatarAbilityManager(this);
     }
 
     public void setOwner(Player player) {
@@ -180,31 +190,12 @@ public class Avatar {
         return this.getEquipBySlot(EquipType.EQUIP_WEAPON);
     }
 
-    protected void setSkillDepot(AvatarSkillDepotData skillDepot) {
-        if (this.skillDepot != null) return;
-        this.skillDepot = skillDepot; // Used while loading this from the database
-    }
-
-    public void setSkillDepotData(AvatarSkillDepotData skillDepot, boolean notifyChange) {
-        // Set id and depot
-        this.skillDepotId = skillDepot.getId();
-        this.skillDepot = skillDepot;
+    public void setSkillDepotData(int skillDepotId) {
+        this.skillDepotId = skillDepotId;
+        var skillDepot = Objects.requireNonNull(this.getSkillDepot());
         // Add any missing skills
-        this.skillDepot.getSkillsAndEnergySkill()
+        skillDepot.getSkillsAndEnergySkill()
             .forEach(skillId -> this.skillLevelMap.putIfAbsent(skillId, 1));
-        // Add proud skills
-        this.proudSkillList.clear();
-        skillDepot.getInherentProudSkillOpens().stream()
-            .filter(openData -> openData.getProudSkillGroupId() > 0)
-            .filter(openData -> openData.getNeedAvatarPromoteLevel() <= this.getPromoteLevel())
-            .mapToInt(openData -> (openData.getProudSkillGroupId() * 100) + 1)
-            .filter(proudSkillId -> GameData.getProudSkillDataMap().containsKey(proudSkillId))
-            .forEach(proudSkillId -> this.proudSkillList.add(proudSkillId));
-
-        if(notifyChange){
-            owner.sendPacket(new PacketAvatarSkillDepotChangeNotify(this));
-        }
-        this.recalcStats(notifyChange);
     }
 
     /**
@@ -235,7 +226,9 @@ public class Avatar {
         }
 
         // Set skill depot
-        setSkillDepotData(skillDepot, true);
+        setSkillDepotData(candSkillDepotId);
+        owner.sendPacket(new PacketAvatarSkillDepotChangeNotify(this));
+        recalcStats(true);
         return true;
     }
 
@@ -246,7 +239,7 @@ public class Avatar {
     }
 
     public void setCurrentEnergy(float currentEnergy) {
-        var depot = this.skillDepot;
+        var depot = this.getSkillDepot();
         if (depot != null && depot.getEnergySkillData() != null) {
             ElementType element = depot.getElementType();
             var maxEnergy = depot.getEnergySkillData().getCostElemVal();
@@ -284,7 +277,7 @@ public class Avatar {
 
     public Map<Integer, Integer> getSkillLevelMap() {  // Returns a copy of the skill levels for the current skillDepot.
         var map = new Int2IntOpenHashMap();
-        this.skillDepot.getSkillsAndEnergySkill().forEach(skillId ->
+        this.getSkillDepot().getSkillsAndEnergySkill().forEach(skillId ->
             map.put(skillId, this.skillLevelMap.getOrDefault(skillId, 1).intValue()));
         return map;
     }
@@ -292,7 +285,7 @@ public class Avatar {
     // Returns a copy of the skill bonus levels for the current skillDepot, capped to avoid invalid levels.
     public Map<Integer, Integer> getProudSkillBonusMap() {
         var map = new Int2IntArrayMap();
-        this.skillDepot.getSkillsAndEnergySkill().forEach(skillId -> {
+        this.getSkillDepot().getSkillsAndEnergySkill().forEach(skillId -> {
             val skillData = GameData.getAvatarSkillDataMap().get(skillId);
             if (skillData == null) return;
             int proudSkillGroupId = skillData.getProudSkillGroupId();
@@ -404,228 +397,30 @@ public class Avatar {
     public void recalcStats(boolean forceSendAbilityChange) {
         // Setup
         var data = this.getAvatarData();
-        var promoteData = GameData.getAvatarPromoteData(data.getAvatarPromoteId(), this.getPromoteLevel());
-        var setMap = new Int2IntOpenHashMap();
-
-        // Extra ability embryos
-        Set<String> prevExtraAbilityEmbryos = this.getExtraAbilityEmbryos();
-        this.extraAbilityEmbryos.clear();
 
         // Fetters
         this.getFetters().addAll(data.getFetters());
         this.setNameCardRewardId(data.getNameCardRewardId());
         this.setNameCardId(data.getNameCardId());
 
-        // Get hp percent, set to 100% if none
-        float hpPercent = this.getFightProperty(FightProperty.FIGHT_PROP_MAX_HP) <= 0 ? 1f : this.getFightProperty(FightProperty.FIGHT_PROP_CUR_HP) / this.getFightProperty(FightProperty.FIGHT_PROP_MAX_HP);
+        // Refresh stats. TODO: updates should be more granular, but keeping this for now for backward compatibility
+        this.stats.calculateLevelBaseStats();
+        this.stats.calculateWeaponStats();
+        this.stats.calculateReliquaryStats();
+        this.stats.calculateTalentStats();
+        this.stats.refreshStats();
 
-        // Store current energy value for later
-        float currentEnergy = (this.getSkillDepot() != null) ? this.getFightProperty(this.getSkillDepot().getElementType().getCurEnergyProp()) : 0f;
-
-        // Clear properties
-        this.getFightProperties().clear();
-
-        // Base stats
-        this.setFightProperty(FightProperty.FIGHT_PROP_BASE_HP, data.getBaseHp(this.getLevel()));
-        this.setFightProperty(FightProperty.FIGHT_PROP_BASE_ATTACK, data.getBaseAttack(this.getLevel()));
-        this.setFightProperty(FightProperty.FIGHT_PROP_BASE_DEFENSE, data.getBaseDefense(this.getLevel()));
-        this.setFightProperty(FightProperty.FIGHT_PROP_CRITICAL, data.getBaseCritical());
-        this.setFightProperty(FightProperty.FIGHT_PROP_CRITICAL_HURT, data.getBaseCriticalHurt());
-        this.setFightProperty(FightProperty.FIGHT_PROP_CHARGE_EFFICIENCY, 1f);
-
-        if (promoteData != null) {
-            for (FightPropData fightPropData : promoteData.getAddProps()) {
-                this.addFightProperty(fightPropData.getProp(), fightPropData.getValue());
-            }
-        }
-
-        // Set energy usage
-        setCurrentEnergy(currentEnergy);
-
-        // Artifacts
-        for (int slotId = 1; slotId <= 5; slotId++) {
-            // Get artifact
-            GameItem equip = this.getEquipBySlot(slotId);
-            if (equip == null) {
-                continue;
-            }
-            // Artifact main stat
-            ReliquaryMainPropData mainPropData = GameData.getReliquaryMainPropDataMap().get(equip.getMainPropId());
-            if (mainPropData != null) {
-                ReliquaryLevelData levelData = GameData.getRelicLevelData(equip.getItemData().getRankLevel(), equip.getLevel());
-                if (levelData != null) {
-                    this.addFightProperty(mainPropData.getFightProp(), levelData.getPropValue(mainPropData.getFightProp()));
-                }
-            }
-            // Artifact sub stats
-            for (int appendPropId : equip.getAppendPropIdList()) {
-                ReliquaryAffixData affixData = GameData.getReliquaryAffixDataMap().get(appendPropId);
-                if (affixData != null) {
-                    this.addFightProperty(affixData.getFightProp(), affixData.getPropValue());
-                }
-            }
-            // Set bonus
-            if (equip.getItemData().getSetId() > 0) {
-                setMap.addTo(equip.getItemData().getSetId(), 1);
-            }
-        }
-
-        // Set stuff
-        setMap.forEach((setId, amount) -> {
-            ReliquarySetData setData = GameData.getReliquarySetDataMap().get((int) setId);
-            if (setData == null) return;
-
-            // Calculate how many items are from the set
-            // Add affix data from set bonus
-            val setNeedNum = setData.getSetNeedNum();
-            for (int setIndex = 0; setIndex < setNeedNum.length; setIndex++) {
-                if (amount < setNeedNum[setIndex]) break;
-
-                int affixId = (setData.getEquipAffixId() * 10) + setIndex;
-                EquipAffixData affix = GameData.getEquipAffixDataMap().get(affixId);
-                if (affix == null) {
-                    continue;
-                }
-
-                // Add properties from this affix to our avatar
-                for (FightPropData prop : affix.getAddProps()) {
-                    this.addFightProperty(prop.getProp(), prop.getValue());
-                }
-
-                // Add any skill strings from this affix
-                this.addToExtraAbilityEmbryos(affix.getOpenConfig(), true);
-            }
-        });
-
-        // Weapon
-        GameItem weapon = this.getWeapon();
-        if (weapon != null) {
-            // Add stats
-            WeaponCurveData curveData = GameData.getWeaponCurveDataMap().get(weapon.getLevel());
-            if (curveData != null) {
-                for (WeaponProperty weaponProperty : weapon.getItemData().getWeaponProperties()) {
-                    this.addFightProperty(weaponProperty.getPropType(), weaponProperty.getInitValue() * curveData.getMultByProp(weaponProperty.getType()));
-                }
-            }
-            // Weapon promotion stats
-            WeaponPromoteData wepPromoteData = GameData.getWeaponPromoteData(weapon.getItemData().getWeaponPromoteId(), weapon.getPromoteLevel());
-            if (wepPromoteData != null) {
-                for (FightPropData prop : wepPromoteData.getAddProps()) {
-                    if (prop.getValue() == 0f || prop.getProp() == null) {
-                        continue;
-                    }
-                    this.addFightProperty(prop.getProp(), prop.getValue());
-                }
-            }
-            // Add weapon skill from affixes
-            if (weapon.getAffixes() != null && !weapon.getAffixes().isEmpty()) {
-                // Weapons usually don't have more than one affix but just in case...
-                for (int af : weapon.getAffixes()) {
-                    if (af == 0) {
-                        continue;
-                    }
-                    // Calculate affix id
-                    int affixId = (af * 10) + weapon.getRefinement();
-                    EquipAffixData affix = GameData.getEquipAffixDataMap().get(affixId);
-                    if (affix == null) {
-                        continue;
-                    }
-
-                    // Add properties from this affix to our avatar
-                    for (FightPropData prop : affix.getAddProps()) {
-                        this.addFightProperty(prop.getProp(), prop.getValue());
-                    }
-
-                    // Add any skill strings from this affix
-                    this.addToExtraAbilityEmbryos(affix.getOpenConfig(), true);
-                }
-            }
-        }
-
-        // Add proud skills and unlock them if needed
-        AvatarSkillDepotData skillDepot = GameData.getAvatarSkillDepotDataMap().get(this.getSkillDepotId());
-        this.getProudSkillList().clear();
-        for (InherentProudSkillOpens openData : skillDepot.getInherentProudSkillOpens()) {
-            if (openData.getProudSkillGroupId() == 0) {
-                continue;
-            }
-            if (openData.getNeedAvatarPromoteLevel() <= this.getPromoteLevel()) {
-                int proudSkillId = (openData.getProudSkillGroupId() * 100) + 1;
-                if (GameData.getProudSkillDataMap().containsKey(proudSkillId)) {
-                    this.getProudSkillList().add(proudSkillId);
-                }
-            }
-        }
-
-        // Proud skills
-        for (int proudSkillId : this.getProudSkillList()) {
-            ProudSkillData proudSkillData = GameData.getProudSkillDataMap().get(proudSkillId);
-            if (proudSkillData == null) {
-                continue;
-            }
-
-            // Add properties from this proud skill to our avatar
-            for (FightPropData prop : proudSkillData.getAddProps()) {
-                this.addFightProperty(prop.getProp(), prop.getValue());
-            }
-
-            // Add any embryos from this proud skill
-            this.addToExtraAbilityEmbryos(proudSkillData.getOpenConfig());
-        }
-
-        // Constellations
-        this.getTalentIdList().intStream()
-            .mapToObj(GameData.getAvatarTalentDataMap()::get)
-            .filter(Objects::nonNull)
-            .map(AvatarTalentData::getOpenConfig)
-            .filter(Objects::nonNull)
-            .forEach(this::addToExtraAbilityEmbryos);
-            // Add any skill strings from this constellation
-
-        // Set % stats
-        FightProperty.forEachCompoundProperty(c -> this.setFightProperty(c.getResult(),
-            this.getFightProperty(c.getFlat()) + (this.getFightProperty(c.getBase()) * (1f + this.getFightProperty(c.getPercent())))));
-
-        // Reapply all overrides
-        this.fightProperties.putAll(this.fightPropOverrides);
-
-        // Set current hp
-        this.setFightProperty(FightProperty.FIGHT_PROP_CUR_HP, this.getFightProperty(FightProperty.FIGHT_PROP_MAX_HP) * hpPercent);
+        this.abilities.attachOpenConfigs(AvatarAbilityManager.SOURCE_WEAPON, this.stats.getWeaponAffixes());
+        this.abilities.attachOpenConfigs(AvatarAbilityManager.SOURCE_RELIQUARY, this.stats.getReliquaryAffixes());
+        this.abilities.attachOpenConfigs(AvatarAbilityManager.SOURCE_PROUD_SKILL, this.stats.getProudSkills());
+        this.abilities.attachOpenConfigs(AvatarAbilityManager.SOURCE_TALENT, this.stats.getTalents());
+        this.abilities.updateSkillDepotAbilities();
+        this.abilities.notifyChanges();
 
         // Packet
         if (getPlayer() != null && getPlayer().hasSentLoginPackets()) {
             // Update stats for client. TODO: maybe should sent only updated fight props
             getPlayer().sendPacket(new PacketAvatarFightPropUpdateNotify(this));
-            // Update client abilities
-            EntityAvatar entity = this.getAsEntity();
-            if (entity != null && (!this.getExtraAbilityEmbryos().equals(prevExtraAbilityEmbryos) || forceSendAbilityChange)) {
-                getPlayer().sendPacket(new PacketAbilityChangeNotify(entity));
-            }
-        }
-    }
-
-    public void addToExtraAbilityEmbryos(String openConfig) {
-        this.addToExtraAbilityEmbryos(openConfig, false);
-    }
-
-    public void addToExtraAbilityEmbryos(String openConfig, boolean forceAdd) {
-        if (openConfig == null || openConfig.isEmpty()) {
-            return;
-        }
-
-        OpenConfigEntry entry = GameData.getOpenConfigEntries().get(openConfig);
-        if (entry == null) {
-            if (forceAdd) {
-                // Add config string to ability skill list anyway
-                this.getExtraAbilityEmbryos().add(openConfig);
-            }
-            return;
-        }
-
-        if (entry.getAddAbilities() != null) {
-            for (String ability : entry.getAddAbilities()) {
-                this.getExtraAbilityEmbryos().add(ability);
-            }
         }
     }
 
@@ -656,7 +451,7 @@ public class Avatar {
         this.skillExtraChargeMap.clear();
 
         // Sanity checks
-        if (this.data == null || this.skillDepot == null) {
+        if (this.data == null || this.getSkillDepot() == null) {
             return;
         }
 
@@ -689,8 +484,8 @@ public class Avatar {
 
     private boolean calcConstellationExtraLevels(OpenConfigEntry entry) {
         int skillId = switch (entry.getExtraTalentIndex()) {
-            case 9 -> this.skillDepot.getEnergySkill();  // Ult skill
-            case 2 -> (this.skillDepot.getSkills().size() >= 2) ? this.skillDepot.getSkills().get(1) : 0;  // E skill
+            case 9 -> this.getSkillDepot().getEnergySkill();  // Ult skill
+            case 2 -> (this.getSkillDepot().getSkills().size() >= 2) ? this.getSkillDepot().getSkills().get(1) : 0;  // E skill
             default -> 0;
         };
         // Sanity check
@@ -763,7 +558,7 @@ public class Avatar {
         if(currentTalentLevel == -1){
             return false;
         }
-        int talentId = this.skillDepot.getTalents().get(currentTalentLevel);
+        int talentId = this.getSkillDepot().getTalents().get(currentTalentLevel);
         return this.unlockConstellation(talentId, skipPayment);
     }
     public boolean unlockConstellation(int talentId) {
@@ -822,6 +617,7 @@ public class Avatar {
     }
 
     public EntityAvatar getAsEntity() {
+        if (getPlayer() == null) return null;
         for (EntityAvatar entity : getPlayer().getTeamManager().getActiveTeam()) {
             if (entity.getAvatar() == this) {
                 return entity;

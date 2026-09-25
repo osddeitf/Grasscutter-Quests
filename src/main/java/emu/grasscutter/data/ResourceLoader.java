@@ -35,6 +35,7 @@ import emu.grasscutter.scripts.ScriptSystem;
 import emu.grasscutter.utils.FileUtils;
 import emu.grasscutter.utils.JsonUtils;
 import emu.grasscutter.utils.TsvUtils;
+import emu.grasscutter.utils.Utils;
 import it.unimi.dsi.fastutil.Pair;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -115,7 +116,6 @@ public class ResourceLoader {
         loadConfigData();
         // Load ability lists
         loadAbilityEmbryos();
-        loadTalents();
         loadOpenConfig();
         loadAbilityModifiers();
         loadAbilityGroups();
@@ -433,7 +433,7 @@ public class ResourceLoader {
     }
     private static void loadAbilityData(AbilityData data) {
         GameData.abilityDataMap.put(data.abilityName, data);
-        GameData.getAbilityHashes().put(Ability.AbilityHash(data.abilityName), data.abilityName);
+        GameData.getAbilityHashes().put(Utils.abilityHash(data.abilityName), data.abilityName);
 
         val modifiers = data.modifiers;
         if (modifiers == null || modifiers.size() == 0) return;
@@ -471,29 +471,6 @@ public class ResourceLoader {
         }
         catch (IOException ex) {
             logger.error("Error loading ability groups", ex);
-        }
-    }
-
-    private static void loadTalents() {
-        // Load from BinOutput
-        try (Stream<Path> paths = Files.walk(getResourcePath("BinOutput/Talent/AvatarTalents/"))) {
-            paths.filter(Files::isDirectory).forEach((folderPath) -> {
-                try (Stream<Path> paths2 = Files.walk(folderPath)) {
-                    paths2.filter(Files::isRegularFile).filter(path -> path.toString().endsWith(".json")).forEach(ResourceLoader::loadTalent);
-                } catch (IOException e) {
-                    logger.error("Error loading talents: ", e);
-                }
-            });
-        } catch (IOException e) {
-            logger.error("Error loading talents: ", e);
-        }
-    }
-
-    private static void loadTalent(Path path) {
-        try {
-            GameData.getTalents().putAll(JsonUtils.loadToMap(path, String.class, new TypeToken<List<TalentData>>() {}.getType()));
-        } catch (IOException e) {
-            logger.error("Error loading ability modifiers from path " + path.toString() + ": ", e);
         }
     }
 
@@ -553,7 +530,12 @@ public class ResourceLoader {
 
         if (list == null) {
             Map<String, OpenConfigEntry> map = new TreeMap<>();
-            String[] folderNames = {"BinOutput/Talent/EquipTalents/", "BinOutput/Talent/AvatarTalents/"};
+            String[] folderNames = {
+                "BinOutput/Talent/AvatarTalents/",
+                "BinOutput/Talent/EquipTalents/",
+                "BinOutput/Talent/TeamTalents/",
+                "BinOutput/Talent/RelicTalents/",
+            };
 
             for (String folderName : folderNames) {
                 try (val stream = Files.newDirectoryStream(getResourcePath(folderName), "*.json")){
@@ -1012,19 +994,5 @@ public class ResourceLoader {
         })) {
             logger.error("Error while loading Group Replacements");
         }
-    }
-
-    public static class OpenConfigData {
-        public String $type;
-        public String abilityName;
-
-        @SerializedName(value="talentIndex", alternate={"OJOFFKLNAHN"})
-        public int talentIndex;
-
-        @SerializedName(value="skillID", alternate={"overtime"})
-        public int skillID;
-
-        @SerializedName(value="pointDelta", alternate={"IGEBKIHPOIF"})
-        public int pointDelta;
     }
 }

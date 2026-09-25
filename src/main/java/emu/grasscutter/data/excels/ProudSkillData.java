@@ -5,6 +5,7 @@ import java.util.List;
 
 import emu.grasscutter.data.GameResource;
 import emu.grasscutter.data.ResourceType;
+import emu.grasscutter.data.binout.OpenConfigSource;
 import emu.grasscutter.data.common.FightPropData;
 import emu.grasscutter.data.common.ItemParamData;
 import it.unimi.dsi.fastutil.objects.Object2FloatMap;
@@ -12,7 +13,7 @@ import it.unimi.dsi.fastutil.objects.Object2FloatOpenHashMap;
 import lombok.Getter;
 
 @ResourceType(name = "ProudSkillExcelConfigData.json")
-public class ProudSkillData extends GameResource {
+public class ProudSkillData extends GameResource implements OpenConfigSource {
     private int proudSkillId;
     @Getter private int proudSkillGroupId;
     @Getter private int level;
