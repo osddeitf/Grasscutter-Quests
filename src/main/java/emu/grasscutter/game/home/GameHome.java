@@ -12,8 +12,10 @@ import emu.grasscutter.game.player.Player;
 import emu.grasscutter.server.packet.send.*;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
 
 import java.util.HashSet;
@@ -26,6 +28,8 @@ import java.util.stream.Collectors;
 @Data
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Builder(builderMethodName = "of")
+@NoArgsConstructor
+@AllArgsConstructor
 public class GameHome {
     @Id
     String id;

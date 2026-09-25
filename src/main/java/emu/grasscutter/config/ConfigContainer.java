@@ -76,6 +76,8 @@ public class ConfigContainer {
         public DataStore game = new DataStore();
 
         public static class DataStore {
+            /** Persistence backend: "mongodb" (default) or "surreal". */
+            public String backend = "mongodb";
             public String connectionUri = "mongodb://localhost:27017";
             public String collection = "grasscutter";
         }

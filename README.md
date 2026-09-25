@@ -43,7 +43,7 @@ They should contain:
 
 ### Required software
 * Java 17+ Runtime
-* MongoDB Server
+* MongoDB Server — or run serverless with the embedded SurrealDB backend, see [docs/surrealdb.md](docs/surrealdb.md)
 
 ### Client requirements
 * Proxy (e.g. mitmdump) or patch (e.g. mhypbase or hk4e-patch-universal) to redirect sdk and dispatch requests
