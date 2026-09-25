@@ -3,7 +3,6 @@ package emu.grasscutter.game.friends;
 import dev.morphia.annotations.Entity;
 import dev.morphia.annotations.Id;
 import dev.morphia.annotations.Indexed;
-import dev.morphia.annotations.Transient;
 import emu.grasscutter.database.DatabaseHelper;
 import emu.grasscutter.game.player.Player;
 import lombok.Getter;
@@ -17,7 +16,7 @@ import org.bson.types.ObjectId;
 @Entity(value = "friendships", useDiscriminator = false)
 public class Friendship {
     @Id private ObjectId id;
-    @Getter @Setter @Transient private Player owner;
+    @Getter @Setter transient private Player owner;
     @Getter @Setter @Indexed private int ownerId;
     @Getter @Setter @Indexed private int friendId;
     @Getter @Setter private boolean isFriend;

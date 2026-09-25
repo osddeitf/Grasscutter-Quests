@@ -1,7 +1,6 @@
 package emu.grasscutter.game.battlepass;
 
 import dev.morphia.annotations.Entity;
-import dev.morphia.annotations.Transient;
 import emu.grasscutter.data.GameData;
 import emu.grasscutter.data.excels.BattlePassMissionData;
 import emu.grasscutter.game.props.BattlePassMissionStatus;
@@ -12,7 +11,7 @@ public class BattlePassMission {
 	private int progress;
 	private BattlePassMissionStatus status;
 
-	@Transient
+	transient
 	private BattlePassMissionData data;
 
 	@Deprecated // Morphia only

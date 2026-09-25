@@ -6,7 +6,7 @@ import emu.grasscutter.utils.Utils;
 
 @Entity
 public class PlayerProfile {
-	@Transient private Player player;
+	transient private Player player;
 	
 	@AlsoLoad("id") private int uid;
 	private int nameCard;

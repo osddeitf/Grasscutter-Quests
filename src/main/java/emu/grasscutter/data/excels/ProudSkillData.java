@@ -3,7 +3,6 @@ package emu.grasscutter.data.excels;
 import java.util.ArrayList;
 import java.util.List;
 
-import dev.morphia.annotations.Transient;
 import emu.grasscutter.data.GameResource;
 import emu.grasscutter.data.ResourceType;
 import emu.grasscutter.data.common.FightPropData;
@@ -28,9 +27,9 @@ public class ProudSkillData extends GameResource {
     @Getter private float[] paramList;
     @Getter private long[] paramDescList;
     @Getter private long nameTextMapHash;
-    @Transient private Iterable<ItemParamData> totalCostItems;
+    transient private Iterable<ItemParamData> totalCostItems;
 
-    @Transient @Getter private Object2FloatMap<String> paramListMap = new Object2FloatOpenHashMap<String>();
+    transient @Getter private Object2FloatMap<String> paramListMap = new Object2FloatOpenHashMap<String>();
 
     @Override
     public int getId() {

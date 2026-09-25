@@ -3,7 +3,6 @@ package emu.grasscutter.game.mail;
 import dev.morphia.annotations.Entity;
 import dev.morphia.annotations.Id;
 import dev.morphia.annotations.Indexed;
-import dev.morphia.annotations.Transient;
 import emu.grasscutter.database.DatabaseHelper;
 import emu.grasscutter.game.player.Player;
 
@@ -33,7 +32,7 @@ public class Mail {
     @Getter public boolean isRead;
     @Getter public boolean isAttachmentGot;
     @Getter public int stateValue;
-    @Transient private boolean shouldDelete;
+    transient private boolean shouldDelete;
 
     public Mail() {
         this(new MailContent(), new ArrayList<MailItem>(), (int) Instant.now().getEpochSecond() + 604800); // TODO: add expire time to send mail command

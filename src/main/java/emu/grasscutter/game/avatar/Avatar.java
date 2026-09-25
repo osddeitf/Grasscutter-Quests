@@ -44,10 +44,10 @@ public class Avatar {
     @Id private ObjectId id;
     @Indexed @Getter private int ownerId;	// id of player that this avatar belongs to
 
-    @Transient private Player owner;
-    @Transient @Getter protected AvatarData data;
-    @Transient @Getter protected AvatarSkillDepotData skillDepot;
-    @Transient @Getter protected long guid;	// Player unique id
+    transient private Player owner;
+    transient @Getter protected AvatarData data;
+    transient @Getter protected AvatarSkillDepotData skillDepot;
+    transient @Getter protected long guid;	// Player unique id
     @Getter protected int avatarId;			// id of avatar
 
     @Getter @Setter protected int level = 1;
@@ -58,16 +58,16 @@ public class Avatar {
     @Getter @Setter protected float currentHp;
     @Getter protected float currentEnergy;
 
-    @Transient @Getter protected final Int2ObjectMap<GameItem> equips = new Int2ObjectOpenHashMap<>();
-    @Transient @Getter protected final Int2FloatOpenHashMap fightProperties = new Int2FloatOpenHashMap();
-    @Transient @Getter protected final Int2FloatOpenHashMap fightPropOverrides = new Int2FloatOpenHashMap();
-    @Transient @Getter protected final Set<String> extraAbilityEmbryos = new HashSet<>();
+    transient @Getter protected final Int2ObjectMap<GameItem> equips = new Int2ObjectOpenHashMap<>();
+    transient @Getter protected final Int2FloatOpenHashMap fightProperties = new Int2FloatOpenHashMap();
+    transient @Getter protected final Int2FloatOpenHashMap fightPropOverrides = new Int2FloatOpenHashMap();
+    transient @Getter protected final Set<String> extraAbilityEmbryos = new HashSet<>();
 
     @Getter protected final Set<Integer> fetters = new HashSet<>();
 
     protected final Map<Integer, Integer> skillLevelMap = new Int2IntArrayMap(7); // Talent levels
-    @Transient @Getter protected final Map<Integer, Integer> skillExtraChargeMap = new Int2IntArrayMap(2); // Charges
-    @Transient protected final Map<Integer, Integer> proudSkillBonusMap = new Int2IntArrayMap(2); // Talent bonus levels (from const)
+    transient @Getter protected final Map<Integer, Integer> skillExtraChargeMap = new Int2IntArrayMap(2); // Charges
+    transient protected final Map<Integer, Integer> proudSkillBonusMap = new Int2IntArrayMap(2); // Talent bonus levels (from const)
     @Getter private int skillDepotId;
     protected Set<Integer> talentIdList; // Constellation id list
     @Getter protected Set<Integer> proudSkillList; // Character passives

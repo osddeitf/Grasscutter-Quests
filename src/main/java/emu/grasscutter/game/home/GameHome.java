@@ -4,7 +4,6 @@ import dev.morphia.annotations.Entity;
 import dev.morphia.annotations.Id;
 import dev.morphia.annotations.IndexOptions;
 import dev.morphia.annotations.Indexed;
-import dev.morphia.annotations.Transient;
 import emu.grasscutter.Grasscutter;
 import emu.grasscutter.data.GameData;
 import emu.grasscutter.data.excels.HomeWorldLevelData;
@@ -33,7 +32,7 @@ public class GameHome {
 
     @Indexed(options = @IndexOptions(unique = true))
     long ownerUid;
-    @Transient Player player;
+    transient Player player;
 
     int level;
     int exp;
