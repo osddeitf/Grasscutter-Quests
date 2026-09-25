@@ -1,12 +1,10 @@
-package emu.grasscutter.server.packet.send;
+package emu.grasscutter.server.packet.send.widget;
 
+import emu.grasscutter.game.modules.widget.manager.WidgetSwitchManager;
 import emu.grasscutter.game.player.Player;
 import emu.grasscutter.net.packet.BaseTypedPacket;
-import lombok.val;
 import org.anime_game_servers.multi_proto.gi.messages.item.widget.AllWidgetDataNotify;
 import org.anime_game_servers.multi_proto.gi.messages.item.widget.lunch_box.LunchBoxData;
-import org.anime_game_servers.multi_proto.gi.messages.item.widget.manage_slot.WidgetSlotData;
-import org.anime_game_servers.multi_proto.gi.messages.item.widget.manage_slot.WidgetSlotTag;
 
 import java.util.List;
 
@@ -28,18 +26,7 @@ public class PacketAllWidgetDataNotify extends BaseTypedPacket<AllWidgetDataNoti
             // Good luck, my boy.
         proto.setNormalCoolDownDataList(List.of());
 
-        if (player.getWidgetId() == 0) {  // TODO: check this logic later, it was null-checking an int before which made it dead code
-            proto.setSlotList(List.of());
-        } else {
-            val widgetSlotDataFirst = new WidgetSlotData();
-            widgetSlotDataFirst.setActive(true);
-            widgetSlotDataFirst.setMaterialId(player.getWidgetId());
-
-            val widgetSlotDataSecond = new WidgetSlotData();
-            widgetSlotDataSecond.setTag(WidgetSlotTag.WIDGET_SLOT_ATTACH_AVATAR);
-
-            proto.setSlotList(List.of(widgetSlotDataFirst, widgetSlotDataSecond));
-        }
+        proto.setSlotList(WidgetSwitchManager.getSlotList(player));
     }
 }
 

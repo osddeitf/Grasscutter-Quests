@@ -5,6 +5,7 @@ import emu.grasscutter.data.excels.DungeonData;
 import emu.grasscutter.data.excels.SceneData;
 import emu.grasscutter.game.entity.EntityTeam;
 import emu.grasscutter.game.entity.EntityWorld;
+import emu.grasscutter.game.modules.widget.manager.WidgetAnchorPointManager;
 import emu.grasscutter.game.player.Player;
 import emu.grasscutter.game.player.Player.SceneLoadState;
 import emu.grasscutter.game.props.EnterReason;
@@ -53,6 +54,7 @@ public class World implements Iterable<Player> {
     @Getter private long currentGameTime = 540;
 
     @Getter private Random worldRandomGenerator;
+    @Getter private WidgetAnchorPointManager anchorPointManager;
 
     public World(Player player) {
         this(player, false);
@@ -74,6 +76,7 @@ public class World implements Iterable<Player> {
         this.isWeatherLocked = owner.getBoolProperty(PlayerProperty.PROP_IS_WEATHER_LOCKED);
 
         this.worldRandomGenerator = new Random();
+        this.anchorPointManager = WidgetAnchorPointManager.loadFromDatabase(player);    // TODO: not load for home world (teapot)
 
         this.owner.getServer().registerWorld(this);
     }
