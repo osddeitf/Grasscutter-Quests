@@ -389,7 +389,9 @@ public class World implements Iterable<Player> {
 
         // sync time every 10 seconds
         if(tickCount%10 == 0){
-            players.forEach(p -> p.sendPacket(new PacketPlayerGameTimeNotify(p)));
+            players.forEach(p -> p.sendPacket(new PacketPlayerGameTimeNotify(p)));  // TODO: this is not sent as often in official
+            players.forEach(p -> p.sendPacket(new PacketPlayerTimeNotify(p)));
+            scenes.values().forEach(s -> s.broadcastPacket(new PacketSceneTimeNotify(s)));
             isGameTimeLocked = getHost().getBoolProperty(PlayerProperty.PROP_IS_GAME_TIME_LOCKED);
             isWeatherLocked = getHost().getBoolProperty(PlayerProperty.PROP_IS_WEATHER_LOCKED);
         }

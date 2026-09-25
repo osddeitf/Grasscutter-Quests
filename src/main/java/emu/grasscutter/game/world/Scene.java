@@ -47,6 +47,7 @@ import org.anime_game_servers.gi_lua.models.ScriptArgs;
 import org.anime_game_servers.gi_lua.models.constants.EventType;
 import org.anime_game_servers.gi_lua.models.scene.block.SceneBlock;
 import org.anime_game_servers.gi_lua.models.scene.block.SceneGroupInfo;
+import org.anime_game_servers.gi_lua.models.scene.group.SceneGadget;
 import org.anime_game_servers.gi_lua.models.scene.group.SceneGroup;
 import org.anime_game_servers.gi_lua.models.scene.group.SceneInitConfig;
 import org.anime_game_servers.gi_lua.utils.GroupUtils;
@@ -330,10 +331,27 @@ public class Scene {
             .toList();
     }
 
+    private int getGadgetOwner(GameEntity entity) {
+        if (entity.getSpawnConfig().getInitDataSource() instanceof SceneGadget g) {
+            return g.getOwner();
+        }
+        return 0;
+    }
+
     public synchronized void addEntities(Collection<? extends GameEntity> entities, VisionType visionType) {
         if (entities == null || entities.isEmpty()) return;
 
         entities.forEach(this::addEntityDirectly);
+        entities.forEach(entity -> {
+            if (!(entity instanceof EntityGadget)) return;
+            int owner = getGadgetOwner(entity);
+            if (owner == 0) return;
+            var parent = getEntityByConfigId(owner);
+            if (parent instanceof EntityBaseGadget gadget) {
+                gadget.getChildren().add(entity);
+            }
+            // TODO: what if parent spawn later?
+        });
 
         chopped(entities.stream().toList(), 100).forEach(l -> {
             broadcastPacket(new PacketSceneEntityAppearNotify(l, visionType));
@@ -481,10 +499,6 @@ public class Scene {
         finishLoading();
         checkPlayerRespawn();
         this.getSealBattleManager().onTick();
-
-        if (this.tickCount % 10 == 0) {
-            broadcastPacket(new PacketSceneTimeNotify(this));
-        }
         this.tickCount++;
     }
 

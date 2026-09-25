@@ -115,6 +115,7 @@ public class Player {
     @Indexed(options = @IndexOptions(unique = true)) private String accountId;
     @Setter private transient Account account;
     @Getter @Setter private transient GameSession session;
+    private transient long startWorldTime;
 
     @Getter private String nickname;
     @Getter private String signature;
@@ -411,6 +412,7 @@ public class Player {
 
     public synchronized void setWorld(World world) {
         this.world = world;
+        this.startWorldTime = world.getWorldTime();
     }
 
     public synchronized Scene getScene() {
@@ -684,7 +686,7 @@ public class Player {
     }
 
     public int getProperty(PlayerProperty prop) {
-        return getProperties().get(prop.getId());
+        return getProperties().getOrDefault(prop.getId(), 0);
     }
     public boolean getBoolProperty(PlayerProperty prop) {
         return getProperties().get(prop.getId()) == 1;
@@ -710,6 +712,11 @@ public class Player {
         return session.getClientTime();
     }
 
+    public long getPlayerTime() {
+        // TODO: instead, this is probably the total time player's spent in-game
+        return this.world.getWorldTime() - this.startWorldTime;
+    }
+
     public long getLastPingTime() {
         return session.getLastPingTime();
     }
@@ -723,6 +730,7 @@ public class Player {
         } else if (oldPauseState && !newPauseState) {
             this.onUnpause();
         }
+        sendPacket(new PacketPlayerTimeNotify(this));
     }
 
     public boolean isInMultiplayer() {
@@ -1568,7 +1576,7 @@ public class Player {
         if(!isValueInPropBounds(prop, value)){
             return false;
         }
-        int currentValue = this.properties.get(prop.getId());
+        int currentValue = this.getProperty(prop);
         this.properties.put(prop.getId(), value);
         if (sendPacket) {
             // Notify the client about the player property change. For cb1 clients we probably need to send PlayerPropChangeNotify instead. TODO: verify

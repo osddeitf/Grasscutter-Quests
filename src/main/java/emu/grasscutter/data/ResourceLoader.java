@@ -259,7 +259,6 @@ public class ResourceLoader {
                     pointData.setSceneId(sceneId);
 
                     GameData.getScenePointIdList().add(pointId.intValue());
-                    GameData.getScenePointEntries().put(scenePoint.getName(), scenePoint);
                     GameData.scenePointEntryMap.put((sceneId << 16) + pointId, scenePoint);
 
                     pointData.onLoad();
@@ -600,8 +599,8 @@ public class ResourceLoader {
                             addToCache(quest);
                         }
                     }
-                } catch (IOException e) {
-
+                } catch (Exception e) {
+                    logger.error("Failed to load quest config {}", path.getFileName().toString());
                 }
             });
         } catch (IOException e) {
