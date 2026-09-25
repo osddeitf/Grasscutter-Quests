@@ -113,6 +113,16 @@ public class EntityGadget extends EntityBaseGadget implements ConfigAbilityDataA
     public void onInteract(Player player, GadgetInteractReq interactReq) {
         if(!isInteractEnabled()) return;
 
+        if (this.getGadgetData() != null) {
+            var gadgetChain = GameData.getGadgetChainDataMap().get(this.getGadgetData().getChainId());
+            if (gadgetChain != null) {
+                var buffs = gadgetChain.getBuffList();
+                if (buffs != null && !buffs.isEmpty()) {
+                    player.getBuffManager().addBuff(buffs.get(0));
+                }
+            }
+        }
+
         if (this.getContent() == null) {
             val contentName = GameData.getGadgetDataMap().get(interactReq.getGadgetId()).getType().name();
             Grasscutter.getLogger().warn("Missing Gadget content: {}", contentName);

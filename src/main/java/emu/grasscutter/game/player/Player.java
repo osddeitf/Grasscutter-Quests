@@ -69,6 +69,7 @@ import emu.grasscutter.server.event.player.PlayerQuitEvent;
 import emu.grasscutter.server.game.GameServer;
 import emu.grasscutter.server.game.GameSession;
 import emu.grasscutter.server.game.GameSession.SessionState;
+import emu.grasscutter.server.packet.gadget.PacketGadgetChainLevelUpdateNotify;
 import emu.grasscutter.server.packet.send.*;
 import emu.grasscutter.server.packet.send.widget.*;
 import emu.grasscutter.utils.MessageHandler;
@@ -1354,6 +1355,7 @@ public class Player {
         // Packets
         session.send(new PacketMainCoopUpdateNotify(this.getCoopHandler().getCoopCards().values().stream().map(e -> e.getMainCoop().toProto()).toList()));
         session.send(new PacketPlayerDataNotify(this)); // Player data
+        session.send(new PacketGadgetChainLevelUpdateNotify());
         session.send(new PacketLevelTagDataNotify(this));
         session.send(new PacketStoreWeightLimitNotify());
         session.send(new PacketPlayerStoreNotify(this));

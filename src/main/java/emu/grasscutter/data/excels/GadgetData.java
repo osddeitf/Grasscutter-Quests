@@ -10,7 +10,7 @@ import lombok.Getter;
 public class GadgetData extends GameResource {
     @Getter(onMethod = @__(@Override))
     private int id;
-
+    private int chainId;
     private EntityType type;
     private String jsonName;
     private boolean isInteractive;
