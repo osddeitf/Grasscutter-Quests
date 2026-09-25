@@ -1,5 +1,6 @@
 package emu.grasscutter.game.props.ItemUseAction;
 
+import emu.grasscutter.game.modules.shop.MoonCardManager;
 import emu.grasscutter.game.props.ItemUseOp;
 
 public class ItemUseGainCardProduct extends ItemUseAction {
@@ -13,6 +14,6 @@ public class ItemUseGainCardProduct extends ItemUseAction {
 
     @Override
     public boolean useItem(UseItemParams params) {
-        return params.player.rechargeMoonCard();
+        return MoonCardManager.getInstance(params.player).rechargeMoonCard();
     }
 }

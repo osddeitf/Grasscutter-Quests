@@ -1,9 +1,11 @@
 package emu.grasscutter.server.packet.send;
 
 import emu.grasscutter.Grasscutter;
+import emu.grasscutter.game.modules.shop.MoonCardManager;
 import emu.grasscutter.game.player.Player;
 import emu.grasscutter.game.shop.ShopInfo;
 import emu.grasscutter.game.shop.ShopSystem;
+import emu.grasscutter.game.shop.ShopType;
 import emu.grasscutter.net.packet.BaseTypedPacket;
 import emu.grasscutter.utils.Utils;
 import lombok.val;
@@ -13,13 +15,22 @@ import org.anime_game_servers.multi_proto.gi.messages.shop.Shop;
 import org.anime_game_servers.multi_proto.gi.messages.shop.ShopGoods;
 
 import java.util.ArrayList;
+import java.util.List;
 
 public class PacketGetShopRsp extends BaseTypedPacket<GetShopRsp> {
     public PacketGetShopRsp(Player inv, int shopType) {
         super(new GetShopRsp());
 
-        // TODO: CityReputationLevel
         val shop = new Shop(shopType);
+        proto.setShop(shop);
+
+        if (shopType == ShopType.SHOP_TYPE_PACKAGE.shopTypeId) {
+            var card = MoonCardManager.getInstance(inv).getMoonCardProduct();
+            shop.setCardProductList(List.of(card));
+            return;
+        }
+
+        // TODO: CityReputationLevel
         shop.setCityId(1); //mock
         shop.setCityReputationLevel(10); //mock
 
@@ -72,6 +83,5 @@ public class PacketGetShopRsp extends BaseTypedPacket<GetShopRsp> {
         }
 
         inv.save();
-        proto.setShop(shop);
     }
 }
