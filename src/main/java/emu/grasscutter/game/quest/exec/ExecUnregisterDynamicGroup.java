@@ -24,7 +24,7 @@ public class ExecUnregisterDynamicGroup extends QuestExecHandler {
 
         QuestSystem.getLogger().info("Unregistering group {}", groupId);
 
-        if(!scene.unregisterDynamicGroup(groupId)){
+        if(!scene.getGroupManager().unregisterDynamicGroup(groupId)){
             return false;
         }
 

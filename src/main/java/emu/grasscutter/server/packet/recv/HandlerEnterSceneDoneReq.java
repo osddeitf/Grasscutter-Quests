@@ -33,7 +33,7 @@ public class HandlerEnterSceneDoneReq extends TypedPacketHandler<EnterSceneDoneR
         session.getPlayer().getWorld().getOwner().getBlossomManager().loadBlossomGroup();
 
         // spawn NPC
-        session.getPlayer().getScene().loadNpcForPlayerEnter(session.getPlayer());
+        session.getPlayer().getScene().getNpcGroupManager().loadNpcForPlayerEnter(session.getPlayer());
 
         // notify client to load the npc for quest
         var questGroupSuites = session.getPlayer().getQuestManager().getSceneGroupSuite(session.getPlayer().getSceneId());

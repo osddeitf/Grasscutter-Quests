@@ -45,7 +45,7 @@ public abstract class ActivityHandler<PLAYER_DETAIL_DATA> {
             return;
         }
 
-        activityExtraInfo.getDefaultGroups().forEach(scene::loadDynamicGroup);
+        activityExtraInfo.getDefaultGroups().forEach(scene.getGroupManager()::loadDynamicGroup);
     }
 
     public void initWatchers(Map<WatcherTriggerType, ConstructorAccess<?>> activityWatcherTypeMap){

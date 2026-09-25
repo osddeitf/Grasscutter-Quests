@@ -18,22 +18,27 @@ import emu.grasscutter.game.dungeons.challenge.WorldChallenge;
 import emu.grasscutter.game.dungeons.enums.DungeonPassConditionType;
 import emu.grasscutter.game.dungeons.settle_listeners.DungeonSettleListener;
 import emu.grasscutter.game.entity.*;
-import emu.grasscutter.game.entity.create_config.CreateRegionEntityConfig;
-import emu.grasscutter.game.entity.gadget.platform.ConfigRoute;
 import emu.grasscutter.game.entity.create_config.CreateEntityConfig;
 import emu.grasscutter.game.entity.create_config.CreateGadgetEntityConfig;
 import emu.grasscutter.game.entity.create_config.CreateMonsterEntityConfig;
+import emu.grasscutter.game.entity.create_config.CreateRegionEntityConfig;
 import emu.grasscutter.game.entity.gadget.content.GadgetWorktop;
+import emu.grasscutter.game.entity.gadget.platform.ConfigRoute;
 import emu.grasscutter.game.player.Player;
 import emu.grasscutter.game.player.TeamInfo;
 import emu.grasscutter.game.props.*;
 import emu.grasscutter.game.quest.QuestGroupSuite;
 import emu.grasscutter.game.world.data.TeleportProperties;
+import emu.grasscutter.game.world.managers.NpcGroupManager;
+import emu.grasscutter.game.world.managers.SceneGroupManager;
+import emu.grasscutter.game.world.managers.PlatformManager;
+import emu.grasscutter.game.world.managers.PlayerRespawnManager;
+import emu.grasscutter.game.world.managers.SpawnManager;
 import emu.grasscutter.game.world.managers.seal_battle.SealBattleManager;
 import emu.grasscutter.net.packet.BasePacket;
 import emu.grasscutter.scripts.SceneIndexManager;
 import emu.grasscutter.scripts.SceneScriptManager;
-import emu.grasscutter.server.event.player.PlayerTeleportEvent;
+import emu.grasscutter.scripts.ScriptRegionManager;
 import emu.grasscutter.server.packet.send.*;
 import emu.grasscutter.utils.KahnsSort;
 import emu.grasscutter.utils.Position;
@@ -72,11 +77,7 @@ public class Scene {
     @Getter private final List<Player> players = new CopyOnWriteArrayList<>();
     @Getter private final Map<Integer, GameEntity<?>> entities = new ConcurrentHashMap<>();
     @Getter private final Map<Integer, GameEntity<?>> weaponEntities = new ConcurrentHashMap<>();
-    private final Set<SpawnDataEntry> spawnedEntities = ConcurrentHashMap.newKeySet();
-    @Getter private final Set<SpawnDataEntry> deadSpawnedEntities = ConcurrentHashMap.newKeySet();
-    private final Set<SceneBlock> loadedBlocks = ConcurrentHashMap.newKeySet();
-    @Getter private final Set<SceneGroup> loadedGroups = ConcurrentHashMap.newKeySet();
-    private final Set<Integer> replacedGroup = ConcurrentHashMap.newKeySet();
+    @Getter private final SceneGroupManager groupManager;
     private final HashSet<Integer> unlockedForces = new HashSet<>();
     private final List<Runnable> afterLoadedCallbacks = new ArrayList<>();
     private final long startWorldTime;
@@ -84,7 +85,6 @@ public class Scene {
     @Getter @Setter SealBattleManager sealBattleManager;
     @Getter Int2ObjectMap<Route> sceneRoutes;
     @Getter List<ScenePointArrayData> pointArrays;
-    private Set<SpawnDataEntry.GridBlockId> loadedGridBlocks = new HashSet<>();
     @Getter @Setter private boolean dontDestroyWhenEmpty;
     @Getter private final SceneScriptManager scriptManager;
     @Getter @Setter private WorldChallenge challenge;
@@ -93,7 +93,6 @@ public class Scene {
     @Getter @Setter private int prevScenePoint;
     @Getter @Setter private int killedMonsterCount;
     @Getter @Setter private int killChestCount;
-    private Set<SceneNpcBornEntry> npcBornEntrySet = ConcurrentHashMap.newKeySet();
     @Getter private boolean finishedLoading = false;
     @Getter private int tickCount = 0;
     @Getter private boolean isPaused = false;
@@ -101,7 +100,11 @@ public class Scene {
     private boolean weatherLoaded = false;
 
     @Getter private final GameEntity sceneEntity;
-    @Getter @Setter private Map<Integer, Double> scheduledPlatforms = new ConcurrentHashMap<>();
+    @Getter private final SpawnManager spawnManager;
+    @Getter private final NpcGroupManager npcGroupManager;
+    @Getter private final PlatformManager platformManager;
+    @Getter private final PlayerRespawnManager respawnManager;
+    @Getter private final ScriptRegionManager regionManager;
 
     public Scene(World world, SceneData sceneData) {
         this.world = world;
@@ -122,6 +125,12 @@ public class Scene {
         this.scriptManager = new SceneScriptManager(this);
         getWorld().getHost().getActivityManager().triggerSceneLoadForActiveActivity(this);
         this.sealBattleManager = new SealBattleManager(this);
+        this.groupManager = new SceneGroupManager(this);
+        this.spawnManager = new SpawnManager(this);
+        this.npcGroupManager = new NpcGroupManager(this);
+        this.platformManager = new PlatformManager(this);
+        this.respawnManager = new PlayerRespawnManager(this);
+        this.regionManager = new ScriptRegionManager(this);
 
         //Create scene entity
         this.sceneEntity = new EntityScene(this);
@@ -280,7 +289,7 @@ public class Scene {
         teamManager.getActiveTeam().stream().map(EntityAvatar::getAvatar).forEach(Avatar::sendSkillExtraChargeMap);
     }
 
-    private void addEntityDirectly(GameEntity entity) {
+    public void addEntityDirectly(GameEntity entity) {
         this.entities.put(entity.getId(), entity);
         entity.onCreate(); // Call entity create event
     }
@@ -359,7 +368,7 @@ public class Scene {
         });
     }
 
-    private GameEntity removeEntityDirectly(GameEntity entity) {
+    public GameEntity removeEntityDirectly(GameEntity entity) {
         val removed = this.entities.remove(entity.getId());
         Optional.ofNullable(removed).ifPresent(GameEntity::onRemoved); //Call entity remove event
 
@@ -481,72 +490,25 @@ public class Scene {
         if (this.scriptManager.isInit()) {
             //this.checkBlocks();
             if (this.tickCount % 2 == 0) {
-                checkGroups();
+                groupManager.tick();
             }
         } else {
             // TEMPORARY
-            checkSpawns();
+            spawnManager.tick();
         }
         // Triggers
-        this.scriptManager.checkRegions();
+        this.regionManager.checkRegions();
 
         Optional.ofNullable(this.challenge).ifPresent(WorldChallenge::onCheckTimeOut);
 
         this.entities.values().forEach(e -> e.onTick(getSceneTimeSeconds()));
 
-        checkPlatforms();
-        checkNpcGroup();
+        platformManager.tick();
+        npcGroupManager.tick();
         finishLoading();
-        checkPlayerRespawn();
+        respawnManager.tick();
         this.getSealBattleManager().onTick();
         this.tickCount++;
-    }
-
-    private void checkPlayerRespawn() {
-        if (this.scriptManager.getConfig() == null) return;
-
-        val diePos = this.scriptManager.getConfig().getDieY();
-        // Check if we need a respawn
-        this.players.stream().filter(p -> diePos >= p.getPosition().getY()).forEach(this::respawnPlayer);
-        this.entities.values().stream().filter(e -> diePos >= e.getPosition().getY()).forEach(this::killEntity);
-    }
-
-    private Position getDefaultLocation(Player player) {
-        val bornPost = this.scriptManager.getConfig().getBornPos();
-        return bornPost != null ? new Position(bornPost) : player.getPosition();
-    }
-
-    private Position getDefaultRot(Player player) {
-        val bornPost = this.scriptManager.getConfig().getBornRot();
-        return bornPost != null ? new Position(bornPost) : player.getRotation();
-    }
-
-    private Position getRespawnLocation(Player player) {
-        //TODO get last valid location the player stood on
-        return Optional.ofNullable(this.dungeonManager).map(DungeonManager::getRespawnLocation).orElse(getDefaultLocation(player));
-    }
-
-    private Position getRespawnRotation(Player player) {
-        return Optional.ofNullable(this.dungeonManager).map(DungeonManager::getRespawnRotation).orElse(getDefaultRot(player));
-
-    }
-
-    public boolean respawnPlayer(Player player) {
-        player.getTeamManager().onAvatarDieDamage();
-
-        // todo should probably respawn the player at the last valid location
-        return this.world.transferPlayerToScene(player, TeleportProperties.builder()
-            .sceneId(getId())
-            .prevSceneId(getId())
-            .prevPos(player.getPosition())
-            .teleportTo(getRespawnLocation(player))
-            .teleportRot(getRespawnRotation(player))
-            .teleportType(PlayerTeleportEvent.TeleportType.INTERNAL)
-            .worldType(Optional.ofNullable(this.dungeonManager).map(data -> 13).orElse(14))
-            .enterType(EnterType.ENTER_GOTO)
-            .dungeonId(Optional.ofNullable(this.dungeonManager).map(DungeonManager::getDungeonData).map(DungeonData::getId).orElse(0))
-            .enterReason(this.dungeonManager != null ? EnterReason.DungeonReviveOnWaypoint : EnterReason.Revival)
-            .build());
     }
 
     private void finishLoading() {
@@ -563,314 +525,6 @@ public class Scene {
             return;
         }
         this.afterLoadedCallbacks.add(runnable);
-    }
-
-    private int getEntityLevel(int baseLevel, int worldLevelOverride) {
-        return Math.max(1, Math.min(Math.max(worldLevelOverride + baseLevel - 22, baseLevel), 100));
-    }
-
-    private void checkNpcGroup() {
-        Set<SceneNpcBornEntry> npcBornEntries = ConcurrentHashMap.newKeySet();
-        npcBornEntries.addAll(this.players.stream().map(this::loadNpcForPlayer).flatMap(List::stream).toList());
-
-        // clear the unreachable group for client
-        val toUnload = this.npcBornEntrySet.stream()
-            .filter(i -> !npcBornEntries.contains(i))
-            .map(SceneNpcBornEntry::getGroupId)
-            .toList();
-
-        if (!toUnload.isEmpty()) {
-            broadcastPacket(new PacketGroupUnloadNotify(toUnload));
-            Grasscutter.getLogger().debug("Unload NPC Group {}", toUnload);
-        }
-        // exchange the new npcBornEntry Set
-        this.npcBornEntrySet = npcBornEntries;
-    }
-
-    private synchronized void checkSpawns() {
-        val loadedGridBlocks = this.players.stream()
-            .map(p -> SpawnDataEntry.GridBlockId.getAdjacentGridBlockIds(p.getSceneId(), p.getPosition()))
-            .flatMap(Arrays::stream).collect(Collectors.toSet());
-
-        // Don't recalculate static spawns if nothing has changed
-        if (this.loadedGridBlocks.containsAll(loadedGridBlocks)) return;
-
-        this.loadedGridBlocks = loadedGridBlocks;
-        val visible = loadedGridBlocks.stream().map(GameDepot.getSpawnLists()::get)
-            .filter(Objects::nonNull).flatMap(List::stream).collect(Collectors.toSet());
-
-        // World level
-        final int worldLevelOverride = Optional.ofNullable(GameData.getWorldLevelDataMap().get(this.world.getWorldLevel()))
-            .map(WorldLevelData::getMonsterLevel).orElse(0);
-
-        // Todo
-        List<GameEntity> toAdd = new ArrayList<>();
-        List<GameEntity> toRemove = new ArrayList<>();
-        val spawnedEntities = this.spawnedEntities;
-        for (SpawnDataEntry entry : visible) {
-            // If spawn entry is in our view and hasn't been spawned/killed yet, we should spawn it
-            if (spawnedEntities.contains(entry) || this.deadSpawnedEntities.contains(entry)) continue;
-            // Entity object holder
-            GameEntity<?> entity = null;
-
-            // Check if spawn entry is monster or gadget
-            if (entry.getMonsterId() > 0) {
-                final int level = getEntityLevel(entry.getLevel(), worldLevelOverride);
-                val config = new CreateMonsterEntityConfig(entry)
-                    .setLevel(level);
-                val data = config.getMonsterData();
-                if (data == null) continue;
-
-                entity = new EntityMonster(this, config);
-            } else if (entry.getGadgetId() > 0) {
-                val createConfig = new CreateGadgetEntityConfig(entry);
-                val gadget = new EntityGadget(this, createConfig);
-
-                gadget.setFightProperty(FightProperty.FIGHT_PROP_BASE_HP, Float.POSITIVE_INFINITY);
-                gadget.setFightProperty(FightProperty.FIGHT_PROP_CUR_HP, Float.POSITIVE_INFINITY);
-                gadget.setFightProperty(FightProperty.FIGHT_PROP_MAX_HP, Float.POSITIVE_INFINITY);
-
-                entity = gadget;
-            }
-
-            if (entity == null) continue;
-
-            // Add to scene and spawned list
-            toAdd.add(entity);
-            spawnedEntities.add(entry);
-        }
-
-        this.entities.values().stream().filter(entity -> entity.getSpawnEntry() != null)
-            .filter(entity -> !(entity instanceof EntityWeapon))
-            .filter(entity -> !visible.contains(entity.getSpawnEntry()))
-            .peek(toRemove::add).map(GameEntity::getSpawnEntry).forEach(spawnedEntities::remove);
-
-        if (!toAdd.isEmpty()) {
-            toAdd.forEach(this::addEntityDirectly);
-            broadcastPacket(new PacketSceneEntityAppearNotify(toAdd, VisionType.VISION_BORN));
-            toAdd.forEach(x -> x.afterCreate(this.players));
-        }
-        if (!toRemove.isEmpty()) {
-            toRemove.forEach(this::removeEntityDirectly);
-            broadcastPacket(new PacketSceneEntityDisappearNotify(toRemove, VisionType.VISION_REMOVE));
-        }
-    }
-
-    private Set<Integer> getPlayerActiveGroups(Player player) {
-        // consider the borders' entities of blocks, so we check if contains by index
-        return IntStream.range(0, 4)
-            .mapToObj(i -> getScriptManager().getGroupGrids().get(i).getNearbyGroups(i, player.getPosition()))
-            .flatMap(Set::stream).collect(Collectors.toSet());
-    }
-
-    public synchronized boolean loadBlock(SceneBlock block) {
-        if (this.loadedBlocks.contains(block)) return false;
-
-        onLoadBlock(block, this.players);
-        this.loadedBlocks.add(block);
-        return true;
-    }
-
-    /**
-     * Periodically checks for groups spawned, mainly
-     * 1) checks if currently loaded groups are out of player's sight
-     *  - if so, remove those groups
-     * 2) check if there are new groups came into player's sight
-     *  - if so, load up those groups
-     * */
-    private synchronized void checkGroups() {
-        val playerMoved = this.players.stream()
-            .filter(p -> p.getLastCheckedPosition() == null || !p.getLastCheckedPosition().equal2d(p.getPosition()))
-            .peek(p -> p.setLastCheckedPosition(p.getPosition().clone())).findAny();
-
-        if(playerMoved.isEmpty()) return;
-
-        val visible = this.players.stream().map(this::getPlayerActiveGroups)
-            .flatMap(Collection::stream).collect(Collectors.toSet());
-
-        this.loadedGroups.stream().map(SceneGroup::getGroupInfo).filter(group -> !visible.contains(group.getId()) && !group.isDynamicLoad())
-            .forEach(group -> unloadGroup(this.scriptManager.getBlocks().get(group.getBlockId()), group.getId()));
-
-        val toLoad = visible.stream().filter(g -> this.loadedGroups.stream().noneMatch(gr -> gr.getGroupInfo().getId() == g))
-            .filter(g -> !this.replacedGroup.contains(g)).map(g -> Optional.ofNullable(this.scriptManager.getMeta().getGroups().get(g))
-                .filter(Objects::nonNull).filter(group -> !group.getGroupInfo().isDynamicLoad()).orElse(null))
-            .filter(Objects::nonNull).toList();
-
-        onLoadGroup(toLoad);
-        if(!toLoad.isEmpty()) onRegisterGroups();
-    }
-
-    private Set<SceneGroup> onLoadBlock(SceneBlock block, List<Player> players) {
-        if (!block.isLoaded()) {
-            Grasscutter.getLogger().info("Scene {} Block {} loaded.", getId(), block.getId());
-        }
-        return this.scriptManager.getLoadedGroupSetPerBlock().computeIfAbsent(block.getId(), f -> new HashSet<>());
-    }
-
-    private Pair<SceneGroupInfo, SceneGroupUserData> getReplaceableGroupsPair(SceneGroup group){
-        return new Pair<>(group.getGroupInfo(), scriptManager.getCachedGroupInstanceById(group.getGroupInfo().getId()));
-    }
-    private Pair<SceneGroupInfo, SceneGroupUserData> getReplaceableGroupsPair(SceneGroupInfo groupInfo){
-        return new Pair<>(groupInfo, scriptManager.getCachedGroupInstanceById(groupInfo.getId()));
-    }
-
-    /**
-     * Load specific (dynamic loaded) group
-     * don't load the group if it was replaced by other groups, TODO should probably log the failed loading reason
-     * */
-    public int loadDynamicGroup(int groupId) {
-        return this.scriptManager.getGroupInstanceById(groupId) != null || this.replacedGroup.contains(groupId) ? -1 :
-            Optional.ofNullable(this.scriptManager.getGroupById(groupId))
-                .map(SceneGroup::getInitConfig).map(SceneInitConfig::getSuite).orElse(-1);
-    }
-
-    public boolean unregisterDynamicGroup(int groupId){
-        val group = this.scriptManager.getGroupById(groupId);
-        if(group == null) return false;
-        val groupInfo = getReplaceableGroupsPair(group);
-
-        val block = this.scriptManager.getBlocks().get(group.getGroupInfo().getBlockId());
-        unloadGroup(block, groupId);
-
-        val groupInfoList = block.getGroupInfo().values().stream()
-            .map(this::getReplaceableGroupsPair)
-            .toList();
-
-        val toRestore = Optional.ofNullable(scriptManager.getMeta().getGroups().get(groupId))
-            .map(g -> GroupUtils.getReplaceableGroups(groupInfo, groupInfoList, GameData.getGroupReplacements()))
-            .stream().flatMap(List::stream)
-            .filter(replacement -> this.replacedGroup.remove(replacement.getId()))
-            .toList();
-        if (!toRestore.isEmpty()) {
-            onLoadGroupInfo(toRestore);
-            Grasscutter.getLogger().info("Unregistered group: {}", groupId);
-            Grasscutter.getLogger().info("Replaced groups: {}", this.replacedGroup);
-        }
-        return true;
-    }
-
-    /**
-     * Check if a spawning group(1) will replace other groups(2). If so, unload groups(2)
-     * */
-    public void onRegisterGroups() {
-        // Create the graph
-        val groupList = new HashSet<Integer>();
-        //val groupIds = this.loadedGroups.stream().map(SceneGroup::getGroupInfo).map(SceneGroupInfo::getId).toList();
-        val replacements = GameData.getGroupReplacements().values().stream()
-            .filter(replacement -> this.loadedGroups.stream()
-                .filter(g-> g.getGroupInfo().isDynamicLoad())
-                .anyMatch(group -> group.getGroupInfo().getId() == replacement.getId())).toList(); // dynamic groups
-            //.filter(replacement -> replacedGroup.stream().noneMatch(replacement.getReplace_groups()::contains))
-        replacements.forEach(replacement -> {
-            Grasscutter.getLogger().info("Graph ordering: replacement {}", replacement);
-            groupList.add(replacement.getId());
-            groupList.addAll(replacement.getReplaceGroups());
-        });
-
-        val nodes = replacements.stream()
-            .map(replacement -> replacement.getReplaceGroups().stream()
-                .map(id -> new KahnsSort.Node(replacement.getId(), id))
-                .toList())
-            .flatMap(List::stream)
-            .collect(Collectors.toSet());
-
-        val dynamicGroupsOrdered = KahnsSort.doSort(new KahnsSort.Graph(
-            nodes.stream().toList(), groupList.stream().toList()));
-
-        if(dynamicGroupsOrdered == null) {
-            Grasscutter.getLogger().error("Graph ordering: failed to order dynamic groups");
-            return;
-        }
-        // Now we can start unloading and loading groups :D
-        dynamicGroupsOrdered.stream()
-            .map(groupId -> this.loadedGroups.stream().filter(g -> g.getGroupInfo().getId() == groupId).findFirst()) // isGroupJoinReplacement
-            .filter(Optional::isPresent)
-            .map(Optional::get)
-            .map(targetGroup -> GroupUtils.getReplaceableGroups(getReplaceableGroupsPair(targetGroup), this.loadedGroups.stream().map(this::getReplaceableGroupsPair).toList(), GameData.getGroupReplacements()))
-            .flatMap(List::stream)
-            .filter(replacement -> !this.replacedGroup.contains(replacement.getId()))
-            .forEach(replacement -> {
-                this.replacedGroup.add(replacement.getId());
-                Grasscutter.getLogger().info("Graph ordering: unloaded {}", replacement.getId());
-                Grasscutter.getLogger().info("Replaced groups: {}", this.replacedGroup);
-                unloadGroup(this.scriptManager.getBlocks().get(replacement.getBlockId()), replacement.getId());
-            });
-    }
-
-    public void loadTriggerFromGroup(SceneGroup group, String triggerName) {
-        //Load triggers and regions
-        this.scriptManager.registerTrigger(group.getTriggers().values().stream().filter(p -> p.getName().contains(triggerName)).toList());
-        group.getRegions().values().stream().filter(q -> q.getConfigId() == Integer.parseInt(triggerName.substring(13)))
-            .map(region -> new EntityRegion(this, new CreateRegionEntityConfig(region))).forEach(this.scriptManager::registerRegion);
-    }
-
-
-
-    public void onLoadGroupInfo(List<org.anime_game_servers.gi_lua.models.scene.block.SceneGroupInfo> groups) {
-        onLoadGroup(groups.stream().map(info -> scriptManager.getMeta().getGroup(info.getId())).toList());
-    }
-    /**
-     * Load specific group(s), used when this
-     * 1) group is came into player's sight (or visible)
-     * 2) group is being registered
-     * */
-    public void onLoadGroup(List<org.anime_game_servers.gi_lua.models.scene.group.SceneGroup> groups) {
-        if (groups == null || groups.isEmpty()) return;
-
-        groups.stream().filter(Objects::nonNull).filter(group -> !this.loadedGroups.contains(group))
-            // We load the script files for the groups here
-            .peek(this.scriptManager::loadGroupFromScript)
-            .forEach(group -> onLoadBlock(this.scriptManager.getBlocks().get(group.getGroupInfo().getBlockId()), getPlayers()).add(group));
-
-        // Spawn gadgets AFTER triggers are added
-        // TODO
-        val entities = new ArrayList<GameEntity<?>>();
-        val entitiesBorn = new ArrayList<GameEntity<?>>();
-        groups.stream().filter(group -> !this.loadedGroups.contains(group)).filter(group -> group.getInitConfig() != null)
-            .map(group -> Optional.ofNullable(this.scriptManager.getCachedGroupInstanceById(group.getGroupInfo().getId()))
-                .stream().peek(cachedInstance -> cachedInstance.setLuaGroup(group))
-                .findFirst().orElse(this.scriptManager.getGroupInstanceById(group.getGroupInfo().getId())))
-            .peek(gi -> this.loadedGroups.add(gi.getLuaGroup())) // Load suites
-            .forEach(gi -> this.scriptManager.refreshGroup(gi, 0, false, entitiesBorn)); //This is what the official server does
-
-        this.scriptManager.meetEntities(entities);
-        this.scriptManager.addEntities(entitiesBorn);
-        groups.forEach(g -> this.scriptManager.callEvent(new ScriptArgs(g.getGroupInfo().getId(), EventType.EVENT_GROUP_LOAD, g.getGroupInfo().getId())));
-        Grasscutter.getLogger().info("Scene {} loaded {} group(s): {}", getId(), groups.size(), groups.stream().map(x -> x.getGroupInfo().getId()).toList());
-    }
-
-    /**
-     * Remove specific group, used when this
-     * 1) group is not within player's sight (or not visible)
-     * 2) group is replaced by other groups
-     * 3) group is being unregistered
-     * */
-    private void unloadGroup(SceneBlock block, int groupId) {
-        removeEntities(this.entities.values().stream().filter(Objects::nonNull).filter(e ->
-            e.getBlockId() == block.getId() && e.getGroupId() == groupId).toList(), VisionType.VISION_REMOVE);
-
-
-        SceneGroup group = scriptManager.getMeta().getGroups().get(groupId);
-        val triggers = group.getTriggers();
-        if (triggers != null) {
-            triggers.values().forEach(getScriptManager()::deregisterTrigger);
-        }
-        val regions = group.getRegions();
-        if (regions != null) {
-            regions.values().forEach(getScriptManager()::deregisterRegion);
-        }
-
-        Optional.ofNullable(this.scriptManager.getLoadedGroupSetPerBlock().get(block.getId())).ifPresent(s -> s.remove(group));
-
-        this.loadedGroups.remove(group);
-
-        if (this.scriptManager.getLoadedGroupSetPerBlock().get(block.getId()).isEmpty()) {
-            this.scriptManager.getLoadedGroupSetPerBlock().remove(block.getId());
-            Grasscutter.getLogger().info("Scene {} Block {} is unloaded.", getId(), block.getId());
-        }
-
-        broadcastPacket(new PacketGroupUnloadNotify(List.of(groupId)));
-        this.scriptManager.unregisterGroup(group);
     }
 
     // Gadgets
@@ -970,27 +624,6 @@ public class Scene {
         }
     }
 
-    public void loadNpcForPlayerEnter(Player player) {
-        this.npcBornEntrySet.addAll(loadNpcForPlayer(player));
-    }
-
-    private List<SceneNpcBornEntry> loadNpcForPlayer(Player player) {
-        val pos = player.getPosition();
-        val data = GameData.getSceneNpcBornData().get(getId());
-        if (data == null) return List.of();
-
-        val npcList = SceneIndexManager.queryNeighbors(data.getIndex(), pos.toDoubleArray(),
-            Grasscutter.getConfig().server.game.loadEntitiesForPlayerRange);
-
-        val sceneNpcBornEntries = npcList.stream().filter(i -> !this.npcBornEntrySet.contains(i)).toList();
-
-        if (!sceneNpcBornEntries.isEmpty()) {
-            broadcastPacket(new PacketGroupSuiteNotify(sceneNpcBornEntries));
-            Grasscutter.getLogger().debug("Loaded Npc Group Suite {}", sceneNpcBornEntries);
-        }
-        return npcList;
-    }
-
     public void loadGroupForQuest(List<QuestGroupSuite> sceneGroupSuite) {
         if (!this.scriptManager.isInit()) return;
 
@@ -1028,77 +661,6 @@ public class Scene {
 
     public int getCurDungeonId(){
         return dungeonManager != null ? dungeonManager.getDungeonData().getId() : 0;
-    }
-
-    private void checkPlatforms() {
-        val curTime = this.getSceneTime();
-        var iter = scheduledPlatforms.entrySet().iterator();
-        while (iter.hasNext()) {
-            val entry = iter.next();
-            val key = entry.getKey();
-            val value = entry.getValue();
-            if (value < curTime) {
-                scheduledPlatforms.remove(key);
-                val entity = getEntityById(key);
-                // Deleted entity
-                if (entity == null) return;
-                // Not a platform
-                if (!(entity instanceof EntityGadget entityGadget)) return;
-                // No configRoute
-                if (!(entityGadget.getRouteConfig() instanceof ConfigRoute configRoute)) return;
-                // No route in file
-                val route = this.getSceneRouteById(configRoute.getRouteId());
-                if (route == null) return;
-
-                val points = route.getPoints();
-
-                // Increment the index
-                var index = 1 + entityGadget.getRouteConfig().getStartIndex();
-                if (index == points.length) index = 0;
-                entityGadget.getRouteConfig().setStartIndex(index);
-
-                // Update position
-
-                entity.getPosition().set(points[index].getPos());
-
-                // If the point has a Reach Event:
-                if (points[index].isHasReachEvent()) {
-                    callPlatformEvent(key);
-                }
-
-                //if there is a Reach Stop, or we have reached the end, call stop
-                if (points[index].isReachStop() || (index == points.length - 1 /*&& route.getType().equals(RouteType.OneWay)*/)) {
-                    entityGadget.stopPlatform();
-                    //otherwise, schedule the next one.
-                } else {
-                    double distance;
-                    if (index == points.length - 1 && route.getType().equals(RouteType.Loop)) {
-                        distance = points[index].getPos().computeDistance(points[0].getPos());
-                    } else {
-                        distance = points[index].getPos().computeDistance(points[index + 1].getPos());
-                    }
-                    double time = 1000 * distance / points[index].getTargetVelocity();
-                    scheduledPlatforms.put(key, value + time);
-                }
-            }
-        }
-    }
-
-    public boolean callPlatformEvent(int entityId) {
-        val entity = getEntityById(entityId);
-        if (entity == null) return false;
-        if (!(entity instanceof EntityGadget entityGadget)) return false;
-        if (!(entityGadget.getRouteConfig() instanceof ConfigRoute configRoute)) return false;
-
-        val groupId = entityGadget.getGroupId();
-        val configId = entityGadget.getConfigId();
-        val routeId = configRoute.getRouteId();
-        val index = configRoute.getStartIndex();
-
-        this.scriptManager.callEvent(new ScriptArgs(groupId, EventType.EVENT_PLATFORM_REACH_POINT, configId, routeId)
-                .setParam3(index)
-                .setEventSource(configId));
-        return true;
     }
 
     public WeatherArea getWeatherArea(Position position) {

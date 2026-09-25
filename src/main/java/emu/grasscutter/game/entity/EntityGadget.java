@@ -145,9 +145,7 @@ public class EntityGadget extends EntityBaseGadget implements ConfigAbilityDataA
     public void onDeath(int killerId) {
         super.onDeath(killerId); // Invoke super class's onDeath() method.
 
-        if (this.getSpawnEntry() != null) {
-            this.getScene().getDeadSpawnedEntities().add(this.getSpawnEntry());
-        }
+        Optional.ofNullable(this.getSpawnEntry()).ifPresent(getScene().getSpawnManager()::addDeadSpawnEntry);
         getScene().getScriptManager().callEvent(new ScriptArgs(this.getGroupId(), EventType.EVENT_ANY_GADGET_DIE, this.getConfigId()));
 
         SceneGroupInstance groupInstance = getScene().getScriptManager().getCachedGroupInstanceById(this.getGroupId());
@@ -158,7 +156,7 @@ public class EntityGadget extends EntityBaseGadget implements ConfigAbilityDataA
         val removedChest = hostBlossom.getSpawnedChest().remove(getConfigId());
         if (removedChest != null) {
             Grasscutter.getLogger().info("[EntityGadget] Removing Blossom Chest: {}, {}", getGroupId(), getConfigId());
-            getScene().unregisterDynamicGroup(getGroupId());
+            getScene().getGroupManager().unregisterDynamicGroup(getGroupId());
             getScene().getScriptManager().callEvent(
                 new ScriptArgs(getGroupId(), EventType.EVENT_BLOSSOM_CHEST_DIE, getConfigId()));
             hostBlossom.buildNextCamp(getGroupId());
@@ -230,13 +228,13 @@ public class EntityGadget extends EntityBaseGadget implements ConfigAbilityDataA
 
         val currIndex = configRoute.getStartIndex();
         if (currIndex == 0) {
-            this.getScene().callPlatformEvent(this.getId());
+            this.getScene().getPlatformManager().callPlatformEvent(this.getId());
         }
 
         double distance = points[currIndex].getPos().computeDistance(points[currIndex + 1].getPos());
         double time = 1000 * distance / points[currIndex].getTargetVelocity();
         time += this.getScene().getSceneTime();
-        this.getScene().getScheduledPlatforms().put(this.getId(), time);
+        this.getScene().getPlatformManager().schedule(this.getId(), time);
 
         return true;
     }
@@ -245,7 +243,7 @@ public class EntityGadget extends EntityBaseGadget implements ConfigAbilityDataA
         if(routeConfig == null){
             return false;
         }
-        this.getScene().getScheduledPlatforms().remove(this.getId());
+        this.getScene().getPlatformManager().unschedule(this.getId());
         routeConfig.stopRoute(getScene());
         getScene().broadcastPacket(new PacketPlatformStopRouteNotify(this));
 

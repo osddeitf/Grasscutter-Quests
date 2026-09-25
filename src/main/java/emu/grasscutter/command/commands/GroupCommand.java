@@ -72,7 +72,7 @@ public final class GroupCommand implements CommandHandler {
                 CommandHandler.sendMessage(sender, translate(sender, "commands.group.refreshed", param.groupId));
             }
             case "register" -> {
-                var loadedSuite = param.scene.loadDynamicGroup(param.groupId);
+                var loadedSuite = param.scene.getGroupManager().loadDynamicGroup(param.groupId);
                 if(param.suiteId!=0 && param.suiteId!=loadedSuite){
                     if(param.scene.getScriptManager().refreshGroupSuite(param.groupId, param.suiteId)){
                         loadedSuite = param.suiteId;
@@ -81,7 +81,7 @@ public final class GroupCommand implements CommandHandler {
                 CommandHandler.sendMessage(sender, "registered group "+param.groupId+" with suite "+ loadedSuite);
             }
             case "unregister" -> {
-                val result = param.scene.unregisterDynamicGroup(param.groupId);
+                val result = param.scene.getGroupManager().unregisterDynamicGroup(param.groupId);
                 CommandHandler.sendMessage(sender, "unloaded group:"+param.groupId+" "+ result);
             }
             case "list" -> {

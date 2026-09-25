@@ -14,7 +14,7 @@ public class HandlerDungeonPlayerDieReq extends TypedPacketHandler<DungeonPlayer
     public void handle(GameSession session, byte[] header, DungeonPlayerDieReq req) throws Exception {
         Player player = session.getPlayer();
 
-        boolean result = player.getScene().respawnPlayer(player);
+        boolean result = player.getScene().getRespawnManager().respawnPlayer(player);
 
         player.sendPacket(new PacketDungeonPlayerDieRsp(result ? Retcode.RET_SUCC : Retcode.RET_FAIL));
     }

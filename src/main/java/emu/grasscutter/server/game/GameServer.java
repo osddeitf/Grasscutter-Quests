@@ -243,7 +243,7 @@ public final class GameServer extends KcpServer {
         /* GameData.getRefreshPolicyExcelConfigDataMap().forEach(rp -> {
             int interval = rp.getIntervalInSeconds(world);
             getScheduler().scheduleDelayedRepeatingTask(() -> {
-                world.getScenes().values().forEach(s -> s.getLoadedGroups().forEach(g -> {
+                world.getScenes().values().forEach(s -> s.getGroupManager().getLoadedGroups().forEach(g -> {
                     if(g.refresh_id == rp.getId()) {
                     SceneGroupInstance instance = s.getScriptManager().getCachedGroupInstanceById(g.id);
                     if((world.getGameTime() - instance.getLastTimeRefreshed()) >= interval)

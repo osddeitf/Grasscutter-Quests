@@ -18,7 +18,7 @@ public class GroupRegionHandler extends BaseHandler implements org.anime_game_se
     public int getRegionEntityCount(GroupEventLuaContext context, int regionEid, EntityType entityType) {
         logger.debug("[LUA] Call GetRegionEntityCount with {} {}", regionEid, entityType.name());
 
-        var region = context.getSceneScriptManager().getRegionById(regionEid);
+        var region = context.getSceneScriptManager().getScene().getRegionManager().getRegionById(regionEid);
 
         if (region == null) {
             return 0;
@@ -30,7 +30,7 @@ public class GroupRegionHandler extends BaseHandler implements org.anime_game_se
     @Override
     public int getRegionConfigId(GroupEventLuaContext context, int regionEid) {
         logger.debug("[LUA] Call GetRegionConfigId with {}", regionEid);
-        val region = context.getSceneScriptManager().getRegionById(regionEid);
+        val region = context.getSceneScriptManager().getScene().getRegionManager().getRegionById(regionEid);
         if (region == null) {
             return -1;
         }
@@ -40,7 +40,7 @@ public class GroupRegionHandler extends BaseHandler implements org.anime_game_se
     @Override
     public boolean isInRegion(@NotNull GroupEventLuaContext context, int uid, int regionId) {
         val groupId = context.getCurrentGroup().getGroupInfo().getId();
-        var region = context.getSceneScriptManager().getRegionByConfigId(groupId, regionId);
+        var region = context.getSceneScriptManager().getScene().getRegionManager().getRegionByConfigId(groupId, regionId);
         return region.getEntities().stream()
             .anyMatch(e -> e instanceof EntityAvatar && ((EntityAvatar) e).getPlayer().getUid() == uid);
     }

@@ -1,0 +1,99 @@
+package emu.grasscutter.game.world.managers;
+
+import emu.grasscutter.data.binout.routes.RouteType;
+import emu.grasscutter.game.entity.EntityGadget;
+import emu.grasscutter.game.entity.gadget.platform.ConfigRoute;
+import emu.grasscutter.game.world.Scene;
+import lombok.val;
+import org.anime_game_servers.gi_lua.models.ScriptArgs;
+import org.anime_game_servers.gi_lua.models.constants.EventType;
+
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+public class PlatformManager {
+    private final Scene scene;
+    private final Map<Integer, Double> scheduledPlatforms = new ConcurrentHashMap<>();
+
+    public PlatformManager(Scene scene) {
+        this.scene = scene;
+    }
+
+    public void schedule(int entityId, double time) {
+        scheduledPlatforms.put(entityId, time);
+    }
+
+    public void unschedule(int entityId) {
+        scheduledPlatforms.remove(entityId);
+    }
+
+    public void tick() {
+        var iter = scheduledPlatforms.entrySet().iterator();
+        val curTime = scene.getSceneTime();
+        while (iter.hasNext()) {
+            val entry = iter.next();
+            val key = entry.getKey();
+            val value = entry.getValue();
+            if (value < curTime) {
+                scheduledPlatforms.remove(key);
+                val entity = scene.getEntityById(key);
+                // Deleted entity
+                if (entity == null) return;
+                // Not a platform
+                if (!(entity instanceof EntityGadget entityGadget)) return;
+                // No configRoute
+                if (!(entityGadget.getRouteConfig() instanceof ConfigRoute configRoute)) return;
+                // No route in file
+                val route = scene.getSceneRouteById(configRoute.getRouteId());
+                if (route == null) return;
+
+                val points = route.getPoints();
+
+                // Increment the index
+                var index = 1 + entityGadget.getRouteConfig().getStartIndex();
+                if (index == points.length) index = 0;
+                entityGadget.getRouteConfig().setStartIndex(index);
+
+                // Update position
+                entity.getPosition().set(points[index].getPos());
+
+                // If the point has a Reach Event:
+                if (points[index].isHasReachEvent()) {
+                    callPlatformEvent(key);
+                }
+
+                //if there is a Reach Stop, or we have reached the end, call stop
+                if (points[index].isReachStop() || (index == points.length - 1)) {
+                    entityGadget.stopPlatform();
+                    //otherwise, schedule the next one.
+                } else {
+                    double distance;
+                    if (index == points.length - 1 && route.getType().equals(RouteType.Loop)) {
+                        distance = points[index].getPos().computeDistance(points[0].getPos());
+                    } else {
+                        distance = points[index].getPos().computeDistance(points[index + 1].getPos());
+                    }
+                    double time = 1000 * distance / points[index].getTargetVelocity();
+                    scheduledPlatforms.put(key, value + time);
+                }
+            }
+        }
+    }
+
+    public boolean callPlatformEvent(int entityId) {
+        val entity = scene.getEntityById(entityId);
+        if (entity == null) return false;
+        if (!(entity instanceof EntityGadget entityGadget)) return false;
+        if (!(entityGadget.getRouteConfig() instanceof ConfigRoute configRoute)) return false;
+
+        val groupId = entityGadget.getGroupId();
+        val configId = entityGadget.getConfigId();
+        val routeId = configRoute.getRouteId();
+        val index = configRoute.getStartIndex();
+
+        scene.getScriptManager().callEvent(new ScriptArgs(groupId, EventType.EVENT_PLATFORM_REACH_POINT, configId, routeId)
+                .setParam3(index)
+                .setEventSource(configId));
+        return true;
+    }
+}

@@ -22,7 +22,7 @@ public class ConditionPlayerEnterRegion extends BaseCondition {
         }
         val groupId = condition.getParam()[0];
         val configId = condition.getParam()[1];
-        val entityRegion = owner.getScene().getScriptManager().getRegionByConfigId(configId, groupId);
+        val entityRegion = owner.getScene().getRegionManager().getRegionByConfigId(configId, groupId);
 
         if (entityRegion == null) {
             Grasscutter.getLogger().error("Could not find region with configId {} for quest {}", configId, questData.getSubId());
