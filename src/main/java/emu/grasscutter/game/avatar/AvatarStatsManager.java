@@ -25,6 +25,7 @@ public class AvatarStatsManager {
     private final Int2FloatOpenHashMap baseStats = new Int2FloatOpenHashMap();
     private final Int2FloatOpenHashMap weaponExtraStats = new Int2FloatOpenHashMap();
     private final Int2FloatOpenHashMap reliquaryExtraStats = new Int2FloatOpenHashMap();
+    private final Int2FloatOpenHashMap talentExtraStats = new Int2FloatOpenHashMap();
     @Getter private final Set<EquipAffixData> weaponAffixes = new HashSet<>();
     @Getter private final Set<EquipAffixData> reliquaryAffixes = new HashSet<>();
     @Getter private final Set<ProudSkillData> proudSkills = new HashSet<>();
@@ -58,6 +59,9 @@ public class AvatarStatsManager {
         var stats = baseStats.clone();
         sumStats(stats, weaponExtraStats);
         sumStats(stats, reliquaryExtraStats);
+        // NOTE: the only constellation addProps in the resources is FIGHT_PROP_CHARGE_EFFICIENCY
+        // (Anemo Traveler C2, talent 72), so a plain sum is safe for the time being
+        sumStats(stats, talentExtraStats);
 
         // Set % stats
         FightProperty.forEachCompoundProperty(c -> {
@@ -239,11 +243,23 @@ public class AvatarStatsManager {
     // Constellations
     public void calculateTalentStats() {
         talents.clear();
+        talentExtraStats.clear();
 
         // TODO: handle more logics here
         avatar.getTalentIdList().intStream()
             .mapToObj(GameData.getAvatarTalentDataMap()::get)
             .filter(Objects::nonNull)
             .forEach(talents::add);
+
+        for (var talent : talents) {
+            if (talent.getAddProps() == null) continue;
+            for (FightPropData prop : talent.getAddProps()) {
+                // empty entries in the excel load as FIGHT_PROP_NONE with value 0
+                if (prop.getProp() == null || prop.getProp() == FightProperty.FIGHT_PROP_NONE || prop.getValue() == 0f) {
+                    continue;
+                }
+                addFightProperty(talentExtraStats, prop.getProp(), prop.getValue());
+            }
+        }
     }
 }
