@@ -2,6 +2,7 @@ package emu.grasscutter.server.packet.send;
 
 import emu.grasscutter.Grasscutter;
 import emu.grasscutter.Grasscutter.ServerRunMode;
+import emu.grasscutter.game.ability.AbilityStrings;
 import emu.grasscutter.net.packet.BaseTypedPacket;
 import emu.grasscutter.server.game.GameSession;
 import emu.grasscutter.server.http.dispatch.RegionHandler;
@@ -49,7 +50,7 @@ public class PacketPlayerLoginRsp extends BaseTypedPacket<PlayerLoginRsp> {
             info = Objects.requireNonNull(RegionHandler.getCurrentRegion()).getRegionInfo();
         }
 
-        proto.setUseAbilityHash(true); // true
+        proto.setUseAbilityHash(AbilityStrings.USE_ABILITY_HASH);
         proto.setAbilityHashCode(1844674); // 1844674
         proto.setGameBiz("hk4e_global");
         proto.setClientDataVersion(info.getClientDataVersion());

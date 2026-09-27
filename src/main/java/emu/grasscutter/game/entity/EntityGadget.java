@@ -2,6 +2,7 @@ package emu.grasscutter.game.entity;
 
 import emu.grasscutter.Grasscutter;
 import emu.grasscutter.data.GameData;
+import emu.grasscutter.game.ability.AbilityStrings;
 import emu.grasscutter.game.entity.create_config.CreateGadgetEntityConfig;
 import emu.grasscutter.game.entity.gadget.content.*;
 import emu.grasscutter.game.entity.gadget.platform.BaseRoute;
@@ -27,7 +28,6 @@ import org.anime_game_servers.gi_lua.models.constants.EventType;
 import org.anime_game_servers.multi_proto.gi.messages.gadget.GadgetInteractReq;
 import org.anime_game_servers.multi_proto.gi.messages.general.ability.AbilityScalarType;
 import org.anime_game_servers.multi_proto.gi.messages.general.ability.AbilityScalarValueEntry;
-import org.anime_game_servers.multi_proto.gi.messages.general.ability.AbilityString;
 import org.anime_game_servers.multi_proto.gi.messages.general.ability.AbilitySyncStateInfo;
 import org.anime_game_servers.multi_proto.gi.messages.scene.entity.*;
 
@@ -269,9 +269,7 @@ public class EntityGadget extends EntityBaseGadget implements ConfigAbilityDataA
         syncState.setSgvDynamicValueMap(
             this.getGlobalAbilityValues().entrySet().stream().map(entry ->
                 new AbilityScalarValueEntry(
-                    new AbilityString(
-                        new AbilityString.Type.Str(entry.getKey())  // should be this when ability string is enabled
-                    ),
+                    AbilityStrings.of(entry.getKey()),
                     AbilityScalarType.ABILITY_SCALAR_TYPE_FLOAT,
                     new AbilityScalarValueEntry.Value.FloatValue(entry.getValue())
                 )
