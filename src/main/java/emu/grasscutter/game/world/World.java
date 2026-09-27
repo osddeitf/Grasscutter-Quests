@@ -144,6 +144,9 @@ public class World implements Iterable<Player> {
     }
 
     public int getNextEntityId(EntityIdType idType) {
+        // NOTE: the counter only grows and isn't masked. The index has EntityIdType.getBitOffset() bits
+        // (e.g. 21 bits, ~2M ids, or ~1M if the bit below the type is a flag like in the scene entity id).
+        // Past that, ids overflow into the type bits and decode as the wrong entity type.
         return idType.toTypedEntityId(++this.nextEntityId);
     }
 

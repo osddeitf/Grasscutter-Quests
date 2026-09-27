@@ -4,6 +4,7 @@ import emu.grasscutter.Grasscutter;
 import emu.grasscutter.Grasscutter.ServerDebugMode;
 import emu.grasscutter.game.Account;
 import emu.grasscutter.game.player.Player;
+import emu.grasscutter.game.props.EntityIdType;
 import emu.grasscutter.net.packet.BasePacket;
 import emu.grasscutter.net.packet.BaseTypedPacket;
 import emu.grasscutter.net.packet.PacketOpcodesUtils;
@@ -195,17 +196,33 @@ public class GameSession implements GameSessionManager.KcpChannel {
         Grasscutter.getLogger().info(translate("messages.game.connect", this.getAddress().toString()));
     }
 
-    public void updateVersion(Version version, boolean isTemporaryVersion) {
+    /**
+     * @return false if the session was rejected (and closed) for this version
+     */
+    public boolean updateVersion(Version version, boolean isTemporaryVersion) {
         this.version = version;
         var runtime = loadVersionRuntime(version);
         if (runtime == null) {
             Grasscutter.getLogger().error("Session invalid, version {} is not supported", version);
             if (!isTemporaryVersion) this.close();
-            return;
+            return isTemporaryVersion;
         }
 
         this.isTemporaryVersion = isTemporaryVersion;
         this.packageIdProvider = PacketIds.getMapper(version);
+
+        // Entity id layout of this client version. It's global, so the first client fixes it (see EntityIdType)
+        if (!isTemporaryVersion) {
+            if (!EntityIdType.trySetBitOffset(version)) {
+                Grasscutter.getLogger().error("Session rejected: client version {} needs entity id bit offset {}, " +
+                    "but the server is fixed to {} by an earlier client",
+                    version, EntityIdType.bitOffsetOf(version), EntityIdType.getBitOffset());
+                this.close();
+                return false;
+            }
+            Grasscutter.getLogger().info("Client version {}, entity id bit offset {}", version, EntityIdType.getBitOffset());
+        }
+        return true;
     }
 
     @Override
@@ -261,10 +278,12 @@ public class GameSession implements GameSessionManager.KcpChannel {
                         Grasscutter.getLogger().error("Failed to identify client version for opcode: {}", opcode);
                         return;
                     }
-                    val updateVersion = versions.get(versions.size()-1); // get the latest version for initial parsing
+                    val targetVersion = versions.get(versions.size()-1); // get the latest version for initial parsing
                     val updateIsTemporaryVersion = versions.size() > 1; // if the result is only one version, it's the final version
 
-                    updateVersion(updateVersion, updateIsTemporaryVersion);
+                    if (!updateVersion(targetVersion, updateIsTemporaryVersion)) {
+                        return; // session rejected
+                    }
                 }
 
                 val paketName = PacketOpcodesUtils.getOpcodeName(opcode, this);
