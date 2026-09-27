@@ -280,9 +280,15 @@ public class TeamManager extends BasePlayerDataManager {
         avatars.forEach(avatarId -> {
             val avatarGuid = getAvatarGuid(avatarStorage, avatarId);
 
-            getActiveTeam().add(existingAvatars.containsKey(avatarGuid) ?
-                existingAvatars.remove(avatarGuid) :
-                new EntityAvatar(getPlayer().getScene(), avatarStorage.getAvatarByGuid(avatarGuid)));
+            var entity = existingAvatars.remove(avatarGuid);
+            if (entity == null) {
+                // Joined the team: its ability embryos start over.
+                // Entities rebuilt on scene entry are found in existingAvatars, so teleports don't reset them.
+                val avatar = avatarStorage.getAvatarByGuid(avatarGuid);
+                if (avatar != null) avatar.resetAbilities();
+                entity = new EntityAvatar(getPlayer().getScene(), avatar);
+            }
+            getActiveTeam().add(entity);
         });
 
         // Set new selected character index

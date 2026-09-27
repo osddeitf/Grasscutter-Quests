@@ -420,11 +420,7 @@ public class Avatar {
         this.stats.refreshStats();
         this.recalcConstellations();
 
-        this.abilities.attachOpenConfigs(AvatarAbilityManager.SOURCE_WEAPON, this.stats.getWeaponAffixes());
-        this.abilities.attachOpenConfigs(AvatarAbilityManager.SOURCE_RELIQUARY, this.stats.getReliquaryAffixes());
-        this.abilities.attachOpenConfigs(AvatarAbilityManager.SOURCE_PROUD_SKILL, this.stats.getProudSkills());
-        this.abilities.attachOpenConfigs(AvatarAbilityManager.SOURCE_TALENT, this.stats.getTalents());
-        this.abilities.updateSkillDepotAbilities();
+        this.updateAvatarAbilities();
         this.abilities.notifyChanges();
 
         // Packet
@@ -432,6 +428,25 @@ public class Avatar {
             // Update stats for client. TODO: maybe should sent only updated fight props
             getPlayer().sendPacket(new PacketAvatarFightPropUpdateNotify(this));
         }
+    }
+
+    // Abilities from the avatar's own state (equipment, passives, constellations, skill depot)
+    private void updateAvatarAbilities() {
+        this.abilities.attachOpenConfigs(AvatarAbilityManager.SOURCE_WEAPON, this.stats.getWeaponAffixes());
+        this.abilities.attachOpenConfigs(AvatarAbilityManager.SOURCE_RELIQUARY, this.stats.getReliquaryAffixes());
+        this.abilities.attachOpenConfigs(AvatarAbilityManager.SOURCE_PROUD_SKILL, this.stats.getProudSkills());
+        this.abilities.attachOpenConfigs(AvatarAbilityManager.SOURCE_TALENT, this.stats.getTalents());
+        this.abilities.updateSkillDepotAbilities();
+    }
+
+    /**
+     * Starts the ability embryo list over (numbering restarts), rebuilt from the avatar's own sources.
+     * Called when the avatar joins the team; TeamManager applies the team-scoped sources afterwards.
+     */
+    public void resetAbilities() {
+        if (this.data == null || this.stats == null) return;
+        this.abilities = new AvatarAbilityManager(this);
+        this.updateAvatarAbilities();
     }
 
     public void calcConstellation(OpenConfigEntry entry, boolean notifyClient) {
