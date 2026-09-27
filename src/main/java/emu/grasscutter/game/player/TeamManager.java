@@ -187,8 +187,9 @@ public class TeamManager extends BasePlayerDataManager {
     }
 
     private void updateTeamResonances() {
+        var teamAvatars = getActiveTeam().stream().map(EntityAvatar::getAvatar).toList();
         var updated = GameData.getTeamResonanceDataMap().values().stream()
-            .filter(config -> config.isResonanceActive(player, getCurrentTeamInfo()))
+            .filter(config -> config.isResonanceActive(teamAvatars))
             .collect(Collectors.toSet());
         var added = updated.stream().filter(config -> !elementalResonances.contains(config)).toList();
         var removed = elementalResonances.stream().filter(config -> !updated.contains(config)).toList();

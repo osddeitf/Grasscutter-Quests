@@ -3,14 +3,13 @@ package emu.grasscutter.data.excels;
 import emu.grasscutter.data.GameResource;
 import emu.grasscutter.data.ResourceType;
 import emu.grasscutter.data.binout.OpenConfigSource;
-import emu.grasscutter.game.player.Player;
-import emu.grasscutter.game.player.TeamInfo;
+import emu.grasscutter.game.avatar.Avatar;
 import emu.grasscutter.game.props.ElementType;
 import lombok.Getter;
 import lombok.NonNull;
 
 import java.util.HashMap;
-import java.util.Objects;
+import java.util.List;
 
 @Getter
 @ResourceType(name = "TeamResonanceExcelConfigData.json")
@@ -30,12 +29,15 @@ public class TeamResonanceData extends GameResource implements OpenConfigSource 
     private int waterAvatarCount;
     private int windAvatarCount;
 
-    public boolean isResonanceActive(@NonNull Player player, TeamInfo team) {
-        var avatars = team.getAvatars().stream().map(player.getAvatars()::getAvatarById).filter(Objects::nonNull).toList();
-        if (avatars.size() != 4) return false;
+    /**
+     * @param teamAvatars avatars of the team in team order, trial avatars included
+     */
+    public boolean isResonanceActive(@NonNull List<Avatar> teamAvatars) {
+        // Only the first 4 avatars of the team are taken into account, and resonance needs a full party
+        if (teamAvatars.size() < 4) return false;
 
         var counter = new HashMap<ElementType, Integer>();
-        for (var avatar : avatars) {
+        for (var avatar : teamAvatars.subList(0, 4)) {
             var elementType = avatar.getSkillDepot().getElementType();
             var count = counter.getOrDefault(elementType, 0);
             if (cond == TeamResonanceCond.TEAM_RESONANCE_COND_ALL_DIFFERENT && count > 0) return false;
