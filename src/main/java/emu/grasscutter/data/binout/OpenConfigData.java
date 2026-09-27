@@ -33,5 +33,7 @@ public class OpenConfigData {
         ModifySkillPoint,
         AddTalentExtraLevel,
         UnlockTalentParam,  // TODO: is it handled server-side?
+        ModifySkillCD,  // TODO: not handled
+        UnlockControllerConditions,  // TODO: not handled
     }
 }

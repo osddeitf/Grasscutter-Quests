@@ -3,6 +3,7 @@ package emu.grasscutter.data.binout;
 import lombok.Getter;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class OpenConfigEntry {
@@ -13,11 +14,14 @@ public class OpenConfigEntry {
 
 	public OpenConfigEntry(String name, OpenConfigData[] data) {
 		this.name = name;
-        this.configTalents = List.of(data);
+        // Unknown $type values deserialize to null; skip them instead of failing the whole entry
+        this.configTalents = Arrays.stream(data)
+            .filter(entry -> entry != null && entry.type != null)
+            .toList();
 
 		List<SkillPointModifier> modList = new ArrayList<>();
 
-		for (var entry : data) {
+		for (var entry : this.configTalents) {
             switch (entry.type) {
                 case AddTalentExtraLevel -> {
                     if (entry.talentIndex > 0) {
