@@ -3,7 +3,9 @@ package emu.grasscutter.game.player;
 import dev.morphia.annotations.Entity;
 import emu.grasscutter.GameConstants;
 import emu.grasscutter.data.GameData;
+import emu.grasscutter.data.binout.config.ConfigLevelEntity;
 import emu.grasscutter.data.excels.TeamResonanceData;
+import emu.grasscutter.data.excels.WorldAreaData;
 import emu.grasscutter.game.ability.embryos.AvatarAbilityManager;
 import emu.grasscutter.game.avatar.Avatar;
 import emu.grasscutter.game.avatar.AvatarStorage;
@@ -52,6 +54,9 @@ public class TeamManager extends BasePlayerDataManager {
     transient private final List<EntityAvatar> activeTeam;
     transient private final Set<EntityBaseGadget> gadgets;
     transient private final Set<TeamResonanceData> elementalResonances;
+    // current world areas, kept so avatars joining the team later get their abilities too
+    transient private WorldAreaData worldAreaLevel1;
+    transient private WorldAreaData worldAreaLevel2;
     transient @Setter private TeamInfo mpTeam;
     transient @Setter private int temporaryTeamIndex = -1;
     transient private final List<TeamInfo> temporaryTeam; // Temporary Team for tower
@@ -187,8 +192,9 @@ public class TeamManager extends BasePlayerDataManager {
     }
 
     private void updateTeamResonances() {
+        var teamAvatars = getActiveTeam().stream().map(EntityAvatar::getAvatar).toList();
         var updated = GameData.getTeamResonanceDataMap().values().stream()
-            .filter(config -> config.isResonanceActive(player, getCurrentTeamInfo()))
+            .filter(config -> config.isResonanceActive(teamAvatars))
             .collect(Collectors.toSet());
         var added = updated.stream().filter(config -> !elementalResonances.contains(config)).toList();
         var removed = elementalResonances.stream().filter(config -> !updated.contains(config)).toList();
@@ -202,12 +208,60 @@ public class TeamManager extends BasePlayerDataManager {
         }
         elementalResonances.clear();
         elementalResonances.addAll(updated);
+    }
 
-        // update abilities for avatars
+    // null if the current scene has no level entity config
+    private ConfigLevelEntity getLevelEntityConfig() {
+        var scene = player.getScene();
+        if (scene == null) return null;
+        return GameData.getConfigLevelEntityDataMap().get(scene.getSceneData().getLevelEntityConfig());
+    }
+
+    /**
+     * Applies the team-scoped ability sources (world area, level entity, dynamic ability groups, elemental resonance)
+     * to every avatar in the active team, trial avatars included.
+     */
+    private void updateTeamAvatarAbilities(boolean notify) {
+        var levelEntity = getLevelEntityConfig();
+
         updateCurrentTeamAvatars(player, avatar -> {
-            avatar.getAbilities().attachOpenConfigs(AvatarAbilityManager.SOURCE_RESONANCE, elementalResonances);
+            var abilities = avatar.getAbilities();
+            if (worldAreaLevel1 != null) abilities.updateWorldAreaAbilities(worldAreaLevel1);
+            if (worldAreaLevel2 != null) abilities.updateWorldAreaAbilities(worldAreaLevel2);
+            abilities.updateLevelEntityAbilities(levelEntity);
+            abilities.updateDynamicAbilities();
+            abilities.attachOpenConfigs(AvatarAbilityManager.SOURCE_RESONANCE, elementalResonances);
+            if (notify) abilities.notifyChanges();
+        });
+    }
+
+    /**
+     * Refreshes the team-scoped abilities for the scene being entered, for the team avatars and the team entity.
+     * The level entity abilities are cleared if the scene has no level entity config.
+     * No change notify: the scene init packets sent afterward carry the full ability lists.
+     */
+    public void onSceneInit() {
+        updateTeamAvatarAbilities(false);
+        if (entity != null) {
+            entity.getAbilities().updateLevelEntityAbilities(getLevelEntityConfig());
+        }
+    }
+
+    /**
+     * Remembers the world area the player entered, and applies its abilities to the team avatars and the team entity.
+     */
+    public void enterWorldArea(@NonNull WorldAreaData area) {
+        if (area.getAreaID2() == 0) worldAreaLevel1 = area;
+        else worldAreaLevel2 = area;
+
+        updateCurrentTeamAvatars(player, avatar -> {
+            avatar.getAbilities().updateWorldAreaAbilities(area);
             avatar.getAbilities().notifyChanges();
         });
+        if (entity != null) {
+            entity.getAbilities().updateWorldAreaAbilities(area);
+            entity.getAbilities().notifyChanges();
+        }
     }
 
     private long getAvatarGuid(AvatarStorage storage, int avatarId){
@@ -244,9 +298,15 @@ public class TeamManager extends BasePlayerDataManager {
         avatars.forEach(avatarId -> {
             val avatarGuid = getAvatarGuid(avatarStorage, avatarId);
 
-            getActiveTeam().add(existingAvatars.containsKey(avatarGuid) ?
-                existingAvatars.remove(avatarGuid) :
-                new EntityAvatar(getPlayer().getScene(), avatarStorage.getAvatarByGuid(avatarGuid)));
+            var entity = existingAvatars.remove(avatarGuid);
+            if (entity == null) {
+                // Joined the team: its ability embryos start over.
+                // Entities rebuilt on scene entry are found in existingAvatars, so teleports don't reset them.
+                val avatar = avatarStorage.getAvatarByGuid(avatarGuid);
+                if (avatar != null) avatar.resetAbilities();
+                entity = new EntityAvatar(getPlayer().getScene(), avatar);
+            }
+            getActiveTeam().add(entity);
         });
 
         // Set new selected character index
@@ -263,8 +323,9 @@ public class TeamManager extends BasePlayerDataManager {
 
         setCurrentCharacterIndex(prevSelectedIndex < 0 ? getCurrentCharacterIndex() : prevSelectedIndex);
 
-        // Update team resonances
+        // Update team resonances, and the team-scoped abilities of the (possibly new) team members
         updateTeamResonances();
+        updateTeamAvatarAbilities(true);
 
         // Packets
         getPlayer().sendPacket(new PacketSceneTeamUpdateNotify(getPlayer()));
@@ -583,6 +644,7 @@ public class TeamManager extends BasePlayerDataManager {
 
     public void onPlayerLogin() {  // Hack for now to fix resonances on login
         updateTeamResonances();
+        updateTeamAvatarAbilities(true);
     }
 
     public synchronized boolean addNewCustomTeam() {

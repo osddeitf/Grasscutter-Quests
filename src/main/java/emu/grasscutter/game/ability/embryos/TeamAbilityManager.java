@@ -9,6 +9,7 @@ import emu.grasscutter.server.packet.send.PacketAbilityChangeNotify;
 import emu.grasscutter.utils.Utils;
 import lombok.NonNull;
 
+import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Objects;
 
@@ -39,8 +40,11 @@ public class TeamAbilityManager extends BaseAbilityManager {
         );
     }
 
-    public void updateLevelEntityAbilities(@NonNull ConfigLevelEntity config) {
-        List<ConfigAbilityData> abilities = Objects.requireNonNullElse(config.getTeamAbilities(), List.of());
+    // null config (scene without level entity) clears the abilities
+    public void updateLevelEntityAbilities(@Nullable ConfigLevelEntity config) {
+        List<ConfigAbilityData> abilities = config == null
+            ? List.of()
+            : Objects.requireNonNullElse(config.getTeamAbilities(), List.of());
         updateAbilityEmbryos(AbilityType.LEVEL_ENTITY, abilities.stream()
             .map(ConfigAbilityData::getAbilityName)
             .mapToInt(Utils::abilityHash)

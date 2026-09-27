@@ -14,6 +14,7 @@ import it.unimi.dsi.fastutil.ints.IntLinkedOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import lombok.NonNull;
 
+import javax.annotation.Nullable;
 import java.util.*;
 import java.util.stream.IntStream;
 
@@ -64,7 +65,7 @@ public class AvatarAbilityManager extends BaseAbilityManager {
             openConfigAbilities.removeAll(abilities);
 
             var entry = GameData.getOpenConfigEntries().get(src.getOpenConfig());
-            if (entry == null) return;
+            if (entry == null) continue;
             for (var data : entry.getConfigTalents()) {
                 switch (data.type) {
                     case ModifyAbility -> {
@@ -84,7 +85,7 @@ public class AvatarAbilityManager extends BaseAbilityManager {
             openConfigAbilities.addAll(abilities);
 
             var entry = GameData.getOpenConfigEntries().get(src.getOpenConfig());
-            if (entry == null) return;
+            if (entry == null) continue;
             for (var data : entry.getConfigTalents()) {
                 switch (data.type) {
                     case ModifyAbility -> {}
@@ -139,8 +140,11 @@ public class AvatarAbilityManager extends BaseAbilityManager {
         );
     }
 
-    public void updateLevelEntityAbilities(@NonNull ConfigLevelEntity config) {
-        List<ConfigAbilityData> abilities = Objects.requireNonNullElse(config.getAvatarAbilities(), List.of());
+    // null config (scene without level entity) clears the abilities
+    public void updateLevelEntityAbilities(@Nullable ConfigLevelEntity config) {
+        List<ConfigAbilityData> abilities = config == null
+            ? List.of()
+            : Objects.requireNonNullElse(config.getAvatarAbilities(), List.of());
         updateAbilityEmbryos(AbilityType.LEVEL_ENTITY, abilities.stream()
             .map(ConfigAbilityData::getAbilityName)
             .mapToInt(Utils::abilityHash)

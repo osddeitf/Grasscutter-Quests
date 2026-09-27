@@ -1,7 +1,6 @@
 package emu.grasscutter.server.packet.recv;
 
 import emu.grasscutter.data.GameData;
-import emu.grasscutter.game.player.TeamManager;
 import emu.grasscutter.net.packet.TypedPacketHandler;
 import emu.grasscutter.server.game.GameSession;
 import emu.grasscutter.server.packet.send.PacketEnterWorldAreaRsp;
@@ -20,16 +19,7 @@ public class HandlerEnterWorldAreaReq extends TypedPacketHandler<EnterWorldAreaR
         var player = session.getPlayer();
 
         if (area != null) {
-            TeamManager.updateCurrentTeamAvatars(player, avatar -> {
-                avatar.getAbilities().updateWorldAreaAbilities(area);
-                avatar.getAbilities().notifyChanges();
-            });
-        }
-
-        if (area != null) {
-            var team = player.getTeamManager().getEntity();
-            team.getAbilities().updateWorldAreaAbilities(area);
-            team.getAbilities().notifyChanges();
+            player.getTeamManager().enterWorldArea(area);
         }
 
         session.send(new PacketEnterWorldAreaRsp(head.getClientSequenceId(), req));

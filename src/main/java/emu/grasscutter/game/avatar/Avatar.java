@@ -1,6 +1,7 @@
 package emu.grasscutter.game.avatar;
 
 import dev.morphia.annotations.*;
+import emu.grasscutter.Grasscutter;
 import emu.grasscutter.data.GameData;
 import emu.grasscutter.data.binout.OpenConfigEntry;
 import emu.grasscutter.data.binout.OpenConfigEntry.SkillPointModifier;
@@ -227,6 +228,14 @@ public class Avatar {
 
         // Set skill depot
         setSkillDepotData(candSkillDepotId);
+
+        // The depot change notify must go out before the AbilityChangeNotify sent by recalcStats,
+        // so refresh the passives (proud skills) of the new depot first.
+        // NOTE: switching constellations along with the element isn't supported yet, the notify still carries the
+        // previous depot's constellation data. Element switching as a whole (e.g. skillLevelMap shared between
+        // depots) needs a revamp later.
+        stats.calculateLevelBaseStats();
+        stats.refreshStats();
         owner.sendPacket(new PacketAvatarSkillDepotChangeNotify(this));
         recalcStats(true);
         return true;
@@ -409,12 +418,9 @@ public class Avatar {
         this.stats.calculateReliquaryStats();
         this.stats.calculateTalentStats();
         this.stats.refreshStats();
+        this.recalcConstellations();
 
-        this.abilities.attachOpenConfigs(AvatarAbilityManager.SOURCE_WEAPON, this.stats.getWeaponAffixes());
-        this.abilities.attachOpenConfigs(AvatarAbilityManager.SOURCE_RELIQUARY, this.stats.getReliquaryAffixes());
-        this.abilities.attachOpenConfigs(AvatarAbilityManager.SOURCE_PROUD_SKILL, this.stats.getProudSkills());
-        this.abilities.attachOpenConfigs(AvatarAbilityManager.SOURCE_TALENT, this.stats.getTalents());
-        this.abilities.updateSkillDepotAbilities();
+        this.updateAvatarAbilities();
         this.abilities.notifyChanges();
 
         // Packet
@@ -422,6 +428,25 @@ public class Avatar {
             // Update stats for client. TODO: maybe should sent only updated fight props
             getPlayer().sendPacket(new PacketAvatarFightPropUpdateNotify(this));
         }
+    }
+
+    // Abilities from the avatar's own state (equipment, passives, constellations, skill depot)
+    private void updateAvatarAbilities() {
+        this.abilities.attachOpenConfigs(AvatarAbilityManager.SOURCE_WEAPON, this.stats.getWeaponAffixes());
+        this.abilities.attachOpenConfigs(AvatarAbilityManager.SOURCE_RELIQUARY, this.stats.getReliquaryAffixes());
+        this.abilities.attachOpenConfigs(AvatarAbilityManager.SOURCE_PROUD_SKILL, this.stats.getProudSkills());
+        this.abilities.attachOpenConfigs(AvatarAbilityManager.SOURCE_TALENT, this.stats.getTalents());
+        this.abilities.updateSkillDepotAbilities();
+    }
+
+    /**
+     * Starts the ability embryo list over (numbering restarts), rebuilt from the avatar's own sources.
+     * Called when the avatar joins the team; TeamManager applies the team-scoped sources afterwards.
+     */
+    public void resetAbilities() {
+        if (this.data == null || this.stats == null) return;
+        this.abilities = new AvatarAbilityManager(this);
+        this.updateAvatarAbilities();
     }
 
     public void calcConstellation(OpenConfigEntry entry, boolean notifyClient) {
@@ -451,13 +476,12 @@ public class Avatar {
         this.skillExtraChargeMap.clear();
 
         // Sanity checks
-        if (this.data == null || this.getSkillDepot() == null) {
+        if (this.data == null || this.stats == null) {
             return;
         }
 
-        this.getTalentIdList().intStream()
-            .mapToObj(GameData.getAvatarTalentDataMap()::get)
-            .filter(Objects::nonNull)
+        // Unlocked constellations of the current skill depot, as computed by the stats manager
+        this.stats.getTalents().stream()
             .map(AvatarTalentData::getOpenConfig)
             .filter(Objects::nonNull)
             .filter(openConfig -> !openConfig.isEmpty())
@@ -484,9 +508,15 @@ public class Avatar {
 
     private boolean calcConstellationExtraLevels(OpenConfigEntry entry) {
         int skillId = switch (entry.getExtraTalentIndex()) {
+            case 0 -> 0;  // no extra level in this open config
             case 9 -> this.getSkillDepot().getEnergySkill();  // Ult skill
             case 2 -> (this.getSkillDepot().getSkills().size() >= 2) ? this.getSkillDepot().getSkills().get(1) : 0;  // E skill
-            default -> 0;
+            case 1 -> (this.getSkillDepot().getSkills().size() >= 1) ? this.getSkillDepot().getSkills().get(0) : 0;  // Normal attack
+            default -> {
+                Grasscutter.getLogger().warn("Unhandled constellation extra level talent index {} in open config {}",
+                    entry.getExtraTalentIndex(), entry.getName());
+                yield 0;
+            }
         };
         // Sanity check
         if (skillId == 0) {
