@@ -1,6 +1,7 @@
 package emu.grasscutter.game.avatar;
 
 import dev.morphia.annotations.*;
+import emu.grasscutter.Grasscutter;
 import emu.grasscutter.data.GameData;
 import emu.grasscutter.data.binout.OpenConfigEntry;
 import emu.grasscutter.data.binout.OpenConfigEntry.SkillPointModifier;
@@ -492,9 +493,15 @@ public class Avatar {
 
     private boolean calcConstellationExtraLevels(OpenConfigEntry entry) {
         int skillId = switch (entry.getExtraTalentIndex()) {
+            case 0 -> 0;  // no extra level in this open config
             case 9 -> this.getSkillDepot().getEnergySkill();  // Ult skill
             case 2 -> (this.getSkillDepot().getSkills().size() >= 2) ? this.getSkillDepot().getSkills().get(1) : 0;  // E skill
-            default -> 0;
+            case 1 -> (this.getSkillDepot().getSkills().size() >= 1) ? this.getSkillDepot().getSkills().get(0) : 0;  // Normal attack
+            default -> {
+                Grasscutter.getLogger().warn("Unhandled constellation extra level talent index {} in open config {}",
+                    entry.getExtraTalentIndex(), entry.getName());
+                yield 0;
+            }
         };
         // Sanity check
         if (skillId == 0) {
