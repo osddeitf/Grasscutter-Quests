@@ -409,6 +409,7 @@ public class Avatar {
         this.stats.calculateReliquaryStats();
         this.stats.calculateTalentStats();
         this.stats.refreshStats();
+        this.recalcConstellations();
 
         this.abilities.attachOpenConfigs(AvatarAbilityManager.SOURCE_WEAPON, this.stats.getWeaponAffixes());
         this.abilities.attachOpenConfigs(AvatarAbilityManager.SOURCE_RELIQUARY, this.stats.getReliquaryAffixes());
@@ -451,13 +452,12 @@ public class Avatar {
         this.skillExtraChargeMap.clear();
 
         // Sanity checks
-        if (this.data == null || this.getSkillDepot() == null) {
+        if (this.data == null || this.stats == null) {
             return;
         }
 
-        this.getTalentIdList().intStream()
-            .mapToObj(GameData.getAvatarTalentDataMap()::get)
-            .filter(Objects::nonNull)
+        // Unlocked constellations of the current skill depot, as computed by the stats manager
+        this.stats.getTalents().stream()
             .map(AvatarTalentData::getOpenConfig)
             .filter(Objects::nonNull)
             .filter(openConfig -> !openConfig.isEmpty())
