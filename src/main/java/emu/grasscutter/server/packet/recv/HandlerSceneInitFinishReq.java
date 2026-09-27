@@ -1,7 +1,6 @@
 package emu.grasscutter.server.packet.recv;
 
 import emu.grasscutter.Grasscutter;
-import emu.grasscutter.data.GameData;
 import emu.grasscutter.game.dungeons.DungeonManager;
 import emu.grasscutter.game.player.Player.SceneLoadState;
 import emu.grasscutter.net.packet.*;
@@ -34,13 +33,10 @@ public class HandlerSceneInitFinishReq extends TypedPacketHandler<SceneInitFinis
 		session.send(new PacketSceneTimeNotify(session.getPlayer()));
 		session.send(new PacketPlayerGameTimeNotify(session.getPlayer()));
 
-		// Refresh avatar abilities with level entity
-		var scene = session.getPlayer().getScene();
-		session.getPlayer().setAvatarsAbilityForScene(scene);
-		var levelEntity = GameData.getConfigLevelEntityDataMap().get(scene.getSceneData().getLevelEntityConfig());
-		if (levelEntity != null) {
-				session.getPlayer().getTeamManager().getEntity().getAbilities().updateLevelEntityAbilities(levelEntity);
-		}
+		// Refresh avatar and team abilities for the scene (level entity is cleared if the scene has none).
+		// setAvatarsAbilityForScene also swaps the team for scenes with specified avatars.
+		session.getPlayer().setAvatarsAbilityForScene(session.getPlayer().getScene());
+		session.getPlayer().getTeamManager().onSceneInit();
 		session.send(new PacketPlayerEnterSceneInfoNotify(session.getPlayer()));
 
 		session.getPlayer().getScene().reloadWeathers();

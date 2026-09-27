@@ -3,6 +3,7 @@ package emu.grasscutter.game.player;
 import dev.morphia.annotations.Entity;
 import emu.grasscutter.GameConstants;
 import emu.grasscutter.data.GameData;
+import emu.grasscutter.data.binout.config.ConfigLevelEntity;
 import emu.grasscutter.data.excels.TeamResonanceData;
 import emu.grasscutter.data.excels.WorldAreaData;
 import emu.grasscutter.game.ability.embryos.AvatarAbilityManager;
@@ -209,14 +210,19 @@ public class TeamManager extends BasePlayerDataManager {
         elementalResonances.addAll(updated);
     }
 
+    // null if the current scene has no level entity config
+    private ConfigLevelEntity getLevelEntityConfig() {
+        var scene = player.getScene();
+        if (scene == null) return null;
+        return GameData.getConfigLevelEntityDataMap().get(scene.getSceneData().getLevelEntityConfig());
+    }
+
     /**
      * Applies the team-scoped ability sources (world area, level entity, dynamic ability groups, elemental resonance)
      * to every avatar in the active team, trial avatars included.
      */
-    private void updateTeamAvatarAbilities() {
-        var scene = player.getScene();
-        var levelEntity = scene == null ? null
-            : GameData.getConfigLevelEntityDataMap().get(scene.getSceneData().getLevelEntityConfig());
+    private void updateTeamAvatarAbilities(boolean notify) {
+        var levelEntity = getLevelEntityConfig();
 
         updateCurrentTeamAvatars(player, avatar -> {
             var abilities = avatar.getAbilities();
@@ -225,8 +231,20 @@ public class TeamManager extends BasePlayerDataManager {
             abilities.updateLevelEntityAbilities(levelEntity);
             abilities.updateDynamicAbilities();
             abilities.attachOpenConfigs(AvatarAbilityManager.SOURCE_RESONANCE, elementalResonances);
-            abilities.notifyChanges();
+            if (notify) abilities.notifyChanges();
         });
+    }
+
+    /**
+     * Refreshes the team-scoped abilities for the scene being entered, for the team avatars and the team entity.
+     * The level entity abilities are cleared if the scene has no level entity config.
+     * No change notify: the scene init packets sent afterward carry the full ability lists.
+     */
+    public void onSceneInit() {
+        updateTeamAvatarAbilities(false);
+        if (entity != null) {
+            entity.getAbilities().updateLevelEntityAbilities(getLevelEntityConfig());
+        }
     }
 
     /**
@@ -307,7 +325,7 @@ public class TeamManager extends BasePlayerDataManager {
 
         // Update team resonances, and the team-scoped abilities of the (possibly new) team members
         updateTeamResonances();
-        updateTeamAvatarAbilities();
+        updateTeamAvatarAbilities(true);
 
         // Packets
         getPlayer().sendPacket(new PacketSceneTeamUpdateNotify(getPlayer()));
@@ -626,7 +644,7 @@ public class TeamManager extends BasePlayerDataManager {
 
     public void onPlayerLogin() {  // Hack for now to fix resonances on login
         updateTeamResonances();
-        updateTeamAvatarAbilities();
+        updateTeamAvatarAbilities(true);
     }
 
     public synchronized boolean addNewCustomTeam() {
