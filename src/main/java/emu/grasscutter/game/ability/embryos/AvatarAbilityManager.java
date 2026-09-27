@@ -14,6 +14,7 @@ import it.unimi.dsi.fastutil.ints.IntLinkedOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import lombok.NonNull;
 
+import javax.annotation.Nullable;
 import java.util.*;
 import java.util.stream.IntStream;
 
@@ -139,8 +140,11 @@ public class AvatarAbilityManager extends BaseAbilityManager {
         );
     }
 
-    public void updateLevelEntityAbilities(@NonNull ConfigLevelEntity config) {
-        List<ConfigAbilityData> abilities = Objects.requireNonNullElse(config.getAvatarAbilities(), List.of());
+    // null config (scene without level entity) clears the abilities
+    public void updateLevelEntityAbilities(@Nullable ConfigLevelEntity config) {
+        List<ConfigAbilityData> abilities = config == null
+            ? List.of()
+            : Objects.requireNonNullElse(config.getAvatarAbilities(), List.of());
         updateAbilityEmbryos(AbilityType.LEVEL_ENTITY, abilities.stream()
             .map(ConfigAbilityData::getAbilityName)
             .mapToInt(Utils::abilityHash)
