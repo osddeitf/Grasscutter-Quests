@@ -238,6 +238,8 @@ public class AvatarStatsManager {
 
     // Constellations
     public void calculateTalentStats() {
+        talents.clear();
+
         // TODO: handle more logics here
         avatar.getTalentIdList().intStream()
             .mapToObj(GameData.getAvatarTalentDataMap()::get)
