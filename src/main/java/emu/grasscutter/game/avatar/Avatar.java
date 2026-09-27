@@ -227,6 +227,14 @@ public class Avatar {
 
         // Set skill depot
         setSkillDepotData(candSkillDepotId);
+
+        // The depot change notify must go out before the AbilityChangeNotify sent by recalcStats,
+        // so refresh the passives (proud skills) of the new depot first.
+        // NOTE: switching constellations along with the element isn't supported yet, the notify still carries the
+        // previous depot's constellation data. Element switching as a whole (e.g. skillLevelMap shared between
+        // depots) needs a revamp later.
+        stats.calculateLevelBaseStats();
+        stats.refreshStats();
         owner.sendPacket(new PacketAvatarSkillDepotChangeNotify(this));
         recalcStats(true);
         return true;
