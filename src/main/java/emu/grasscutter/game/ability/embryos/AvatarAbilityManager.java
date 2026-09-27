@@ -64,7 +64,7 @@ public class AvatarAbilityManager extends BaseAbilityManager {
             openConfigAbilities.removeAll(abilities);
 
             var entry = GameData.getOpenConfigEntries().get(src.getOpenConfig());
-            if (entry == null) return;
+            if (entry == null) continue;
             for (var data : entry.getConfigTalents()) {
                 switch (data.type) {
                     case ModifyAbility -> {
@@ -84,7 +84,7 @@ public class AvatarAbilityManager extends BaseAbilityManager {
             openConfigAbilities.addAll(abilities);
 
             var entry = GameData.getOpenConfigEntries().get(src.getOpenConfig());
-            if (entry == null) return;
+            if (entry == null) continue;
             for (var data : entry.getConfigTalents()) {
                 switch (data.type) {
                     case ModifyAbility -> {}
