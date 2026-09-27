@@ -71,8 +71,8 @@ public class AvatarStatsManager {
         avatar.getFightProperties().putAll(stats);
 
         // Reapply overrides, energy, hp
-        avatar.getFightProperties().putAll(avatar.getFightPropOverrides());
         avatar.setCurrentEnergy(currentEnergy);
+        avatar.getFightProperties().putAll(avatar.getFightPropOverrides());
         avatar.setFightProperty(FightProperty.FIGHT_PROP_CUR_HP, avatar.getFightProperty(FightProperty.FIGHT_PROP_MAX_HP) * hpPercent);
     }
 
