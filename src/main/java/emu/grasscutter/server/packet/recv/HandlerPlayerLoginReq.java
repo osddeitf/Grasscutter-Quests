@@ -14,21 +14,25 @@ import org.anime_game_servers.multi_proto.gi.utils.VersionIdentify;
 // Sends initial data packets
 public class HandlerPlayerLoginReq extends TypedPacketHandler<PlayerLoginReq> {
 
-    public void checkVersionUpdate(GameSession session, PlayerLoginReq packet) {
+    /**
+     * @return false if the session was rejected for its version
+     */
+    public boolean checkVersionUpdate(GameSession session, PlayerLoginReq packet) {
         if (!session.isTemporaryVersion()) {
-            return;
+            return true;
         }
 
         try {
             val version = VersionIdentify.getClientVersionFromPlayerLoginReq(packet);
             if (version == null) {
                 Grasscutter.getLogger().warn("client version is unknown for account {} with version {}", session.getAccountId(), packet.getClientDataVersion());
-                return;
+                return true;
             }
-            session.updateVersion(version, false);
+            return session.updateVersion(version, false);
         } catch (Exception e) {
             Grasscutter.getLogger().warn("client version is invalid for account {}", session.getAccountId(), e);
         }
+        return true;
     }
 
     @Override
@@ -45,7 +49,9 @@ public class HandlerPlayerLoginReq extends TypedPacketHandler<PlayerLoginReq> {
             return;
         }
 
-        checkVersionUpdate(session, req);
+        if (!checkVersionUpdate(session, req)) {
+            return; // rejected, session is closed
+        }
 
         // Load character from db
         Player player = session.getPlayer();

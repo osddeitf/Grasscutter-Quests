@@ -4,12 +4,12 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NonNull;
+import org.anime_game_servers.core.base.Version;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Stream;
-
-import static emu.grasscutter.config.Configuration.GAME_INFO;
 
 /**
  * This comes from [ProtEntityType].
@@ -49,17 +49,44 @@ public enum EntityIdType {
         });
     }
 
-//    private static final int BIT_OFFSET = GAME_INFO.compatOptions.useShortenedEntityId? 22: 24;
-    private static final int BIT_OFFSET = GAME_INFO.compatOptions.useShortenedEntityId? 21: 24; // hardcode for 6.5
+    // Bit offset of the type within an entity id. It differs between client versions, and it's global, so it's fixed
+    // by the first client whose version is known (GameSession.updateVersion). Clients needing a different offset are
+    // rejected, so ongoing sessions aren't affected; co-op between different client versions isn't supported.
+    private static final int DEFAULT_BIT_OFFSET = 24;
+    private static volatile int bitOffset = 0;  // 0 = not fixed yet
+
+    public static int getBitOffset() {
+        return bitOffset != 0 ? bitOffset : DEFAULT_BIT_OFFSET;
+    }
+
+    // Entity id bit offset used by a client version
+    public static int bitOffsetOf(@NonNull Version version) {
+        if (version.getId() >= Version.GI_6_5_0.getId()) return 21;
+        if (version.getId() >= Version.GI_6_1_0.getId()) return 22;
+        return DEFAULT_BIT_OFFSET;
+    }
+
+    /**
+     * Fixes the bit offset for the client version on the first call; later calls only check compatibility.
+     * @return false if the offset is already fixed to a different value
+     */
+    public static synchronized boolean trySetBitOffset(@NonNull Version version) {
+        int offset = bitOffsetOf(version);
+        if (bitOffset == 0) {
+            bitOffset = offset;
+            return true;
+        }
+        return bitOffset == offset;
+    }
 
     public static EntityIdType fromEntityId(int id) {
-        return map.getOrDefault(id >> BIT_OFFSET, NONE);
+        return map.getOrDefault(id >> bitOffset, NONE);
     }
     public static int idFromEntityId(int id) {
-        return id >> BIT_OFFSET;
+        return id >> bitOffset;
     }
 
     public int toTypedEntityId(int nextEid) {
-        return (getId() << BIT_OFFSET) + nextEid;
+        return (getId() << bitOffset) + nextEid;
     }
 }

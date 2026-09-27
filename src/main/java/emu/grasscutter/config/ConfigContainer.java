@@ -283,9 +283,6 @@ public class ConfigContainer {
     }
 
     public static class CompatOptions {
-        /* Support v6.1+ where entity id (in bits) is shorter. This is a temporary solution. */
-        public boolean useShortenedEntityId = false;
-
         /* Packet XOR encryption before sending over network */
         public boolean usePacketXorEncryption = true;
     }
