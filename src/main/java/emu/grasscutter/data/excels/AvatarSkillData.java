@@ -1,5 +1,6 @@
 package emu.grasscutter.data.excels;
 
+import com.google.gson.annotations.SerializedName;
 import emu.grasscutter.data.GameResource;
 import emu.grasscutter.data.ResourceType;
 import emu.grasscutter.data.ResourceType.LoadPriority;
@@ -21,4 +22,16 @@ public class AvatarSkillData extends GameResource {
     @Getter private long nameTextMapHash;
     @Getter private long descTextMapHash;
     @Getter private String abilityName;
+    // Special (non elemental) energy, e.g. Mavuika, Skirk. Key names differ between resource dumps.
+    @SerializedName(value = "specialEnergyCostType", alternate = {"specialEnergyType"})
+    @Getter private String specialEnergyCostType;
+    @SerializedName(value = "specialEnergyCostMax", alternate = {"specialEnergyMax"})
+    @Getter private int specialEnergyCostMax;
+    @SerializedName(value = "specialEnergyCostStart", alternate = {"specialEnergyMin"})
+    @Getter private int specialEnergyCostStart;
+
+    public boolean hasSpecialEnergy() {
+        return specialEnergyCostType != null && !specialEnergyCostType.isEmpty()
+            && !specialEnergyCostType.equals("SPECIAL_ENERGY_NONE");
+    }
 }

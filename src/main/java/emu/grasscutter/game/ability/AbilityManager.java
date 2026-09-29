@@ -12,6 +12,7 @@ import emu.grasscutter.game.ability.actions.AbilityAction;
 import emu.grasscutter.game.ability.actions.AbilityActionHandler;
 import emu.grasscutter.game.ability.mixins.AbilityMixin;
 import emu.grasscutter.game.ability.mixins.AbilityMixinHandler;
+import emu.grasscutter.game.entity.EntityAvatar;
 import emu.grasscutter.game.entity.GameEntity;
 import emu.grasscutter.game.player.BasePlayerManager;
 import emu.grasscutter.game.player.Player;
@@ -24,6 +25,7 @@ import org.anime_game_servers.multi_proto.gi.messages.ability.AbilityInvokeEntry
 import org.anime_game_servers.multi_proto.gi.messages.ability.AbilityInvokeEntryHead;
 import org.anime_game_servers.multi_proto.gi.messages.ability.ModifierAction;
 import org.anime_game_servers.multi_proto.gi.messages.ability.meta.AbilityMetaAddAbility;
+import org.anime_game_servers.multi_proto.gi.messages.ability.meta.AbilityMetaAddSpecialEnergyValue;
 import org.anime_game_servers.multi_proto.gi.messages.ability.meta.AbilityMetaModifierChange;
 import org.anime_game_servers.multi_proto.gi.messages.ability.meta.AbilityMetaReInitOverrideMap;
 import org.anime_game_servers.multi_proto.gi.messages.ability.meta.AbilityMetaTriggerElementReaction;
@@ -159,8 +161,23 @@ public final class AbilityManager extends BasePlayerManager {
             case ABILITY_META_ADD_NEW_ABILITY -> this.handleAddNewAbility(invoke);
             case ABILITY_META_REMOVE_ABILITY -> this.handleRemoveAbility(invoke);
             case ABILITY_META_TRIGGER_ELEMENT_REACTION -> this.handleTriggerElementReaction(invoke);
+            case ABILITY_META_ADD_SPECIAL_ENERGY_VALUE -> this.handleAddSpecialEnergy(invoke);
             default -> {}
         }
+    }
+
+    private void handleAddSpecialEnergy(AbilityInvokeEntry invoke) {
+        var entity = this.player.getScene().getEntityById(invoke.getEntityId());
+        if(entity == null) {
+            logger.info("handleServerInvoke entity not found: {}", invoke.getEntityId());
+            return;
+        }
+        if (!(entity instanceof EntityAvatar avatarEntity)) {
+            logger.info("handleAddSpecialEnergy entity is not an avatar: {}", invoke.getEntityId());
+            return;
+        }
+        var data = AbilityMetaAddSpecialEnergyValue.parseBy(invoke.getAbilityData(), player.getSession().getVersion());
+        avatarEntity.getAvatar().addSpecialEnergy(data.getSpecialEnergyDelta());
     }
 
     public void handleServerInvoke(AbilityInvokeEntry invoke) {

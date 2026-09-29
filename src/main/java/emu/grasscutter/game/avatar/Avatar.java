@@ -54,7 +54,7 @@ public class Avatar {
     @Getter @Setter protected int satiation; // ?
     @Getter @Setter protected int satiationPenalty; // ?
     @Getter @Setter protected float currentHp;
-    @Getter protected float currentEnergy;
+    protected float currentEnergy;  // persisted value of the energy fight prop, see setCurrentEnergy
 
     transient @Getter protected final Int2ObjectMap<GameItem> equips = new Int2ObjectOpenHashMap<>();
     transient @Getter protected final Int2FloatOpenHashMap fightProperties = new Int2FloatOpenHashMap();
@@ -228,6 +228,7 @@ public class Avatar {
 
         // Set skill depot
         setSkillDepotData(candSkillDepotId);
+        stats.initEnergy();
 
         // The depot change notify must go out before the AbilityChangeNotify sent by recalcStats,
         // so refresh the passives (proud skills) of the new depot first.
@@ -241,31 +242,53 @@ public class Avatar {
         return true;
     }
 
-    public void setCurrentEnergy() {
-        if (GAME_OPTIONS.energyUsage) {
-            this.setCurrentEnergy(this.currentEnergy);
-        }
+    // Energy: elemental energy, or special energy for some avatars (see AvatarStatsManager.initEnergy)
+
+    public FightProperty getCurEnergyProp() {
+        return this.stats.getCurEnergyProp();
     }
 
-    public void setCurrentEnergy(float currentEnergy) {
-        var depot = this.getSkillDepot();
-        if (depot != null && depot.getEnergySkillData() != null) {
-            ElementType element = depot.getElementType();
-            var maxEnergy = depot.getEnergySkillData().getCostElemVal();
-            this.setFightProperty(element.getMaxEnergyProp(), maxEnergy);
-            this.setFightProperty(element.getCurEnergyProp(), GAME_OPTIONS.energyUsage ? currentEnergy : maxEnergy);
-        }
+    public boolean hasSpecialEnergy() {
+        return this.stats.isSpecialEnergy();
     }
 
-    public void setCurrentEnergy(FightProperty curEnergyProp, float currentEnergy) {
-        if (GAME_OPTIONS.energyUsage) {
-            this.setFightProperty(curEnergyProp, currentEnergy);
-            this.currentEnergy = currentEnergy;
-            if (getPlayer() != null && getPlayer().hasSentLoginPackets()) {
-                getPlayer().sendPacket(new PacketAvatarFightPropUpdateNotify(this, curEnergyProp));
-            }
-            this.save();
+    public float getCurrentEnergy() {
+        return this.stats != null ? this.getFightProperty(this.stats.getCurEnergyProp()) : this.currentEnergy;
+    }
+
+    // from the fight prop, so fight prop overrides apply
+    public float getMaxEnergy() {
+        return this.getFightProperty(this.stats.getMaxEnergyProp());
+    }
+
+    /**
+     * Sets the current energy, notifies the client and saves the avatar. Does nothing if energy usage is disabled.
+     */
+    public void setCurrentEnergy(float energy) {
+        if (!GAME_OPTIONS.energyUsage) return;
+
+        var curEnergyProp = this.getCurEnergyProp();
+        this.setFightProperty(curEnergyProp, energy);
+        this.currentEnergy = energy;
+        if (getPlayer() != null && getPlayer().hasSentLoginPackets()) {
+            getPlayer().sendPacket(new PacketAvatarFightPropUpdateNotify(this, curEnergyProp));
         }
+        this.save();
+    }
+
+    /**
+     * Adds to the special energy, clamped to [0, max]. Only notifies when the value changes.
+     * @return false if the avatar doesn't use special energy, or the value didn't change
+     */
+    public boolean addSpecialEnergy(float delta) {
+        if (!this.hasSpecialEnergy()) return false;
+
+        float current = this.getCurrentEnergy();
+        float updated = Math.max(0f, Math.min(current + delta, this.getMaxEnergy()));
+        if (updated == current) return false;
+
+        this.setCurrentEnergy(updated);
+        return true;
     }
 
     public void setFightProperty(FightProperty prop, float value) {

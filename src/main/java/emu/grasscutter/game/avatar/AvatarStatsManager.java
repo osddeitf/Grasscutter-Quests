@@ -5,6 +5,7 @@ import emu.grasscutter.data.common.FightPropData;
 import emu.grasscutter.data.excels.*;
 import emu.grasscutter.game.inventory.EquipType;
 import emu.grasscutter.game.inventory.GameItem;
+import emu.grasscutter.game.props.ElementType;
 import emu.grasscutter.game.props.FightProperty;
 import it.unimi.dsi.fastutil.ints.Int2FloatOpenHashMap;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
@@ -16,6 +17,7 @@ import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 
+import static emu.grasscutter.config.Configuration.GAME_OPTIONS;
 import static emu.grasscutter.game.inventory.EquipType.*;
 
 // TODO: need to verify, perhaps by writing some unit tests
@@ -31,12 +33,54 @@ public class AvatarStatsManager {
     @Getter private final Set<ProudSkillData> proudSkills = new HashSet<>();
     @Getter private final Set<AvatarTalentData> talents = new HashSet<>();
 
+    // Energy: the prop holding the current value, and the max/start values of the skill depot (see initEnergy)
+    private final Int2FloatOpenHashMap energyStats = new Int2FloatOpenHashMap();
+    @Getter private FightProperty curEnergyProp = FightProperty.FIGHT_PROP_CUR_FIRE_ENERGY;
+    @Getter private FightProperty maxEnergyProp = FightProperty.FIGHT_PROP_MAX_FIRE_ENERGY;
+
     public AvatarStatsManager(@NonNull Avatar avatar) {
         this.avatar = avatar;
+        this.initEnergy();
+        // Seed the current energy from the persisted value, fight props aren't persisted
+        avatar.getFightProperties().put(curEnergyProp.getId(), GAME_OPTIONS.energyUsage ? avatar.currentEnergy : getMaxEnergy());
+
         this.calculateLevelBaseStats();
         this.calculateWeaponStats();
         this.calculateReliquaryStats();
         this.calculateTalentStats();
+    }
+
+    /**
+     * Picks the energy props from the skill depot's burst skill: special energy (e.g. Mavuika, Skirk) if the skill
+     * has a special energy type, otherwise the elemental energy of the burst's element.
+     * Called on creation and when the skill depot changes.
+     */
+    public void initEnergy() {
+        energyStats.clear();
+        var skillDepot = avatar.getSkillDepot();
+        var energySkill = skillDepot != null ? skillDepot.getEnergySkillData() : null;
+
+        if (energySkill != null && energySkill.hasSpecialEnergy()) {
+            curEnergyProp = FightProperty.FIGHT_PROP_CUR_SPECIAL_ENERGY;
+            maxEnergyProp = FightProperty.FIGHT_PROP_MAX_SPECIAL_ENERGY;
+            energyStats.put(maxEnergyProp.getId(), energySkill.getSpecialEnergyCostMax());
+            energyStats.put(FightProperty.FIGHT_PROP_START_SPECIAL_ENERGY.getId(), energySkill.getSpecialEnergyCostStart());
+        } else {
+            var element = skillDepot != null ? skillDepot.getElementType() : ElementType.None;
+            curEnergyProp = element.getCurEnergyProp();
+            maxEnergyProp = element.getMaxEnergyProp();
+            if (energySkill != null) {
+                energyStats.put(maxEnergyProp.getId(), energySkill.getCostElemVal());
+            }
+        }
+    }
+
+    public float getMaxEnergy() {
+        return energyStats.get(maxEnergyProp.getId());
+    }
+
+    public boolean isSpecialEnergy() {
+        return curEnergyProp == FightProperty.FIGHT_PROP_CUR_SPECIAL_ENERGY;
     }
 
     private static void addFightProperty(Int2FloatOpenHashMap stats, FightProperty prop, float value) {
@@ -52,8 +96,7 @@ public class AvatarStatsManager {
     public void refreshStats() {
         // Save current state before clearing
         float hpPercent = avatar.getFightProperty(FightProperty.FIGHT_PROP_MAX_HP) <= 0 ? 1f : avatar.getFightProperty(FightProperty.FIGHT_PROP_CUR_HP) / avatar.getFightProperty(FightProperty.FIGHT_PROP_MAX_HP);
-        var skillDepot = avatar.getSkillDepot();
-        float currentEnergy = (skillDepot != null) ? avatar.getFightProperty(skillDepot.getElementType().getCurEnergyProp()) : 0f;
+        float currentEnergy = avatar.getFightProperty(curEnergyProp);
 
         // Aggregate stats
         var stats = baseStats.clone();
@@ -62,6 +105,7 @@ public class AvatarStatsManager {
         // NOTE: the only constellation addProps in the resources is FIGHT_PROP_CHARGE_EFFICIENCY
         // (Anemo Traveler C2, talent 72), so a plain sum is safe for the time being
         sumStats(stats, talentExtraStats);
+        sumStats(stats, energyStats);
 
         // Set % stats
         FightProperty.forEachCompoundProperty(c -> {
@@ -74,8 +118,8 @@ public class AvatarStatsManager {
         avatar.getFightProperties().clear();
         avatar.getFightProperties().putAll(stats);
 
-        // Reapply overrides, energy, hp
-        avatar.setCurrentEnergy(currentEnergy);
+        // Reapply energy, overrides, hp. Energy is kept full when energy usage is disabled.
+        avatar.setFightProperty(curEnergyProp, GAME_OPTIONS.energyUsage ? currentEnergy : getMaxEnergy());
         avatar.getFightProperties().putAll(avatar.getFightPropOverrides());
         avatar.setFightProperty(FightProperty.FIGHT_PROP_CUR_HP, avatar.getFightProperty(FightProperty.FIGHT_PROP_MAX_HP) * hpPercent);
     }
