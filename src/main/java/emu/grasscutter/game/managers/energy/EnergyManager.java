@@ -382,13 +382,13 @@ public class EnergyManager extends BasePlayerManager {
 
     public boolean refillEntityAvatarEnergy () {
         EntityAvatar activeEntity = this.player.getTeamManager().getCurrentAvatarEntity();
-        return activeEntity.addEnergy(activeEntity.getAvatar().getSkillDepot().getEnergySkillData().getCostElemVal());
+        return activeEntity.refillEnergy();
     }
 
     public void refillTeamEnergy (PropChangeReason changeReason, boolean isFlat) {
         for (EntityAvatar entityAvatar : this.player.getTeamManager().getActiveTeam()) {
-            // giving the exact amount read off the AvatarSkillData.json
-            entityAvatar.addEnergy(entityAvatar.getAvatar().getSkillDepot().getEnergySkillData().getCostElemVal(), changeReason, isFlat);
+            // giving the max energy of the burst (costElemVal)
+            entityAvatar.addEnergy(entityAvatar.getAvatar().getMaxEnergy(), changeReason, isFlat);
         }
     }
 

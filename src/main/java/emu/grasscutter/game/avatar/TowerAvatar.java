@@ -59,10 +59,10 @@ public class TowerAvatar extends Avatar {
             this.skillExtraChargeMap.clear(); this.skillExtraChargeMap.putAll(original.skillExtraChargeMap);
             this.proudSkillBonusMap.clear(); this.proudSkillBonusMap.putAll(original.proudSkillBonusMap);
             this.skillDepotId = original.getSkillDepotId();
+            this.getStats().initEnergy();  // energy props of the copied skill depot
 
             this.currentHp = getFightProperty(FightProperty.FIGHT_PROP_MAX_HP);
-            val energySkillData = this.getSkillDepot().getEnergySkillData();
-            this.currentEnergy = energySkillData!=null ? energySkillData.getCostElemVal() : 0;
+            this.currentEnergy = this.getStats().getMaxEnergy();
 
             // put to save
             this.equips.forEach((k, v) -> this.towerItemMap.put(k, new TowerItem(v)));
@@ -72,7 +72,7 @@ public class TowerAvatar extends Avatar {
         this.towerSkillExtraChargeMap.putAll(this.skillExtraChargeMap);
         this.towerProudSkillBonusMap.putAll(this.proudSkillBonusMap);
         setFightProperty(FightProperty.FIGHT_PROP_CUR_HP, this.currentHp);
-        setFightProperty(this.getSkillDepot().getElementType().getCurEnergyProp(), this.currentEnergy);
+        setFightProperty(this.getCurEnergyProp(), this.currentEnergy);
     }
 
     public void equipItems() {

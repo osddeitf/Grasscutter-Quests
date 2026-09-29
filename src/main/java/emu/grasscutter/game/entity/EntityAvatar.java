@@ -39,7 +39,6 @@ public class EntityAvatar extends GameEntity {
     public EntityAvatar(Scene scene, Avatar avatar) {
         super(scene);
         this.avatar = avatar;
-        this.avatar.setCurrentEnergy();
         if (scene != null) {
             this.id = getScene().getWorld().getNextEntityId(EntityIdType.AVATAR);
 
@@ -131,13 +130,13 @@ public class EntityAvatar extends GameEntity {
         return this.heal(amount, false);
     }
 
+    // Consumes the whole energy, e.g. on burst
     public void clearEnergy(ChangeEnergyReason reason) {
-        // Fight props.
-        val curEnergyProp = this.getAvatar().getSkillDepot().getElementType().getCurEnergyProp();
-        float curEnergy = this.getFightProperty(curEnergyProp);
+        val curEnergyProp = this.avatar.getCurEnergyProp();
+        float curEnergy = this.avatar.getCurrentEnergy();
 
         // Set energy to zero.
-        this.avatar.setCurrentEnergy(curEnergyProp, 0);
+        this.avatar.setCurrentEnergy(0);
 
         // Send packets.
         this.getScene().broadcastPacket(new PacketEntityFightPropUpdateNotify(this, curEnergyProp));
@@ -147,15 +146,17 @@ public class EntityAvatar extends GameEntity {
         }
     }
 
-    // for single entity avatar only I guess
-    public boolean addEnergy(float amount) {
-        FightProperty curEnergyProp = this.getAvatar().getSkillDepot().getElementType().getCurEnergyProp();
-        float curEnergy = this.getFightProperty(curEnergyProp);
-        if (curEnergy == amount) {
+    /**
+     * Fills the energy to max.
+     * @return false if it was already full
+     */
+    public boolean refillEnergy() {
+        float maxEnergy = this.avatar.getMaxEnergy();
+        if (this.avatar.getCurrentEnergy() == maxEnergy) {
             return false;
         }
-        this.getAvatar().setCurrentEnergy(curEnergyProp, amount);
-        this.getScene().broadcastPacket(new PacketEntityFightPropUpdateNotify(this, curEnergyProp));
+        this.avatar.setCurrentEnergy(maxEnergy);
+        this.getScene().broadcastPacket(new PacketEntityFightPropUpdateNotify(this, this.avatar.getCurEnergyProp()));
         return true;
     }
 
@@ -163,14 +164,17 @@ public class EntityAvatar extends GameEntity {
         this.addEnergy(amount, reason, false);
     }
 
+    /**
+     * Adds elemental energy (particles, attacks, items, ...), capped to max.
+     * Special energy isn't gained this way, so avatars using it are skipped.
+     */
     public void addEnergy(float amount, PropChangeReason reason, boolean isFlat) {
-        // Get current and maximum energy for this avatar.
-        val elementType = this.getAvatar().getSkillDepot().getElementType();
-        val curEnergyProp = elementType.getCurEnergyProp();
-        val maxEnergyProp = elementType.getMaxEnergyProp();
+        if (this.avatar.hasSpecialEnergy()) return;
 
-        float curEnergy = this.getFightProperty(curEnergyProp);
-        float maxEnergy = this.getFightProperty(maxEnergyProp);
+        // Get current and maximum energy for this avatar.
+        val curEnergyProp = this.avatar.getCurEnergyProp();
+        float curEnergy = this.avatar.getCurrentEnergy();
+        float maxEnergy = this.avatar.getMaxEnergy();
 
         // Scale amount by energy recharge, if the amount is not flat.
         if (!isFlat) {
@@ -182,7 +186,7 @@ public class EntityAvatar extends GameEntity {
 
         // Set energy and notify.
         if (newEnergy != curEnergy) {
-            this.avatar.setCurrentEnergy(curEnergyProp, newEnergy);
+            this.avatar.setCurrentEnergy(newEnergy);
 
             // I only see EntityFightPropUpdataNotify being sent by the official server, and without any prop reason,
             // not sure how that differs to this
