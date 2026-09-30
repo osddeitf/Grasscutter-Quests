@@ -59,18 +59,15 @@ public abstract class GameEntity<T extends CreateEntityConfig<?>> {
     private final Map<EntityAbilityProperty, StackedValue> abilityPropertyMap = new HashMap<>();
 
     public float getAbilityProperty(EntityAbilityProperty prop) {
-        return abilityPropertyMap.get(prop).getValue();
+        var value = abilityPropertyMap.get(prop);
+        return value == null ? prop.getDefaultValue() : value.getValue();
     }
 
     public int addAbilityProperty(String name, float value) {
         try {
-            // TODO: default value + bounded
             var key = EntityAbilityProperty.valueOf(name);
-            var val = abilityPropertyMap.computeIfAbsent(key, (k) -> {
-                var ret = new StackedValue(0f, key.getStackingType());
-//                ret.setLimit(); TODO: set limit from AbilityPropExcel
-                return ret;
-            });
+            var val = abilityPropertyMap.computeIfAbsent(key, StackedValue::from);
+            // TODO: limit with AbilityPropExcelConfig
             return val.add(value, false);
         }
         catch (IllegalArgumentException ex) {
