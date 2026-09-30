@@ -25,8 +25,10 @@ import org.anime_game_servers.multi_proto.gi.messages.general.ability.AbilityStr
 import org.slf4j.Logger;
 import teyvat.ability.config.*;
 
+import javax.annotation.Nullable;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -214,7 +216,15 @@ public final class AbilityManager extends BasePlayerManager {
         Ability ability = null;
 
         //Find ability or modifier's ability
-        if (head.getInstancedModifierId() != 0) {
+        boolean isServerBuff = head.getServerBuffUid() != 0;
+        if (isServerBuff) {
+            // the buff's modifier is keyed by the buff, its ability usually lives on the scene entity
+            var modifier = entity.getServerBuffModifiers().get(head.getServerBuffUid());
+            ability = modifier != null
+                ? modifier.getAbility()
+                : resolveServerBuffAbility(head, head.getModifierConfigLocalId());
+        }
+        else if (head.getInstancedModifierId() != 0) {
             var modifier = entity.getInstancedModifiers().get(head.getInstancedModifierId());
             if (modifier != null) {
                 ability = modifier.getAbility();
@@ -233,7 +243,8 @@ public final class AbilityManager extends BasePlayerManager {
         var action = GameData.getAbilityConfigs().action(ability.getData(), head.getLocalId());
         if(action != null) {
             //Executing action
-            var target = head.getTargetId() != 0
+            // for a server buff, the target id is the ability owner, the action applies to the buff holder
+            var target = head.getTargetId() != 0 && !isServerBuff
                 ? this.player.getScene().getEntityById(head.getTargetId())
                 : entity;
 
@@ -422,6 +433,11 @@ public final class AbilityManager extends BasePlayerManager {
 
         if(head.getInstancedAbilityId() == 0 || head.getInstancedModifierId() > 2000) return; //Error: TODO: display error
 
+        if(head.getServerBuffUid() != 0) {
+            handleServerBuffModifierChange(invoke, modChange);
+            return;
+        }
+
         if(head.isServerbuffModifier()) {
             //TODO
             logger.info("TODO: Handle serverbuff modifier");
@@ -476,6 +492,75 @@ public final class AbilityManager extends BasePlayerManager {
             //TODO: Display error message
             logger.debug("handleModifierChange unknown action");
         }
+    }
+
+    /** Modifier of a server buff, held by the invoke's entity and keyed by the buff uid */
+    private void handleServerBuffModifierChange(AbilityInvokeEntry invoke, AbilityMetaModifierChange modChange) {
+        var head = invoke.getHead();
+        var holder = this.player.getScene().getEntityById(invoke.getEntityId());
+        if (holder == null) {
+            logger.warn("handleServerBuffModifierChange holder entity not found: {}", invoke.getEntityId());
+            return;
+        }
+
+        int uid = head.getServerBuffUid();
+        if (modChange.getAction() == ModifierAction.ADDED) {
+            var buff = this.player.getBuffManager().getBuff(uid);
+            var ability = resolveServerBuffAbility(head, modChange.getModifierLocalId());
+            if (buff == null || ability == null) return;
+
+            var modifierData = ability.getData().getModifiers().get(buff.getBuffData().getModifierName());
+            if (modifierData == null) {
+                logger.warn("handleServerBuffModifierChange modifier {} not found in {}", buff.getBuffData().getModifierName(), ability.getName());
+                return;
+            }
+            logger.debug("Adding server buff {} modifier {} to {}", uid, buff.getBuffData().getModifierName(), getEntityIdentity(holder));
+
+            var modifier = new AbilityModifierController(ability, modifierData);
+            var replaced = holder.getServerBuffModifiers().put(uid, modifier);
+            if (replaced != null) replaced.detach(holder);
+            modifier.attach(holder);
+        } else if (modChange.getAction() == ModifierAction.REMOVED) {
+            var modifier = holder.getServerBuffModifiers().remove(uid);
+            if (modifier != null) modifier.detach(holder);
+        }
+    }
+
+    /**
+     * The ability of the server buff an invoke points to: the buff's own ability, on the invoke's target entity
+     * (usually the scene entity). Soft validated against the invoke's instanced ability and modifier local id,
+     * a mismatch indicates a wrong ability set on the target entity.
+     */
+    @Nullable
+    private Ability resolveServerBuffAbility(AbilityInvokeEntryHead head, int modifierLocalId) {
+        var buff = this.player.getBuffManager().getBuff(head.getServerBuffUid());
+        if (buff == null) {
+            logger.warn("Server buff {} not found", head.getServerBuffUid());
+            return null;
+        }
+        var abilityName = buff.getBuffData().getAbilityName();
+        var modifierName = buff.getBuffData().getModifierName();
+
+        var owner = this.player.getScene().getEntityById(head.getTargetId());
+        if (owner == null) {
+            logger.warn("Server buff {} ability owner not found: {}", head.getServerBuffUid(), head.getTargetId());
+            return null;
+        }
+
+        var ability = owner.getInstancedAbilities().get(head.getInstancedAbilityId());
+        var invokeAbilityName = ability == null ? null : ability.getName();
+        var modifierNames = ability == null ? List.<String>of() : ability.getData().getModifierNames();
+        var invokeModifierName = modifierLocalId >= 0 && modifierLocalId < modifierNames.size() ? modifierNames.get(modifierLocalId) : null;
+        if (abilityName.equals(invokeAbilityName) && modifierName.equals(invokeModifierName)) {
+            return ability;
+        }
+
+        logger.warn("Server buff {} ({}) is {} / {}, but the invoke points to {} / {} (instanced ability {}, modifier {}) on {}: wrong ability set?",
+            head.getServerBuffUid(), buff.getBuffData().getId(), abilityName, modifierName,
+            invokeAbilityName, invokeModifierName, head.getInstancedAbilityId(), modifierLocalId, getEntityIdentity(owner));
+        return owner.getInstancedAbilities().values().stream()
+            .filter(a -> abilityName.equals(a.getName()))
+            .findFirst().orElse(null);
     }
 
     private void handleGenerateElemBall(AbilityInvokeEntry invoke) {

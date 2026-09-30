@@ -51,6 +51,8 @@ public class DungeonManager {
     @Getter private final DungeonPassConfigData passConfigData;
 
     @Getter private final int[] finishedConditions;
+    /** DungeonLevelEntityConfigData id picked from the dungeon's levelConfigMap, 0 if none */
+    @Getter private final int levelConfigId;
     @Getter private final IntSet rewardedPlayers = new IntOpenHashSet();
     private final Set<Integer> activeDungeonWayPoints = new HashSet<>();
     private boolean ended = false;
@@ -63,6 +65,33 @@ public class DungeonManager {
         this.dungeonData = dungeonData;
         this.passConfigData = GameData.getDungeonPassConfigDataMap().get(dungeonData.getPassCond());
         this.finishedConditions = new int[this.passConfigData.getConds().size()];
+        this.levelConfigId = pickLevelConfig(dungeonData.getLevelConfigMap());
+    }
+
+    /**
+     * Highest weight, ties broken by the smallest id, as the prototools do offline.
+     * TODO: the game picks by weight at random, and likely tells the client with DungeonDataNotify,
+     *  which decides the scene entity's ability list (and so its instancedAbilityIds)
+     */
+    private static int pickLevelConfig(@Nullable Map<Integer, Integer> levelConfigMap) {
+        if (levelConfigMap == null) return 0;
+        int bestId = 0;
+        int bestWeight = Integer.MIN_VALUE;
+        for (var entry : levelConfigMap.entrySet()) {
+            int id = entry.getKey(), weight = entry.getValue();
+            if (weight > bestWeight || (weight == bestWeight && id < bestId)) {
+                bestWeight = weight;
+                bestId = id;
+            }
+        }
+        return bestId;
+    }
+
+    /** The ConfigLevelEntity the dungeon layers on top of its scene's, null if none */
+    @Nullable
+    public String getLevelEntityConfigName() {
+        var data = GameData.getDungeonLevelEntityDataMap().get(this.levelConfigId);
+        return data == null ? null : data.getLevelConfigName();
     }
 
     public void triggerEvent(DungeonPassConditionType conditionType, int... params) {

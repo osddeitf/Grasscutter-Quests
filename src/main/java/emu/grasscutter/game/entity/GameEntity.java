@@ -54,6 +54,8 @@ public abstract class GameEntity<T extends CreateEntityConfig<?>> {
 
     @Getter private Int2ObjectMap<Ability> instancedAbilities = new Int2ObjectOpenHashMap<>();
     @Getter private Int2ObjectMap<AbilityModifierController> instancedModifiers = new Int2ObjectOpenHashMap<>();
+    /** Modifiers of the server buffs held by this entity, by server buff uid */
+    @Getter private final Int2ObjectMap<AbilityModifierController> serverBuffModifiers = new Int2ObjectOpenHashMap<>();
     @Getter private Map<String, Float> globalAbilityValues = new HashMap<>();
     @Getter private Set<String> entityTags = new HashSet<>();
     private final Map<EntityAbilityProperty, StackedValue> abilityPropertyMap = new HashMap<>();
