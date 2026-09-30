@@ -96,7 +96,7 @@ public class AvatarAbilityManager extends BaseAbilityManager {
     }
 
     private IntSet getAddAbilityNames(String openConfig) {
-        if (openConfig.isEmpty()) return IntSet.of();
+        if (openConfig == null || openConfig.isEmpty()) return IntSet.of();
 
         var entry = GameData.getOpenConfigEntries().get(openConfig);
         if (entry == null) {
