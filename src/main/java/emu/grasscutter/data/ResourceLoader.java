@@ -48,6 +48,9 @@ import org.anime_game_servers.gi_lua.models.quest.RewindData;
 import org.anime_game_servers.gi_lua.models.scene.SceneGroupReplacement;
 import org.reflections.Reflections;
 import org.slf4j.Logger;
+import emu.grasscutter.config.Configuration;
+import teyvat.ability.config.index.AbilityLoader;
+import teyvat.ability.config.index.UnmodelledPolicy;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -112,6 +115,7 @@ public class ResourceLoader {
     public static void loadAll() {
         if (loadedAll) return;
         logger.info(translate("messages.status.resources.loading"));
+        loadAbilityConfigs();
 
         loadConfigData();
         // Load ability lists
@@ -407,6 +411,20 @@ public class ResourceLoader {
         for (AbilityEmbryoEntry entry : embryoList) {
             GameData.getAbilityEmbryoInfo().put(entry.getName(), entry);
         }
+    }
+
+    private static void loadAbilityConfigs() {
+        var config = Configuration.c.folderStructure.abilityResources;
+        var indexPath = config.indexPath.isEmpty()
+            ? Path.of(config.path, "abilityIndex.json").toString()
+            : config.indexPath;
+        var debugPath = config.debugPath.isEmpty() ? null : config.debugPath;
+
+        // the root overrides the one recorded in the index, the debug sidecar defaults to the index's sibling
+        var abilities = debugPath == null
+            ? AbilityLoader.from(indexPath, config.path)
+            : AbilityLoader.from(indexPath, config.path, UnmodelledPolicy.DROP_BODY, true, debugPath);
+        GameData.setAbilityConfigs(abilities);
     }
 
     // private static HashSet<String> modifierActionTypes = new HashSet<>();

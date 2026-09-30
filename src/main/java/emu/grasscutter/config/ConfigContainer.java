@@ -89,9 +89,19 @@ public class ConfigContainer {
         public String scriptOverwrites = "./overwrites/Scripts/";
         public String plugins = "./plugins/";
         public String cache = "./server/cache/";
+        public AbilityResources abilityResources = new AbilityResources();
 
         // UNUSED (potentially added later?)
         // public String dumps = "./dumps/";
+    }
+
+    public static class AbilityResources {
+        /** Root of the resource tree the ability index was built from. */
+        public String path = "./resources/";
+        /** The ability index, empty for abilityIndex.json in {@link #path}. */
+        public String indexPath = "";
+        /** The index's debug sidecar, empty for the one next to the index. */
+        public String debugPath = "";
     }
 
     public static class Server {
