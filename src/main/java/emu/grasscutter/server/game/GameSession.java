@@ -21,12 +21,18 @@ import org.anime_game_servers.core.base.Version;
 import org.anime_game_servers.multi_proto.core.interfaces.PacketIdProvider;
 import org.anime_game_servers.multi_proto.gi.messages.player.ServerDisconnectClientNotify;
 import org.anime_game_servers.multi_proto.gi.packet_id.PacketIds;
+import static org.anime_game_servers.multi_proto.gi.GeneratedModelRegistry.allEnums;
+import static org.anime_game_servers.multi_proto.gi.GeneratedModelRegistry.allModels;
+import static org.anime_game_servers.multi_proto.gi.GeneratedModelRegistry.registryKeys;
 import org.anime_game_servers.multi_proto.runtime.descriptor.DynamicProtoRuntime;
-import org.anime_game_servers.multi_proto.runtime.descriptor.ProtoDescriptorRuntime;
+import org.anime_game_servers.multi_proto.runtime.engine.EngineLogger;
+import org.anime_game_servers.multi_proto.runtime.engine.Slf4jEngineLogger;
+import org.anime_game_servers.multi_proto.runtime.engine.ProtoDescriptorRuntime;
 
 import java.io.File;
 import java.net.InetSocketAddress;
 import java.nio.file.Path;
+import java.nio.file.Files;
 import java.util.List;
 import java.util.Optional;
 
@@ -52,10 +58,17 @@ public class GameSession implements GameSessionManager.KcpChannel {
     @Getter private boolean isTemporaryVersion;
     @Getter private PacketIdProvider packageIdProvider;
 
+    private static final EngineLogger protoEngineLogger = new Slf4jEngineLogger(Grasscutter.getLogger());
+
     public static ProtoDescriptorRuntime loadVersionRuntime(Version version) {
         try {
-            var runtime = DynamicProtoRuntime.registerVersion(version, "config/" + version.getNamespace());
-            runtime.setLogger(Grasscutter.getLogger());
+            var path = Path.of("config/" + version.getNamespace());
+            if (!Files.isDirectory(path)) return null;
+            var runtime = DynamicProtoRuntime.registerVersion(
+                version, "config/" + version.getNamespace(),
+                allModels(), allEnums(), registryKeys()
+            );
+            runtime.setLogger(protoEngineLogger);
             return runtime;
         }
         catch (Exception ex) {
