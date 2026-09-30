@@ -17,6 +17,7 @@ public class ConfigGlobalCombat {
         private List<String> levelElementAbilities;
         private List<String> levelItemAbilities;
         private List<String> levelSBuffAbilities;
+        private List<String> dungeonAbilities;  // absent in current data
         private List<String> defaultMPLevelAbilities;
         private List<String> defaultAvatarAbilities;
         private List<String> defaultTeamAbilities;

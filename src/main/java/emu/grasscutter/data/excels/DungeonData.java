@@ -11,6 +11,7 @@ import lombok.Getter;
 import lombok.ToString;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @EqualsAndHashCode(callSuper = false)
@@ -42,6 +43,9 @@ public class DungeonData extends GameResource {
     private int statueCostID;
     private int statueCostCount;
     private String stateType;
+
+    /** DungeonLevelEntityConfigData id -> weight */
+    private Map<Integer, Integer> levelConfigMap;
 
     // not part of DungeonExcelConfigData
     private RewardPreviewData rewardPreviewData;

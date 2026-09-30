@@ -80,7 +80,7 @@ public class Scene {
     private final HashSet<Integer> unlockedForces = new HashSet<>();
     private final List<Runnable> afterLoadedCallbacks = new ArrayList<>();
     private final long startWorldTime;
-    @Getter @Setter DungeonManager dungeonManager;
+    @Getter DungeonManager dungeonManager;
     @Getter @Setter SealBattleManager sealBattleManager;
     @Getter Int2ObjectMap<Route> sceneRoutes;
     @Getter List<ScenePointArrayData> pointArrays;
@@ -137,6 +137,12 @@ public class Scene {
 
     public int getPlayerCount() {
         return this.players.size();
+    }
+
+    public void setDungeonManager(DungeonManager dungeonManager) {
+        this.dungeonManager = dungeonManager;
+        // the dungeon decides part of the scene entity's abilities
+        if (this.sceneEntity instanceof EntityScene entityScene) entityScene.reinitAbilities();
     }
 
     public GameEntity<?> getEntityById(int id) {
