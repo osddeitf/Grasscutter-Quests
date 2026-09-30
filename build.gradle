@@ -108,6 +108,7 @@ dependencies {
 //    implementation("org.anime_game_servers.multi_proto:base:0.2")
     implementation("org.anime_game_servers.multi_proto:gi-jvm:0.3.1-SNAPSHOT")  // locally experimental built
     implementation("org.anime_game_servers.multi_proto:runtime-jvm:0.3.1-SNAPSHOT")
+    implementation("org.anime_game_servers.data_models:ability-config-jvm:0.2-SNAPSHOT")
 
     implementation group:  'com.esotericsoftware', name : 'reflectasm', version: '1.11.9'
     implementation group:  'com.github.davidmoten', name : 'rtree-multi', version: '0.1'

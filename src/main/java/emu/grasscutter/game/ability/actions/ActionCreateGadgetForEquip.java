@@ -2,22 +2,24 @@ package emu.grasscutter.game.ability.actions;
 
 import emu.grasscutter.data.binout.AbilityModifier.AbilityModifierAction;
 import emu.grasscutter.game.ability.Ability;
-import emu.grasscutter.game.entity.EntityGadget;
 import emu.grasscutter.game.entity.EntityMonster;
 import emu.grasscutter.game.entity.EntityWeapon;
 import emu.grasscutter.game.entity.GameEntity;
 import emu.grasscutter.game.entity.create_config.CreateGadgetEntityConfig;
-import emu.grasscutter.game.props.CampTargetType;
-import emu.grasscutter.server.packet.send.PacketAvatarEquipChangeNotify;
-import emu.grasscutter.utils.Position;
 import lombok.val;
 import org.anime_game_servers.multi_proto.gi.messages.ability.action.AbilityActionCreateGadget;
+import teyvat.ability.config.ConfigAbilityAction;
+import teyvat.ability.config.actions.TriggerCreateGadgetToEquipPart;
 
-@AbilityAction(AbilityModifierAction.Type.TriggerCreateGadgetToEquipPart)
-public class ActionCreateGadgetForEquip extends AbilityActionHandler {
+public class ActionCreateGadgetForEquip extends AbilityActionHandler<TriggerCreateGadgetToEquipPart> {
 
     @Override
-    public boolean execute(Ability ability, AbilityModifierAction action, byte[] abilityData, GameEntity<?> target) {
+    public Class<?> getType() {
+        return TriggerCreateGadgetToEquipPart.class;
+    }
+
+    @Override
+    public boolean execute(Ability ability, TriggerCreateGadgetToEquipPart action, byte[] abilityData, GameEntity<?> target) {
        // if(!action.byServer) {
         //    logger.debug("Action not executed by server");
 
@@ -33,8 +35,8 @@ public class ActionCreateGadgetForEquip extends AbilityActionHandler {
             return false;
         }
 
-        val config = new CreateGadgetEntityConfig(action, createGadget)
-            .setOwner(action.ownerIsTarget ? target : entity);
+        val config = new CreateGadgetEntityConfig(action, createGadget);
+//            .setOwner(action.ownerIsTarget ? target : entity);    // TriggerCreateGadgetToEquipPart doesn't have the field
 
         var entityCreated = new EntityWeapon(entity.getScene(), config);
 

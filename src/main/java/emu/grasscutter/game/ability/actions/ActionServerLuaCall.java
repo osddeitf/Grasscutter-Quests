@@ -3,15 +3,23 @@ package emu.grasscutter.game.ability.actions;
 import emu.grasscutter.Grasscutter;
 import emu.grasscutter.data.binout.AbilityModifier.AbilityModifierAction;
 import emu.grasscutter.data.binout.LuaCallType;
+import emu.grasscutter.data.common.AbilityMath;
 import emu.grasscutter.game.ability.Ability;
 import emu.grasscutter.game.entity.GameEntity;
 import lombok.val;
 import org.anime_game_servers.gi_lua.models.ScriptArgs;
+import teyvat.ability.config.ConfigAbilityAction;
+import teyvat.ability.config.actions.ServerLuaCall;
 
-@AbilityAction(AbilityModifierAction.Type.ServerLuaCall)
-public class ActionServerLuaCall extends AbilityActionHandler {
+public class ActionServerLuaCall extends AbilityActionHandler<ServerLuaCall> {
+
     @Override
-    public boolean execute(Ability ability, AbilityModifierAction action, byte[] abilityData, GameEntity target) {
+    public Class<?> getType() {
+        return ServerLuaCall.class;
+    }
+
+    @Override
+    public boolean execute(Ability ability, ServerLuaCall action, byte[] abilityData, GameEntity target) {
         var callType = LuaCallType.fromString(action.luaCallType);
 
         switch (callType) {
@@ -36,21 +44,23 @@ public class ActionServerLuaCall extends AbilityActionHandler {
         return false;
     }
 
-    private boolean serverLuaCallForGroup(int groupId, Ability ability, AbilityModifierAction action, byte[] abilityData, GameEntity target) {
+    private boolean serverLuaCallForGroup(int groupId, Ability ability, ServerLuaCall action, byte[] abilityData, GameEntity target) {
         val scriptManager = target.getScene().getScriptManager();
         val scriptArgs = new ScriptArgs(groupId, 0)
             .setTargetEntityId(target.getId())
             .setSourceEntityId(target.getId());
+
         val paramsCount = action.paramNum;
         val scriptParams = new Integer[paramsCount];
         switch (paramsCount) {
             case 3:
-                scriptParams[2] = (int) action.param3.get(ability);
+                scriptParams[2] = (int) AbilityMath.evaluate(action.param3, ability);
             case 2:
-                scriptParams[1] = (int) action.param2.get(ability);
+                scriptParams[1] = (int) AbilityMath.evaluate(action.param2, ability);
             case 1:
-                scriptParams[0] = (int) action.param1.get(ability);
+                scriptParams[0] = (int) AbilityMath.evaluate(action.param1, ability);
         }
-        return scriptManager.callGroupLuaFunction(action.funcName, scriptArgs, (Object[]) scriptParams);
+
+        return scriptManager.callGroupLuaFunction(action.funcName, scriptArgs, scriptParams);
     }
 }

@@ -24,6 +24,8 @@ import org.anime_game_servers.gi_lua.models.scene.group.SceneGadget;
 import org.anime_game_servers.multi_proto.gi.messages.ability.action.AbilityActionCreateGadget;
 import org.anime_game_servers.multi_proto.gi.messages.battle.event.EvtCreateGadgetNotify;
 import org.anime_game_servers.multi_proto.gi.messages.general.entity.CreateEntityInfo;
+import teyvat.ability.config.ConfigAbilityAction;
+import teyvat.ability.config.actions.CreateGadget;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -112,31 +114,31 @@ public class CreateGadgetEntityConfig extends CreateEntityConfig<CreateGadgetEnt
         initBaseData();
     }
 
-    public CreateGadgetEntityConfig(EvtCreateGadgetNotify evtCreateGadgetNotify){
-        super(evtCreateGadgetNotify);
-        this.gadgetId = evtCreateGadgetNotify.getConfigId();
-        this.requestedEId = evtCreateGadgetNotify.getEntityId();
-        setBornPos(new Position(evtCreateGadgetNotify.getInitPos()));
-        setBornRot(new Position(evtCreateGadgetNotify.getInitEulerAngles()));
-        this.campId = evtCreateGadgetNotify.getCampId();
-        this.campType = evtCreateGadgetNotify.getCampType();
-        val targetIds = evtCreateGadgetNotify.getTargetEntityIdList();
+    public CreateGadgetEntityConfig(EvtCreateGadgetNotify evt){
+        super(evt);
+        this.gadgetId = evt.getConfigId();
+        this.requestedEId = evt.getEntityId();
+        setBornPos(new Position(evt.getInitPos()));
+        setBornRot(new Position(evt.getInitEulerAngles()));
+        this.campId = evt.getCampId();
+        this.campType = evt.getCampType();
+        val targetIds = evt.getTargetEntityIdList();
         if(targetIds.isEmpty()){
             this.targetEntityIds.addAll(targetIds);
         }
-        if(evtCreateGadgetNotify.getTargetEntityId() != 0){
-            this.targetEntityId = evtCreateGadgetNotify.getTargetEntityId();
+        if(evt.getTargetEntityId() != 0){
+            this.targetEntityId = evt.getTargetEntityId();
         }
         initBaseData();
     }
 
-    public CreateGadgetEntityConfig(AbilityModifier.AbilityModifierAction action, AbilityActionCreateGadget createGadgetInfo){
+    public CreateGadgetEntityConfig(ConfigAbilityAction action, AbilityActionCreateGadget createGadgetInfo){
         super(action);
-        this.gadgetId = action.gadgetID;
+//        this.gadgetId = action.getGadgetID();
         setBornPos(new Position(createGadgetInfo.getPos()));
         setBornRot(new Position(createGadgetInfo.getRot()));
-        this.campId = action.campID;
-        this.campType = CampTargetType.getTypeByName(action.campTargetType).getValue();
+//        this.campId = action.getCampID();
+//        this.campType = CampTargetType.getTypeByName(action.getCampTargetType()).getValue();
         initBaseData();
     }
 

@@ -3,17 +3,14 @@ package emu.grasscutter.game.ability;
 import emu.grasscutter.Grasscutter;
 import emu.grasscutter.Loggers;
 import emu.grasscutter.data.GameData;
-import emu.grasscutter.data.common.DynamicFloat;
-import emu.grasscutter.data.binout.AbilityData;
-import emu.grasscutter.data.binout.AbilityMixinData;
-import emu.grasscutter.data.binout.AbilityModifier;
 import emu.grasscutter.data.binout.AbilityModifier.AbilityModifierAction;
+import emu.grasscutter.data.common.DynamicFloat;
 import emu.grasscutter.game.ability.actions.AbilityAction;
 import emu.grasscutter.game.ability.actions.AbilityActionHandler;
-import emu.grasscutter.game.ability.mixins.AbilityMixin;
 import emu.grasscutter.game.ability.mixins.AbilityMixinHandler;
 import emu.grasscutter.game.entity.EntityAvatar;
 import emu.grasscutter.game.entity.GameEntity;
+import emu.grasscutter.game.entity.*;
 import emu.grasscutter.game.player.BasePlayerManager;
 import emu.grasscutter.game.player.Player;
 import emu.grasscutter.game.props.ElementReactionType;
@@ -24,17 +21,13 @@ import org.anime_game_servers.core.base.Version;
 import org.anime_game_servers.multi_proto.gi.messages.ability.AbilityInvokeEntry;
 import org.anime_game_servers.multi_proto.gi.messages.ability.AbilityInvokeEntryHead;
 import org.anime_game_servers.multi_proto.gi.messages.ability.ModifierAction;
-import org.anime_game_servers.multi_proto.gi.messages.ability.meta.AbilityMetaAddAbility;
-import org.anime_game_servers.multi_proto.gi.messages.ability.meta.AbilityMetaAddSpecialEnergyValue;
-import org.anime_game_servers.multi_proto.gi.messages.ability.meta.AbilityMetaModifierChange;
-import org.anime_game_servers.multi_proto.gi.messages.ability.meta.AbilityMetaReInitOverrideMap;
-import org.anime_game_servers.multi_proto.gi.messages.ability.meta.AbilityMetaTriggerElementReaction;
+import org.anime_game_servers.multi_proto.gi.messages.ability.meta.*;
 import org.anime_game_servers.multi_proto.gi.messages.general.ability.AbilityScalarType;
 import org.anime_game_servers.multi_proto.gi.messages.general.ability.AbilityScalarValueEntry;
 import org.anime_game_servers.multi_proto.gi.messages.general.ability.AbilityString;
 import org.slf4j.Logger;
+import teyvat.ability.config.*;
 
-import javax.annotation.Nullable;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Optional;
@@ -49,8 +42,8 @@ public final class AbilityManager extends BasePlayerManager {
     @Getter
     private static final Logger logger = Loggers.getAbilitySystem();
 
-    private final static HashMap<AbilityModifierAction.Type, AbilityActionHandler> actionHandlers = new HashMap<>();
-    private final static HashMap<AbilityMixinData.Type, AbilityMixinHandler> mixinHandlers = new HashMap<>();
+    private final static HashMap<Class<?>, AbilityActionHandler> actionHandlers = new HashMap<>();
+    private final static HashMap<Class<?>, AbilityMixinHandler> mixinHandlers = new HashMap<>();
 
     public static final ExecutorService eventExecutor;
     static {
@@ -78,12 +71,8 @@ public final class AbilityManager extends BasePlayerManager {
 
         for (var obj : handlerClassesAction) {
             try {
-                if (obj.isAnnotationPresent(AbilityAction.class)) {
-                    AbilityModifierAction.Type abilityAction = obj.getAnnotation(AbilityAction.class).value();
-                    actionHandlers.put(abilityAction, obj.getDeclaredConstructor().newInstance());
-                } else {
-                    return;
-                }
+                var handler = obj.getDeclaredConstructor().newInstance();
+                actionHandlers.put(handler.getType(), handler);
             } catch (Exception e) {
                 logger.error("Unable to register handlerClassesAction.", e);
             }
@@ -93,44 +82,44 @@ public final class AbilityManager extends BasePlayerManager {
 
         for (var obj : handlerClassesMixin) {
             try {
-                if (obj.isAnnotationPresent(AbilityAction.class)) {
-                    AbilityMixinData.Type abilityMixin = obj.getAnnotation(AbilityMixin.class).value();
-                    mixinHandlers.put(abilityMixin, obj.getDeclaredConstructor().newInstance());
-                } else {
-                    return;
-                }
+                var handler = obj.getDeclaredConstructor().newInstance();
+                mixinHandlers.put(handler.getType(), handler);
             } catch (Exception e) {
                 logger.error("Unable to register handlerClassesMixin.", e);
             }
         }
     }
 
-    public void executeAction(Ability ability, AbilityModifierAction action, byte[] abilityData, GameEntity target) {
-        AbilityActionHandler handler = actionHandlers.get(action.type);
+    public void executeAction(Ability ability, ConfigAbilityAction action, byte[] abilityData, GameEntity target) {
+        var actionType = describeAction(action);
+        var handler = actionHandlers.get(action.getClass());
 
         if (handler == null || ability == null) {
-            logger.error("executeAction could not execute ability action {} at {}", action.type, ability);
+            logger.error("executeAction could not execute ability action {} at {}", actionType, ability.getName());
             return;
         }
 
+        // should be DEBUG level
+        logger.info("handleServerInvoke content {}", action);
         eventExecutor.execute(() -> {
             if (!handler.execute(ability, action, abilityData, target)) {
-                logger.error("executeAction exec ability action failed {} at {}", action.type, ability);
+                logger.error("executeAction exec ability action failed {} at {}", actionType, ability.getName());
             }
         });
     }
 
-    public void executeMixin(Ability ability, AbilityMixinData mixinData, byte[] abilityData) {
-        AbilityMixinHandler handler = mixinHandlers.get(mixinData.type);
+    public void executeMixin(Ability ability, ConfigAbilityMixin mixinData, byte[] abilityData) {
+        var mixinType = describeAction(mixinData);
+        var handler = mixinHandlers.get(mixinData.getClass());
 
         if (handler == null || ability == null || mixinData == null) {
-            logger.error("executeMixin could not execute ability mixin {} at {}", mixinData.type, ability);
+            logger.error("executeMixin could not execute ability mixin {} at {}", mixinType, ability.getName());
             return;
         }
 
         eventExecutor.execute(() -> {
             if (!handler.execute(ability, mixinData, abilityData)) {
-                logger.error("executeMixin exec ability action failed {} at {}", mixinData.type, ability);
+                logger.error("executeMixin exec ability action failed {} at {}", mixinType, ability.getName());
             }
         });
     }
@@ -152,6 +141,7 @@ public final class AbilityManager extends BasePlayerManager {
 
         switch (invoke.getArgumentType()) {
             case ABILITY_META_OVERRIDE_PARAM -> this.handleOverrideParam(invoke);
+//            case ABILITY_META_CLEAR_OVERRIDE_PARAM ->
             case ABILITY_META_REINIT_OVERRIDE_MAP -> this.handleReinitOverrideMap(invoke);
             case ABILITY_META_MODIFIER_CHANGE -> this.handleModifierChange(invoke);
             case ABILITY_MIXIN_COST_STAMINA -> this.handleMixinCostStamina(invoke);
@@ -180,6 +170,41 @@ public final class AbilityManager extends BasePlayerManager {
         avatarEntity.getAvatar().addSpecialEnergy(data.getSpecialEnergyDelta());
     }
 
+    private EntityIdentity getEntityIdentity(GameEntity<?> entity) {
+        if (entity instanceof EntityGadget gadget) {
+            var data = gadget.getGadgetData();
+            return new EntityIdentity("Gadget", entity.getId(), data == null? 0: data.getId());
+        }
+        if (entity instanceof EntityMonster monster) {
+            var data = monster.getMonsterData();
+            return new EntityIdentity("Monster", entity.getId(), data == null? 0: data.getId());
+        }
+        if (entity instanceof EntityAvatar avatar) {
+            var data = avatar.getAvatar().getData();
+            return new EntityIdentity("Avatar", entity.getId(), data == null? 0: data.getId());
+        }
+        if (entity instanceof EntityClientGadget clientGadget) {
+            var data = clientGadget.getGadgetData();
+            return new EntityIdentity("ClientGadget", entity.getId(), data == null? 0: data.getId());
+        }
+        if (entity instanceof EntityTeam team) {
+            return new EntityIdentity("Team", team.getId(), 0);
+        }
+        if (entity != null) {
+            return new EntityIdentity("Unknown", entity.getId(), 0);
+        }
+        return null;
+    }
+
+    record EntityIdentity(String type, int entityId, int id) {}
+
+    private String describeAction(BaseConfigAction action) {
+        if (action instanceof UnknownAction || action instanceof UnknownMixin) {
+            return action.toString();
+        }
+        return action.getClass().getSimpleName();
+    }
+
     public void handleServerInvoke(AbilityInvokeEntry invoke) {
         var head = invoke.getHead();
 
@@ -203,31 +228,55 @@ public final class AbilityManager extends BasePlayerManager {
         }
 
         if(ability == null) {
-            logger.warn("handleServerInvoke ability not found: ability {} modifier {}", head.getInstancedAbilityId(), head.getInstancedModifierId());
+            logger.warn("handleServerInvoke ability not found: entity {} ability {} modifier {}, {}", invoke.getEntityId(), head.getInstancedAbilityId(), head.getInstancedModifierId(), getEntityIdentity(entity));
             return;
         }
 
         //Time to reach the handlers
-        var action = ability.getData().localIdToAction.get(head.getLocalId());
+        var action = GameData.getAbilityConfigs().action(ability.getData(), head.getLocalId());
         if(action != null) {
             //Executing action
             var target = head.getTargetId() != 0
                 ? this.player.getScene().getEntityById(head.getTargetId())
                 : entity;
+
+            var debugSite = GameData.getAbilityConfigs().getDebugger().site(ability.getData().getAbilityName(), head.getLocalId());
+            if (debugSite != null) {
+                logger.info("handleServerInvoke action: {}, {}, {} #{} {}, entity {}, target {}",
+                    describeAction(action), invoke.getArgumentType().toString(),
+    //                head.getLocalId(), describeAction(action), ability.getData().getAbilityName(),
+    //                GameData.getAbilityConfigs().getDebugger().site(ability.getData().getAbilityName(), head.getLocalId()),
+                    debugSite.getAbilityName(), debugSite.getLocalId(), debugSite.getPath(),
+                    getEntityIdentity(entity), getEntityIdentity(target)
+                );
+            }
+            else {
+                logger.info("handleServerInvoke action: {}, {}, {} #{}, entity {}, target {}",
+                    describeAction(action), invoke.getArgumentType().toString(),
+                    ability.getData().getAbilityName(), head.getLocalId(),
+                    getEntityIdentity(entity), getEntityIdentity(target)
+                );
+            }
             executeAction(ability, action, invoke.getAbilityData(), target);
 
             return;
         } else {
-            var mixin = ability.getData().localIdToMixin.get(head.getLocalId());
+            var mixin = GameData.getAbilityConfigs().mixin(ability.getData(), head.getLocalId());
 
             if(mixin != null) {
+                logger.info("handleServerInvoke mixin: type {}, {}, entity {}",
+                    invoke.getArgumentType().toString(),
+                    GameData.getAbilityConfigs().getDebugger().describe(ability.getData().getAbilityName(), head.getLocalId()),
+//                    head.getLocalId(), describeAction(mixin), ability.getData().getAbilityName(),
+                    getEntityIdentity(entity)
+                );
                 executeMixin(ability, mixin, invoke.getAbilityData());
 
                 return;
             }
         }
 
-        logger.info("Action or mixin not found: local_id {} ability {} actions to ids {}", head.getLocalId(), ability.getData().abilityName, ability.getData().localIdToAction.toString());
+        logger.info("handleServerInvoke Action or mixin not found: local_id {}, ability {}, entity {}", head.getLocalId(), ability.getData().getAbilityName(), getEntityIdentity(entity));
     }
 
     /**
@@ -315,14 +364,14 @@ public final class AbilityManager extends BasePlayerManager {
 
         var hash = Ability.getAbilityHash(valueChange.getKey());
         var value = getScalarFloatValue(valueChange);
-        ability.getOverrideMap().put(hash, new DynamicFloat(value));
+        ability.getOverrideMap().put(hash, value);
 
         if (valueChange.getKey().getType() instanceof AbilityString.Type.Str str){
             val key = str.getValue();
-            logger.debug("Ability {} changed {} to {}", ability.getData().abilityName, key, value);
+            logger.debug("Ability {} changed {} to {}", ability.getData().getAbilityName(), key, value);
         } else {
             // TODO: Calculate all the ability value hashes
-            logger.info("Ability {} changed value with hash({}) to {}", ability.getData().abilityName, hash, value);
+            logger.info("Ability {} changed value with hash({}) to {}", ability.getData().getAbilityName(), hash, value);
         }
 
     }
@@ -394,32 +443,34 @@ public final class AbilityManager extends BasePlayerManager {
                 ? this.player.getScene().getEntityById(head.getTargetId())
                 : entity;
             var instancedAbility = modifierOwner.getInstancedAbilities().get(head.getInstancedAbilityId());
-
             if (instancedAbility == null) {
-                logger.info("handleModifierChange No ability found. modChange: {}", modChange);
+                logger.info("handleModifierChange No ability found. entity {}, owner {}, modChange: {}", getEntityIdentity(entity), getEntityIdentity(modifierOwner),  modChange);
                 return; //TODO: Display error message
             }
             var instancedAbilityData = instancedAbility.getData();
 
-            var modifiers = instancedAbilityData.modifierList;
-            if(modChange.getModifierLocalId() >= modifiers.size())
+            if(modChange.getModifierLocalId() >= instancedAbilityData.getModifiers().size())
             {
-                logger.info("handleModifierChange modifier local id {} not found", modChange.getModifierLocalId());
+                logger.info("handleModifierChange modifier local id {} not found. entity {}, owner {}", modChange.getModifierLocalId(), getEntityIdentity(entity), getEntityIdentity(modifierOwner));
                 return;
             }
-            var modifierData = modifiers.get(modChange.getModifierLocalId());
+            var modifierData = instancedAbilityData.modifier(modChange.getModifierLocalId());
             if(entity.getInstancedModifiers().containsKey(head.getInstancedModifierId())) {
-                logger.debug("Replacing entity {} modifier id {} with ability {} modifier {}", invoke.getEntityId(), head.getInstancedModifierId(), instancedAbilityData.abilityName, modifierData);
+                logger.info("Replacing entity {} modifier id {} with ability {} modifier {}", invoke.getEntityId(), head.getInstancedModifierId(), instancedAbilityData.getAbilityName(), 
+                instancedAbilityData.getModifierNames().get(modChange.getModifierLocalId())
+            );
             } else {
-                logger.debug("Adding entity {} modifier id {} with ability {} modifier {}", invoke.getEntityId(), head.getInstancedModifierId(), instancedAbilityData.abilityName, modifierData);
+                logger.info("Adding entity {} modifier id {} with ability {} modifier {}", invoke.getEntityId(), head.getInstancedModifierId(), instancedAbilityData.getAbilityName(),
+                    instancedAbilityData.getModifierNames().get(modChange.getModifierLocalId())
+                );
             }
 
-            var modifier = new AbilityModifierController(instancedAbility, instancedAbilityData, modifierData);
+            var modifier = new AbilityModifierController(instancedAbility, modifierData);
             var replaced = entity.getInstancedModifiers().put(head.getInstancedModifierId(), modifier);
             if (replaced != null) replaced.detach(entity);
             modifier.attach(entity);
         } else if(modChange.getAction() == ModifierAction.REMOVED) {
-            logger.debug("Removed on entity {} modifier id {}: {}", invoke.getEntityId(), head.getInstancedModifierId(), entity.getInstancedModifiers().get(head.getInstancedModifierId()));
+            logger.info("Removed on entity {} modifier id {}: {}", invoke.getEntityId(), head.getInstancedModifierId(), entity.getInstancedModifiers().get(head.getInstancedModifierId()));
 
             //TODO: Add debug log
             var modifier = entity.getInstancedModifiers().remove(head.getInstancedModifierId());
@@ -438,28 +489,17 @@ public final class AbilityManager extends BasePlayerManager {
 
     }
 
-    @Nullable
-    private String getAbilityName(AbilityString protoString) {
-        if (protoString == null) {
-            Grasscutter.getLogger().error("null protoString!");
-            return null;
-        }
-        if(protoString.getType() instanceof AbilityString.Type.Str str){
-            return str.getValue();
-        } else if (protoString.getType() instanceof AbilityString.Type.Hash hash){
-            return GameData.getAbilityHashes().get((int)hash.getValue());
-        }
-        return null;
-    }
-
     private void handleGlobalFloatValue(AbilityInvokeEntry invoke) {
         var entity = this.player.getScene().getEntityById(invoke.getEntityId());
-        if(entity == null) return;
+        if(entity == null) {
+            logger.warn("handleGlobalFloatValue entity not found: {}", invoke.getEntityId());
+            return;
+        }
 
         var entry = AbilityScalarValueEntry.parseBy(invoke.getAbilityData(), player.getSession().getVersion());
         if(entry == null) return;
 
-        var key = getAbilityName(entry.getKey());
+        var key = Ability.getAbilityName(entry.getKey());
         if(key == null) return;
 
         if(key.startsWith("SGV_")) return; //Server does not allow to change these variables
@@ -472,10 +512,6 @@ public final class AbilityManager extends BasePlayerManager {
             float uvalue = getScalarFloatValue(entry);
             entity.getGlobalAbilityValues().put(key, uvalue);
         }
-    }
-
-    private void invokeAction(AbilityModifierAction action, GameEntity target, GameEntity sourceEntity) {
-
     }
 
     private void handleModifierDurabilityChange(AbilityInvokeEntry invoke) {
@@ -492,9 +528,9 @@ public final class AbilityManager extends BasePlayerManager {
 
         var meta = AbilityMetaAddAbility.parseBy(invoke.getAbilityData(), player.getSession().getVersion());
 
+        // assumption: ability name is not hashed
         var abilityName = Ability.getAbilityName(meta.getAbility().getAbilityName());
-
-        var abilityData = GameData.getAbilityData(abilityName);
+        var abilityData = abilityName == null? null: GameData.getAbilityConfigs().ability(abilityName);
         if(abilityData == null) {
             logger.info("handleAddNewAbility ability not found: {}", abilityName);
             return;
@@ -541,7 +577,7 @@ public final class AbilityManager extends BasePlayerManager {
         int id = 0;
         for (var abilityName : abilityNames) {
             ++id;
-            var abilityData = GameData.getAbilityData(abilityName);
+            var abilityData = GameData.getAbilityConfigs().ability(abilityName);
             if (abilityData == null) continue;  // skip missing. TODO: logging
             var ability = new Ability(abilityData, entity, this.player);
             entity.getInstancedAbilities().put(id, ability);

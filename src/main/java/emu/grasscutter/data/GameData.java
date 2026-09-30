@@ -27,12 +27,15 @@ import org.anime_game_servers.gi_lua.models.quest.QuestData;
 import org.anime_game_servers.gi_lua.models.quest.RewindData;
 import org.anime_game_servers.gi_lua.models.scene.DummyPoint;
 import org.anime_game_servers.gi_lua.models.scene.SceneGroupReplacement;
+import teyvat.ability.config.index.LoadedAbilities;
 
 import javax.annotation.Nullable;
 import java.lang.reflect.Field;
 import java.util.*;
 
 public class GameData {
+    @Getter @Setter private static LoadedAbilities abilityConfigs = null;
+
     // BinOutputs
     @Getter private static final Int2ObjectMap<HomeworldDefaultSaveData> homeworldDefaultSaveData = new Int2ObjectOpenHashMap<>();
     @Getter private static final Int2ObjectMap<String> abilityHashes = new Int2ObjectOpenHashMap<>();
