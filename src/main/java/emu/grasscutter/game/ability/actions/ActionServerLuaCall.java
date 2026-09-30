@@ -1,14 +1,12 @@
 package emu.grasscutter.game.ability.actions;
 
 import emu.grasscutter.Grasscutter;
-import emu.grasscutter.data.binout.AbilityModifier.AbilityModifierAction;
 import emu.grasscutter.data.binout.LuaCallType;
 import emu.grasscutter.data.common.AbilityMath;
 import emu.grasscutter.game.ability.Ability;
 import emu.grasscutter.game.entity.GameEntity;
 import lombok.val;
 import org.anime_game_servers.gi_lua.models.ScriptArgs;
-import teyvat.ability.config.ConfigAbilityAction;
 import teyvat.ability.config.actions.ServerLuaCall;
 
 public class ActionServerLuaCall extends AbilityActionHandler<ServerLuaCall> {

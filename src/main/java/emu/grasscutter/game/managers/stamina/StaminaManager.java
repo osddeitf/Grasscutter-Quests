@@ -130,6 +130,7 @@ public class StaminaManager extends BasePlayerManager {
     private int vehicleId = -1;
     private int vehicleStamina = GlobalVehicleMaxStamina;
     private static final Set<Integer> TalentMovements = Set.of(10013, 10413);
+    private static final float CostStaminaMixinInterval = 0.3f;  // s, hardcoded INTERVAL_TIME as in official server
 
     public static void initialize() {
         // TODO: Initialize foods etc.
@@ -349,6 +350,26 @@ public class StaminaManager extends BasePlayerManager {
         if (lastSkillCasterId == player.getTeamManager().getCurrentAvatarEntity().getId()) {
             handleImmediateStamina(cachedSession, lastSkillId);
         }
+    }
+
+    // One-off cost from ability action AvatarSkillStart, in stamina points (e.g. 25 for sword charged attack)
+    public void handleSkillStartCostStamina(int skillId, float cost) {
+        costFightStamina("Skill " + skillId, cost);
+    }
+
+    // Sustained cost from ability mixin CostStaminaMixin (e.g. claymore charged attack), in stamina points per second.
+    // The mixin is dedicated to sustained cost: the client invokes it repeatedly while active,
+    // each invoke charges a fixed interval, as the official server does.
+    public void handleCostStaminaMixin(float costPerSecond) {
+        costFightStamina("CostStaminaMixin", costPerSecond * CostStaminaMixinInterval);
+    }
+
+    private void costFightStamina(String reason, float cost) {
+        if (cost <= 0) return;
+        int amount = Math.round(cost * 100 * getStaminaCostRatio());
+        logger.debug("{} costs stamina {}", reason, amount);
+        staminaRecoverDelay = 0;
+        updateStaminaRelative(player.getSession(), new Consumption(ConsumptionType.FIGHT, -amount), true);
     }
 
     public void handleCombatInvocationsNotify(@NotNull GameSession session, @NotNull EntityMoveInfo moveInfo, @NotNull GameEntity entity) {
@@ -649,7 +670,7 @@ public class StaminaManager extends BasePlayerManager {
         Consumption consumption = new Consumption(ConsumptionType.FIGHT, -2000);
         // Character specific handling
         switch (skillId) {
-            case 10421:
+            case 10421: // keqing charged attack
                 consumption.amount = -2500;
                 break;
         }

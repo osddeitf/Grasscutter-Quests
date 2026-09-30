@@ -3,9 +3,6 @@ package emu.grasscutter.game.ability;
 import emu.grasscutter.Grasscutter;
 import emu.grasscutter.Loggers;
 import emu.grasscutter.data.GameData;
-import emu.grasscutter.data.binout.AbilityModifier.AbilityModifierAction;
-import emu.grasscutter.data.common.DynamicFloat;
-import emu.grasscutter.game.ability.actions.AbilityAction;
 import emu.grasscutter.game.ability.actions.AbilityActionHandler;
 import emu.grasscutter.game.ability.mixins.AbilityMixinHandler;
 import emu.grasscutter.game.entity.EntityAvatar;
@@ -144,7 +141,6 @@ public final class AbilityManager extends BasePlayerManager {
 //            case ABILITY_META_CLEAR_OVERRIDE_PARAM ->
             case ABILITY_META_REINIT_OVERRIDE_MAP -> this.handleReinitOverrideMap(invoke);
             case ABILITY_META_MODIFIER_CHANGE -> this.handleModifierChange(invoke);
-            case ABILITY_MIXIN_COST_STAMINA -> this.handleMixinCostStamina(invoke);
             case ABILITY_ACTION_GENERATE_ELEM_BALL -> this.handleGenerateElemBall(invoke);
             case ABILITY_META_GLOBAL_FLOAT_VALUE -> this.handleGlobalFloatValue(invoke);
             case ABILITY_META_MODIFIER_DURABILITY_CHANGE -> this.handleModifierDurabilityChange(invoke);
@@ -152,6 +148,7 @@ public final class AbilityManager extends BasePlayerManager {
             case ABILITY_META_REMOVE_ABILITY -> this.handleRemoveAbility(invoke);
             case ABILITY_META_TRIGGER_ELEMENT_REACTION -> this.handleTriggerElementReaction(invoke);
             case ABILITY_META_ADD_SPECIAL_ENERGY_VALUE -> this.handleAddSpecialEnergy(invoke);
+            case ABILITY_MIXIN_COST_STAMINA -> this.handleServerInvoke(invoke);
             default -> {}
         }
     }
@@ -479,10 +476,6 @@ public final class AbilityManager extends BasePlayerManager {
             //TODO: Display error message
             logger.debug("handleModifierChange unknown action");
         }
-    }
-
-    private void handleMixinCostStamina(AbilityInvokeEntry invoke) {
-
     }
 
     private void handleGenerateElemBall(AbilityInvokeEntry invoke) {

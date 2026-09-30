@@ -1,8 +1,6 @@
 package emu.grasscutter.game.ability.actions;
 
 import emu.grasscutter.data.GameData;
-import emu.grasscutter.data.binout.AbilityModifier.AbilityModifierAction;
-//import emu.grasscutter.data.binout.AbilityModifier.AbilityModifierAction.DropType;
 import emu.grasscutter.data.binout.config.ConfigLevelEntity;
 import emu.grasscutter.data.common.AbilityMath;
 import emu.grasscutter.game.ability.Ability;
@@ -14,7 +12,6 @@ import emu.grasscutter.game.props.SceneType;
 import emu.grasscutter.utils.Position;
 import org.anime_game_servers.multi_proto.gi.messages.ability.action.AbilityActionGenerateElemBall;
 import lombok.val;
-import teyvat.ability.config.ConfigAbilityAction;
 import teyvat.ability.config.actions.DropType;
 import teyvat.ability.config.actions.GenerateElemBall;
 
