@@ -150,7 +150,7 @@ public class Scene {
     }
 
     public GameEntity<?> getEntityById(int id) {
-        if (id == 0x13800001) return this.sceneEntity;
+        if (id == this.sceneEntity.getId()) return this.sceneEntity;
         else if (id == this.world.getLevelEntityId()) return this.world.getEntity();
 
         val teamEntityPlayer = this.players.stream().filter(p -> p.getTeamManager().getEntity().getId() == id).findAny();
