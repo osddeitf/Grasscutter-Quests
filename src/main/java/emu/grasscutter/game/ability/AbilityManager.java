@@ -11,7 +11,7 @@ import emu.grasscutter.game.entity.*;
 import emu.grasscutter.game.player.BasePlayerManager;
 import emu.grasscutter.game.player.Player;
 import emu.grasscutter.game.props.ElementReactionType;
-import io.netty.util.concurrent.FastThreadLocalThread;
+import io.netty.channel.DefaultEventLoop;
 import lombok.Getter;
 import lombok.val;
 import org.anime_game_servers.core.base.Version;
@@ -31,9 +31,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 
 
 public final class AbilityManager extends BasePlayerManager {
@@ -44,18 +41,10 @@ public final class AbilityManager extends BasePlayerManager {
     private final static HashMap<Class<?>, AbilityActionHandler> actionHandlers = new HashMap<>();
     private final static HashMap<Class<?>, AbilityMixinHandler> mixinHandlers = new HashMap<>();
 
-    public static final ExecutorService eventExecutor;
+    // Single thread: invokes are handled in order, e.g. a modifier's actions only after the modifier is added.
+    // TODO: should be world or scene scoped instead of shared by the whole server
+    public static final ExecutorService eventExecutor = new DefaultEventLoop();
     static {
-        eventExecutor = new ThreadPoolExecutor(4, 4,
-            60, TimeUnit.SECONDS, new LinkedBlockingDeque<>(1000),
-            r -> {
-                Thread thread = new FastThreadLocalThread(r);
-                thread.setUncaughtExceptionHandler((t, e) ->
-                    Loggers.getAbilitySystem().error("Uncaught exception in ability handling", e)
-                );
-                return thread;
-            }, new ThreadPoolExecutor.AbortPolicy());
-
         registerHandlers();
     }
 
