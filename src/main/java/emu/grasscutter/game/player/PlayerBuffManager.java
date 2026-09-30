@@ -1,7 +1,9 @@
 package emu.grasscutter.game.player;
 
 import emu.grasscutter.data.GameData;
+import emu.grasscutter.data.common.AbilityMath;
 import emu.grasscutter.data.excels.BuffData;
+import emu.grasscutter.game.ability.AbilityLocalId;
 import emu.grasscutter.game.avatar.Avatar;
 import emu.grasscutter.game.props.FightProperty;
 import emu.grasscutter.server.packet.send.PacketServerBuffChangeNotify;
@@ -11,10 +13,11 @@ import lombok.Getter;
 import lombok.val;
 import org.anime_game_servers.multi_proto.gi.messages.battle.ServerBuffChangeType;
 import org.anime_game_servers.multi_proto.gi.messages.general.ability.ServerBuff;
+import teyvat.ability.config.actions.HealHP;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
+import java.util.function.Function;
 
 public class PlayerBuffManager extends BasePlayerManager {
     private int nextBuffUid;
@@ -92,31 +95,7 @@ public class PlayerBuffManager extends BasePlayerManager {
         boolean success = false;
 
         // Perform onAdded actions
-        success |= Optional.ofNullable(GameData.getAbilityData(buffData.getAbilityName()))
-            .map(data -> data.modifiers.get(buffData.getModifierName()))
-            .map(modifier -> modifier.onAdded)
-            .map(onAdded -> {
-                System.out.println("onAdded exists");
-                boolean s = false;
-                for (var a: onAdded) {
-                    switch (a.type) {
-                        case HealHP:
-                            System.out.println("Attempting heal");
-                            if (target == null) break;
-                            float maxHp = target.getFightProperty(FightProperty.FIGHT_PROP_MAX_HP);
-                            float amount = a.amount.get() + a.amountByTargetMaxHPRatio.get() * maxHp;
-                            target.getAsEntity().heal(amount);
-                            s = true;
-                            System.out.printf("Healed {}", amount);
-                            break;
-                        default:
-                            break;
-                    }
-                }
-                return s;
-            })
-            .orElse(false);
-        System.out.println("Oh no");
+        success |= performOnAdded(buffData, target);
 
         // Set duration
         if (duration < 0f) {
@@ -139,6 +118,33 @@ public class PlayerBuffManager extends BasePlayerManager {
         getPlayer().sendPacket(new PacketServerBuffChangeNotify(getPlayer(), ServerBuffChangeType.ADD_SERVER_BUFF, buff));
 
         return true;
+    }
+
+    /**
+     * Runs the top-level onAdded actions of the buff's modifier, only HealHP is supported.
+     * There's no instanced ability for a server buff, so keys resolve to the ability specials.
+     * TODO: temporary solution for the new ability config setup, server buffs need an overhaul
+     * @return True if any action was performed
+     */
+    private boolean performOnAdded(BuffData buffData, Avatar target) {
+        var configs = GameData.getAbilityConfigs();
+        var ability = configs.ability(buffData.getAbilityName());
+        if (ability == null) return false;
+        int modifierIndex = ability.getModifierNames().indexOf(buffData.getModifierName());
+        if (modifierIndex < 0) return false;
+
+        Function<String, Float> specials = key -> ability.getAbilitySpecials().getOrDefault(key, 0f);
+        boolean success = false;
+        for (var action : AbilityLocalId.modifierActions(configs, ability, modifierIndex, AbilityLocalId.MODIFIER_ON_ADDED)) {
+            if (action instanceof HealHP heal && target != null) {
+                float maxHp = target.getFightProperty(FightProperty.FIGHT_PROP_MAX_HP);
+                float amount = AbilityMath.evaluate(heal.amount, specials, 0f)
+                    + AbilityMath.evaluate(heal.amountByTargetMaxHPRatio, specials, 0f) * maxHp;
+                target.getAsEntity().heal(amount);
+                success = true;
+            }
+        }
+        return success;
     }
 
     /**
