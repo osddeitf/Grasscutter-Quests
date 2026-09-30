@@ -499,6 +499,8 @@ public final class AbilityManager extends BasePlayerManager {
         var entry = AbilityScalarValueEntry.parseBy(invoke.getAbilityData(), player.getSession().getVersion());
         if(entry == null) return;
 
+        // FIXME: the key is a global value name, not an ability name, so a hashed key never resolves here:
+        //  the ability hash list only holds ability names
         var key = Ability.getAbilityName(entry.getKey());
         if(key == null) return;
 

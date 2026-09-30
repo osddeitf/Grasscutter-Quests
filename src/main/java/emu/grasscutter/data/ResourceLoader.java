@@ -425,6 +425,9 @@ public class ResourceLoader {
             ? AbilityLoader.from(indexPath, config.path)
             : AbilityLoader.from(indexPath, config.path, UnmodelledPolicy.DROP_BODY, true, debugPath);
         GameData.setAbilityConfigs(abilities);
+
+        // for resolving hashed ability names
+        abilities.names().forEach(name -> GameData.getAbilityHashes().put(Utils.abilityHash(name), name));
     }
 
     // private static HashSet<String> modifierActionTypes = new HashSet<>();
