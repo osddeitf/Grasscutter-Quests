@@ -498,7 +498,7 @@ public class StaminaManager extends BasePlayerManager {
     private float getStaminaCostRatio() {
         var entity = player.getTeamManager().getCurrentAvatarEntity();
         var ratio = entity.getAbilityProperty(EntityAbilityProperty.Actor_CostStaminaRatio);
-        var value = 1f + ratio;
+        var value = Math.max(0f, 1f + ratio);  // e.g. Freeze uses -999 to cancel the cost
         logger.info("Current stamina cost ratio: {}", value);
         return value;
     }

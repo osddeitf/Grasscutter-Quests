@@ -158,17 +158,19 @@ public enum EntityAbilityProperty {
 
     @Getter private final StackingType stackingType;
     @Getter private final float defaultValue;
-//    @Getter private final float min = Float.MIN_VALUE;
-//    @Getter private final float max = Float.MAX_VALUE;
+    @Getter private final float min;
+    @Getter private final float max;
 
     EntityAbilityProperty() {
         this(0, StackingType.Sum);
     }
     EntityAbilityProperty(float defaultValue, StackingType stackingType) {
-        this(defaultValue, StackingType.Sum, 0, 0);
+        this(defaultValue, stackingType, -Float.MAX_VALUE, Float.MAX_VALUE);
     }
     EntityAbilityProperty(float defaultValue, StackingType stackingType, float min, float max) {
         this.defaultValue = defaultValue;
         this.stackingType = stackingType;
+        this.min = min;
+        this.max = max;
     }
 }
