@@ -1,6 +1,5 @@
 package emu.grasscutter.game.ability.actions;
 
-import emu.grasscutter.data.binout.AbilityModifier.AbilityModifierAction;
 import emu.grasscutter.game.ability.Ability;
 import emu.grasscutter.game.entity.EntityMonster;
 import emu.grasscutter.game.entity.EntityWeapon;
@@ -8,7 +7,6 @@ import emu.grasscutter.game.entity.GameEntity;
 import emu.grasscutter.game.entity.create_config.CreateGadgetEntityConfig;
 import lombok.val;
 import org.anime_game_servers.multi_proto.gi.messages.ability.action.AbilityActionCreateGadget;
-import teyvat.ability.config.ConfigAbilityAction;
 import teyvat.ability.config.actions.TriggerCreateGadgetToEquipPart;
 
 public class ActionCreateGadgetForEquip extends AbilityActionHandler<TriggerCreateGadgetToEquipPart> {

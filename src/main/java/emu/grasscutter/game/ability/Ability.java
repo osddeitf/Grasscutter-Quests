@@ -2,7 +2,6 @@ package emu.grasscutter.game.ability;
 
 import emu.grasscutter.Grasscutter;
 import emu.grasscutter.data.GameData;
-import emu.grasscutter.data.common.DynamicFloat;
 import emu.grasscutter.game.entity.GameEntity;
 import emu.grasscutter.game.player.Player;
 import emu.grasscutter.utils.Utils;

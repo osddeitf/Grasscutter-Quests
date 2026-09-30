@@ -2,7 +2,6 @@ package emu.grasscutter.game.entity.create_config;
 
 import emu.grasscutter.Grasscutter;
 import emu.grasscutter.data.GameData;
-import emu.grasscutter.data.binout.AbilityModifier;
 import emu.grasscutter.data.binout.config.ConfigEntityGadget;
 import emu.grasscutter.data.excels.GadgetData;
 import emu.grasscutter.data.excels.GatherData;
