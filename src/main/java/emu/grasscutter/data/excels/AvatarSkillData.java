@@ -22,6 +22,7 @@ public class AvatarSkillData extends GameResource {
     @Getter private long nameTextMapHash;
     @Getter private long descTextMapHash;
     @Getter private String abilityName;
+    @Getter private int costStamina;
     // Special (non elemental) energy, e.g. Mavuika, Skirk. Key names differ between resource dumps.
     @SerializedName(value = "specialEnergyCostType", alternate = {"specialEnergyType"})
     @Getter private String specialEnergyCostType;

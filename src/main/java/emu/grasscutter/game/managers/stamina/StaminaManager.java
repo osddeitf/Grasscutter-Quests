@@ -351,6 +351,19 @@ public class StaminaManager extends BasePlayerManager {
         }
     }
 
+    // One-off cost from ability action AvatarSkillStart, in stamina points (e.g. 25 for sword charged attack)
+    public void handleSkillStartCostStamina(int skillId, float cost) {
+        costFightStamina("Skill " + skillId, cost);
+    }
+
+    private void costFightStamina(String reason, float cost) {
+        if (cost <= 0) return;
+        int amount = Math.round(cost * 100 * getStaminaCostRatio());
+        logger.debug("{} costs stamina {}", reason, amount);
+        staminaRecoverDelay = 0;
+        updateStaminaRelative(player.getSession(), new Consumption(ConsumptionType.FIGHT, -amount), true);
+    }
+
     public void handleCombatInvocationsNotify(@NotNull GameSession session, @NotNull EntityMoveInfo moveInfo, @NotNull GameEntity entity) {
         // cache info for later use in SustainedStaminaHandler tick
         cachedSession = session;
@@ -649,7 +662,7 @@ public class StaminaManager extends BasePlayerManager {
         Consumption consumption = new Consumption(ConsumptionType.FIGHT, -2000);
         // Character specific handling
         switch (skillId) {
-            case 10421:
+            case 10421: // keqing charged attack
                 consumption.amount = -2500;
                 break;
         }
