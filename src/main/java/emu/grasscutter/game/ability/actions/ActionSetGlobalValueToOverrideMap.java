@@ -7,11 +7,17 @@ import emu.grasscutter.game.entity.EntityClientGadget;
 import emu.grasscutter.game.entity.EntityGadget;
 import emu.grasscutter.game.entity.GameEntity;
 import emu.grasscutter.utils.Utils;
+import teyvat.ability.config.ConfigAbilityAction;
+import teyvat.ability.config.actions.SetGlobalValueToOverrideMap;
 
-@AbilityAction(AbilityModifierAction.Type.SetGlobalValueToOverrideMap)
-public class ActionSetGlobalValueToOverrideMap extends AbilityActionHandler {
+public class ActionSetGlobalValueToOverrideMap extends AbilityActionHandler<SetGlobalValueToOverrideMap> {
     @Override
-    public boolean execute(Ability ability, AbilityModifierAction action, byte[] abilityData, GameEntity<?> target) {
+    public Class<?> getType() {
+        return SetGlobalValueToOverrideMap.class;
+    }
+
+    @Override
+    public boolean execute(Ability ability, SetGlobalValueToOverrideMap action, byte[] abilityData, GameEntity<?> target) {
         //TODO:
         var entity = target;
         if(action.isFromOwner) {
@@ -38,7 +44,7 @@ public class ActionSetGlobalValueToOverrideMap extends AbilityActionHandler {
         }
 
         entity.getGlobalAbilityValues().put(globalValueKey, globalValue); //Reserahc if this is needed
-        ability.getServerOverrideMap().put(Utils.abilityHash(action.overrideMapKey), new DynamicFloat(globalValue.floatValue())); //Override our own
+        ability.getServerOverrideMap().put(Utils.abilityHash(action.overrideMapKey), (float)globalValue); //Override our own
 
         //TODO: ChangeServerGlobalValueNotify
 

@@ -121,7 +121,7 @@ public class ResourceLoader {
         // Load ability lists
         loadAbilityEmbryos();
         loadOpenConfig();
-        loadAbilityModifiers();
+//        loadAbilityModifiers();
         loadAbilityGroups();
         // Load resources
         loadResources(true);

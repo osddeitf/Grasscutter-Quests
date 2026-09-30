@@ -1,15 +1,22 @@
 package emu.grasscutter.game.ability.actions;
 
 import emu.grasscutter.data.binout.AbilityModifier.AbilityModifierAction;
+import emu.grasscutter.data.common.AbilityMath;
 import emu.grasscutter.game.ability.Ability;
 import emu.grasscutter.game.entity.EntityClientGadget;
 import emu.grasscutter.game.entity.GameEntity;
 import emu.grasscutter.game.props.FightProperty;
+import teyvat.ability.config.ConfigAbilityAction;
+import teyvat.ability.config.actions.HealHP;
 
-@AbilityAction(AbilityModifierAction.Type.HealHP)
-public class ActionHealHP extends AbilityActionHandler {
+public class ActionHealHP extends AbilityActionHandler<HealHP> {
     @Override
-    public boolean execute(Ability ability, AbilityModifierAction action, byte[] abilityData, GameEntity<?> target) {
+    public Class<?> getType() {
+        return HealHP.class;
+    }
+
+    @Override
+    public boolean execute(Ability ability, HealHP action, byte[] abilityData, GameEntity<?> target) {
         logger.info("Heal ability action executing 1\n");
 
         GameEntity owner = ability.getOwner();
@@ -20,12 +27,12 @@ public class ActionHealHP extends AbilityActionHandler {
         }
         if(owner == null) return false;
 
-        float amountByCasterMaxHPRatio = action.amountByCasterMaxHPRatio.get(ability);
-        float amountByCasterAttackRatio = action.amountByCasterAttackRatio.get(ability);
-        float amountByCasterCurrentHPRatio = action.amountByCasterCurrentHPRatio.get(ability);
-        float amountByTargetCurrentHPRatio = action.amountByTargetCurrentHPRatio.get(ability);
-        float amountByTargetMaxHPRatio = action.amountByTargetMaxHPRatio.get(ability);
-        float amount = action.amount.get(ability);
+        float amountByCasterMaxHPRatio = AbilityMath.evaluate(action.amountByCasterMaxHPRatio, ability);
+        float amountByCasterAttackRatio = AbilityMath.evaluate(action.amountByCasterAttackRatio, ability);
+        float amountByCasterCurrentHPRatio = AbilityMath.evaluate(action.amountByCasterCurrentHPRatio, ability);
+        float amountByTargetCurrentHPRatio = AbilityMath.evaluate(action.amountByTargetCurrentHPRatio, ability);
+        float amountByTargetMaxHPRatio = AbilityMath.evaluate(action.amountByTargetMaxHPRatio, ability);
+        float amount = AbilityMath.evaluate(action.amount, ability);
 
         float amountToRegenerate = amount;
         amountToRegenerate += amountByCasterMaxHPRatio * owner.getFightProperty(FightProperty.FIGHT_PROP_MAX_HP);
@@ -39,7 +46,7 @@ public class ActionHealHP extends AbilityActionHandler {
         amountToRegenerate += amountByTargetMaxHPRatio * target.getFightProperty(FightProperty.FIGHT_PROP_MAX_HP);
 
         logger.info("Healing {} without ratios\n", amountToRegenerate);
-        target.heal(amountToRegenerate * abilityRatio * action.healRatio.get(ability, 1f), action.muteHealEffect);
+        target.heal(amountToRegenerate * abilityRatio * AbilityMath.evaluate(action.healRatio, ability, 1f), action.muteHealEffect);
 
         return true;
     }

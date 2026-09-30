@@ -4,19 +4,26 @@ import com.github.davidmoten.guavamini.Lists;
 import emu.grasscutter.Grasscutter;
 import emu.grasscutter.data.binout.AbilityModifier.AbilityModifierAction;
 import emu.grasscutter.data.binout.LuaCallType;
+import emu.grasscutter.data.common.AbilityMath;
 import emu.grasscutter.game.ability.Ability;
 import emu.grasscutter.game.entity.GameEntity;
 import lombok.val;
 import org.anime_game_servers.gi_lua.models.ScriptArgs;
 import org.anime_game_servers.gi_lua.models.constants.EventType;
+import teyvat.ability.config.ConfigAbilityAction;
+import teyvat.ability.config.actions.ServerLuaTriggerEvent;
 
 import java.util.Arrays;
 
-@AbilityAction(AbilityModifierAction.Type.ServerLuaTriggerEvent)
-public class ActionServerLuaTriggerEvent extends AbilityActionHandler {
+public class ActionServerLuaTriggerEvent extends AbilityActionHandler<ServerLuaTriggerEvent> {
 
     @Override
-    public boolean execute(Ability ability, AbilityModifierAction action, byte[] abilityData, GameEntity target) {
+    public Class<?> getType() {
+        return ServerLuaTriggerEvent.class;
+    }
+
+    @Override
+    public boolean execute(Ability ability, ServerLuaTriggerEvent action, byte[] abilityData, GameEntity target) {
         val scene = target.getScene();
         val scriptManager = scene.getScriptManager();
         val callType = LuaCallType.fromString(action.luaCallType);
@@ -26,8 +33,8 @@ public class ActionServerLuaTriggerEvent extends AbilityActionHandler {
                 var groupId = target.getGroupId();
                 yield Lists.newArrayList(new ScriptArgs(groupId, EventType.EVENT_LUA_NOTIFY));
             }
-            case SPECIFIC_GROUP -> Arrays.stream(action.callParamList)
-                .mapToObj(groupId -> new ScriptArgs(groupId, EventType.EVENT_LUA_NOTIFY))
+            case SPECIFIC_GROUP -> action.callParamList.stream()
+                .map(groupId -> new ScriptArgs(groupId, EventType.EVENT_LUA_NOTIFY))
                 .toList();
             default -> {
                 Grasscutter.getLogger().error("Unimplemented ActionServerLuaCall {}", action.luaCallType);
@@ -41,9 +48,9 @@ public class ActionServerLuaTriggerEvent extends AbilityActionHandler {
             p.setSourceEntityId(target.getId());
             p.setEventSource(action.sourceName);
 
-            p.setParam1( (int) action.param1.get(ability));
-            p.setParam2( (int) action.param2.get(ability));
-            p.setParam3( (int) action.param3.get(ability));
+            p.setParam1((int) AbilityMath.evaluate(action.param1, ability));
+            p.setParam2((int) AbilityMath.evaluate(action.param2, ability));
+            p.setParam3((int) AbilityMath.evaluate(action.param3, ability));
 
             scriptManager.callEvent(p);
         });

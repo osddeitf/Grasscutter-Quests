@@ -6,15 +6,20 @@ import emu.grasscutter.game.entity.EntityGadget;
 import emu.grasscutter.game.entity.GameEntity;
 import emu.grasscutter.game.entity.create_config.CreateGadgetEntityConfig;
 import emu.grasscutter.game.props.CampTargetType;
-import emu.grasscutter.utils.Position;
 import org.anime_game_servers.multi_proto.gi.messages.ability.action.AbilityActionCreateGadget;
 import lombok.val;
+import teyvat.ability.config.ConfigAbilityAction;
+import teyvat.ability.config.actions.CreateGadget;
 
-@AbilityAction(AbilityModifierAction.Type.CreateGadget)
-public class ActionCreateGadget extends AbilityActionHandler {
+public class ActionCreateGadget extends AbilityActionHandler<CreateGadget> {
 
     @Override
-    public boolean execute(Ability ability, AbilityModifierAction action,byte[] abilityData, GameEntity<?> target) {
+    public Class<?> getType() {
+        return CreateGadget.class;
+    }
+
+    @Override
+    public boolean execute(Ability ability, CreateGadget action, byte[] abilityData, GameEntity<?> target) {
         if(!action.byServer) {
             logger.debug("Action not executed by server");
 
@@ -30,7 +35,10 @@ public class ActionCreateGadget extends AbilityActionHandler {
         }
 
         val config = new CreateGadgetEntityConfig(action, createGadget)
-            .setOwner(action.ownerIsTarget ? target : entity);
+            .setOwner(action.ownerIsTarget ? target : entity)
+            .setGadgetId(action.gadgetID)
+            .setCampId(action.campID)
+            .setCampType(CampTargetType.getTypeByName(action.campTargetType).getValue());
 
         var entityCreated = new EntityGadget(entity.getScene(), config);
 
