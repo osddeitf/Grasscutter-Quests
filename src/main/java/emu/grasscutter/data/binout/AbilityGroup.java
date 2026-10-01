@@ -4,8 +4,6 @@ import com.google.gson.annotations.SerializedName;
 import emu.grasscutter.utils.Utils;
 
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 public class AbilityGroup {
     @SerializedName(value="abilityGroupSourceType")
@@ -18,7 +16,7 @@ public class AbilityGroup {
     public List<AvatarConfigAbility> targetAbilities;
 
     // for custom ability groups (useful when group or ability names are unknown)
-    private Set<Integer> hashedAbilities;
+    private List<Integer> hashedAbilities;
 
     public enum AbilityGroupSource {
         ABILITY_GROUP_SOURCE_NONE,
@@ -49,15 +47,20 @@ public class AbilityGroup {
         }
     }
 
-    public Set<Integer> getAvatarAbilities() {
-        if (targetType != AbilityGroupTarget.ABILITY_GROUP_TARGET_AVATAR) return Set.of();
-        if (hashedAbilities != null) return hashedAbilities;
-        return targetAbilities.stream().map(Object::toString).map(Utils::abilityHash).collect(Collectors.toSet());
+    /** In config order, the order abilities are added in */
+    public List<Integer> getAvatarAbilities() {
+        if (targetType != AbilityGroupTarget.ABILITY_GROUP_TARGET_AVATAR) return List.of();
+        return getAbilities();
     }
 
-    public Set<Integer> getTeamAbilities() {
-        if (targetType != AbilityGroupTarget.ABILITY_GROUP_TARGET_TEAM) return Set.of();
+    /** In config order, the order abilities are added in */
+    public List<Integer> getTeamAbilities() {
+        if (targetType != AbilityGroupTarget.ABILITY_GROUP_TARGET_TEAM) return List.of();
+        return getAbilities();
+    }
+
+    private List<Integer> getAbilities() {
         if (hashedAbilities != null) return hashedAbilities;
-        return targetAbilities.stream().map(Object::toString).map(Utils::abilityHash).collect(Collectors.toSet());
+        return targetAbilities.stream().map(Object::toString).map(Utils::abilityHash).distinct().toList();
     }
 }
