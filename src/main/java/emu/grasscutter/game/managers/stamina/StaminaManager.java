@@ -1,7 +1,6 @@
 package emu.grasscutter.game.managers.stamina;
 
 import emu.grasscutter.Grasscutter;
-import emu.grasscutter.game.avatar.Avatar;
 import emu.grasscutter.game.entity.EntityAvatar;
 import emu.grasscutter.game.entity.EntityAbilityProperty;
 import emu.grasscutter.game.entity.GameEntity;
@@ -10,7 +9,6 @@ import emu.grasscutter.game.player.Player;
 import emu.grasscutter.game.props.FightProperty;
 import emu.grasscutter.game.props.LifeState;
 import emu.grasscutter.game.props.PlayerProperty;
-import emu.grasscutter.game.props.WeaponType;
 import emu.grasscutter.server.game.GameSession;
 import emu.grasscutter.server.packet.send.PacketAvatarLifeStateChangeNotify;
 import emu.grasscutter.server.packet.send.PacketEntityFightPropUpdateNotify;
@@ -125,12 +123,8 @@ public class StaminaManager extends BasePlayerManager {
     private int diveStaminaRecoverDelay = 0;
     private final HashMap<String, BeforeUpdateStaminaListener> beforeUpdateStaminaListeners = new HashMap<>();
     private final HashMap<String, AfterUpdateStaminaListener> afterUpdateStaminaListeners = new HashMap<>();
-    private int lastSkillId = 0;
-    private int lastSkillCasterId = 0;
-    private boolean lastSkillFirstTick = true;
     private int vehicleId = -1;
     private int vehicleStamina = GlobalVehicleMaxStamina;
-    private static final Set<Integer> TalentMovements = Set.of(10013, 10413);
     private static final Set<MotionState> DiveDashStates = Set.of(MotionState.MOTION_DIVE_DASH, MotionState.MOTION_DIVE_SWIM_DASH);
     private static final float CostStaminaMixinInterval = 0.3f;  // s, hardcoded INTERVAL_TIME as in official server
 
@@ -143,12 +137,6 @@ public class StaminaManager extends BasePlayerManager {
     }
 
     // Accessors
-
-    public void setSkillCast(int skillId, int skillCasterId) {
-        lastSkillFirstTick = true;
-        lastSkillId = skillId;
-        lastSkillCasterId = skillCasterId;
-    }
 
     public int getMaxCharacterStamina() {
         return player.getProperty(PlayerProperty.PROP_MAX_STAMINA);
@@ -328,40 +316,6 @@ public class StaminaManager extends BasePlayerManager {
 
     // External trigger handler
 
-    public void handleEvtDoSkillSuccNotify(GameSession session, int skillId, int casterId) {
-        // Ignore if skill not cast by not current active avatar
-        if (casterId != player.getTeamManager().getCurrentAvatarEntity().getId()) {
-            return;
-        }
-        setSkillCast(skillId, casterId);
-        // Handle immediate stamina cost
-        Avatar currentAvatar = player.getTeamManager().getCurrentAvatarEntity().getAvatar();
-        if (currentAvatar.getAvatarData().getWeaponType() == WeaponType.WEAPON_CLAYMORE) {
-            // Exclude claymore as their stamina cost starts when MixinStaminaCost gets in
-            return;
-        }
-        // TODO: Differentiate normal attacks from charged attacks and exclude
-        // TODO: Temporary: Exclude non-claymore attacks for now
-        /*
-        if (BowAvatars.contains(currentAvatarId)
-                || SwordAvatars.contains(currentAvatarId)
-                || PolearmAvatars.contains(currentAvatarId)
-                || CatalystAvatars.contains(currentAvatarId)
-        ) {
-            return;
-        }
-        */
-        //handleImmediateStamina(session, skillId);
-    }
-
-    public void handleMixinCostStamina(boolean isSwim) {
-        // Talent moving and claymore avatar charged attack duration
-        // logger.trace("abilityMixinCostStamina: isSwim: " + isSwim + "\tlastSkill: " + lastSkillId);
-        if (lastSkillCasterId == player.getTeamManager().getCurrentAvatarEntity().getId()) {
-            handleImmediateStamina(cachedSession, lastSkillId);
-        }
-    }
-
     // One-off cost from ability action AvatarSkillStart, in stamina points (e.g. 25 for sword charged attack)
     public void handleSkillStartCostStamina(int skillId, float cost) {
         costFightStamina("Skill " + skillId, cost);
@@ -449,11 +403,6 @@ public class StaminaManager extends BasePlayerManager {
         }
     }
 
-    private void handleImmediateStamina(GameSession session, int skillId) {
-        Consumption consumption = getFightConsumption(skillId);
-        updateStaminaRelative(session, consumption, true);
-    }
-
     // Dive stamina is a separate pool: dashing underwater costs it, it recovers otherwise,
     // 1 second (5 ticks) after leaving a dash or a dolphin jump
     private void updateSustainedDiveStamina() {
@@ -517,7 +466,7 @@ public class StaminaManager extends BasePlayerManager {
                 } else if (MotionStatesCategorized.get("NOCOST_NORECOVER").contains(currentState)) {
                     consumption = new Consumption();
                 } else if (MotionStatesCategorized.get("OTHER").contains(currentState)) {
-                    consumption = getOtherConsumptions();
+                    consumption = new Consumption();
                 } else { // ignore
                     return;
                 }
@@ -567,25 +516,6 @@ public class StaminaManager extends BasePlayerManager {
         var value = Math.max(0f, 1f + ratio);  // e.g. Freeze uses -999 to cancel the cost
         logger.info("Current stamina cost ratio: {}", value);
         return value;
-    }
-
-    private Consumption getFightConsumption(int skillCasting) {
-        // Talent moving
-        if (TalentMovements.contains(skillCasting)) {
-            // TODO: recover 1000 if kamisato hits an enemy at the end of dashing
-            return getTalentMovingSustainedCost(skillCasting);
-        }
-        // Bow avatar charged attack
-        Avatar currentAvatar = player.getTeamManager().getCurrentAvatarEntity().getAvatar();
-
-        return switch (currentAvatar.getAvatarData().getWeaponType()) {
-            case WEAPON_BOW -> getBowSustainedCost(skillCasting);
-            case WEAPON_CLAYMORE -> getClaymoreSustainedCost(skillCasting);
-            case WEAPON_CATALYST -> getCatalystCost(skillCasting);
-            case WEAPON_POLE -> getPolearmCost(skillCasting);
-            case WEAPON_SWORD_ONE_HAND -> getSwordCost(skillCasting);
-            default -> new Consumption();
-        };
     }
 
     private Consumption getClimbConsumption() {
@@ -641,84 +571,5 @@ public class StaminaManager extends BasePlayerManager {
             case MOTION_SKIFF_NORMAL -> new Consumption(ConsumptionType.SKIFF);
             default -> new Consumption();
         };
-    }
-
-    private Consumption getOtherConsumptions() {
-        switch (currentState) {
-            case MOTION_NOTIFY:
-//                if (BowSkills.contains(lastSkillId)) {
-//                    return new Consumption(ConsumptionType.FIGHT, 500);
-//                }
-                break;
-            case MOTION_FIGHT:
-                // TODO: what if charged attack
-                return new Consumption(ConsumptionType.FIGHT, 500);
-        }
-
-        return new Consumption();
-    }
-
-    private Consumption getTalentMovingSustainedCost(int skillId) {
-        if (lastSkillFirstTick) {
-            lastSkillFirstTick = false;
-            return new Consumption(ConsumptionType.TALENT_DASH, -1000);
-        } else {
-            return new Consumption(ConsumptionType.TALENT_DASH, -500);
-        }
-    }
-
-    private Consumption getBowSustainedCost(int skillId) {
-        // Note that bow skills actually recovers stamina
-        // Character specific handling
-        // switch (skillId) {
-        //     // No known bow skills cost stamina
-        // }
-        return new Consumption(ConsumptionType.FIGHT, +500);
-    }
-
-    private Consumption getCatalystCost(int skillId) {
-        Consumption consumption = new Consumption(ConsumptionType.FIGHT, -5000);
-        // Character specific handling
-        switch (skillId) {
-            // TODO:
-        }
-        return consumption;
-    }
-
-    private Consumption getClaymoreSustainedCost(int skillId) {
-        Consumption consumption = new Consumption(ConsumptionType.FIGHT, -1333); // 4000 / 3 = 1333
-        // Character specific handling
-        switch (skillId) {
-            case 10571:
-            case 10532:
-                consumption.amount = 0;
-                break;
-            case 10160:
-                if (player.getTeamManager().getCurrentAvatarEntity().getAvatar().getProudSkillList().contains(162101)) {
-                    consumption.amount /= 2;
-                }
-                break;
-        }
-        return consumption;
-    }
-
-    private Consumption getPolearmCost(int skillId) {
-        Consumption consumption = new Consumption(ConsumptionType.FIGHT, -2500);
-        // Character specific handling
-        switch (skillId) {
-            // TODO:
-        }
-        return consumption;
-    }
-
-    private Consumption getSwordCost(int skillId) {
-        Consumption consumption = new Consumption(ConsumptionType.FIGHT, -2000);
-        // Character specific handling
-        switch (skillId) {
-            case 10421: // keqing charged attack
-                consumption.amount = -2500;
-                break;
-        }
-        return consumption;
     }
 }
