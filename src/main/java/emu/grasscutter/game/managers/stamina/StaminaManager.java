@@ -380,6 +380,7 @@ public class StaminaManager extends BasePlayerManager {
 
     // Internal handler
 
+    // Start costs, charged once when entering a state (motionState is already the current state)
     private void handleImmediateStamina(GameSession session, @NotNull MotionState motionState) {
         // Don't double dip on sustained stamina start costs
         if (previousState == currentState) {
@@ -389,23 +390,18 @@ public class StaminaManager extends BasePlayerManager {
             updateDiveStaminaRelative(ConsumptionType.DIVE_DASH_START.amount);
             return;
         }
-        if (currentState == motionState) {
-            if (motionState.equals(MotionState.MOTION_CLIMB_JUMP)) {
-                updateStaminaRelative(session, new Consumption(ConsumptionType.CLIMB_JUMP), true);
-            }
-            return;
-        }
-        switch (motionState) {
-            case MOTION_CLIMB ->
-                    updateStaminaRelative(session, new Consumption(ConsumptionType.CLIMB_START), true);
-            case MOTION_DASH_BEFORE_SHAKE ->
-                    updateStaminaRelative(session, new Consumption(ConsumptionType.SPRINT), true);
-            case MOTION_CLIMB_JUMP ->
-                    updateStaminaRelative(session, new Consumption(ConsumptionType.CLIMB_JUMP), true);
-            case MOTION_SWIM_DASH ->
-                    updateStaminaRelative(session, new Consumption(ConsumptionType.SWIM_DASH_START), true);
-            default -> {}
-        }
+        var type = switch (motionState) {
+            case MOTION_CLIMB -> ConsumptionType.CLIMB_START;
+            case MOTION_DASH_BEFORE_SHAKE -> ConsumptionType.SPRINT;
+            case MOTION_CLIMB_JUMP -> ConsumptionType.CLIMB_JUMP;
+            case MOTION_SWIM_DASH -> ConsumptionType.SWIM_DASH_START;
+            default -> null;
+        };
+        if (type == null) return;
+
+        // delay recovering, like other costs
+        staminaRecoverDelay = 0;
+        updateStaminaRelative(session, new Consumption(type), true);
     }
 
     // Dive stamina is a separate pool: dashing underwater costs it, it recovers otherwise,
