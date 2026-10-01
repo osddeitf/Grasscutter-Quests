@@ -4,7 +4,9 @@ import emu.grasscutter.data.GameData;
 import emu.grasscutter.game.ability.AbilityManager;
 import emu.grasscutter.game.ability.embryos.TeamAbilityManager;
 import emu.grasscutter.game.entity.interfaces.StringAbilityEntity;
+import emu.grasscutter.game.managers.stamina.StaminaManager;
 import emu.grasscutter.game.player.Player;
+import emu.grasscutter.game.props.PlayerProperty;
 import emu.grasscutter.game.props.EntityIdType;
 import emu.grasscutter.game.world.World;
 import lombok.Getter;
@@ -22,6 +24,9 @@ public class EntityTeam extends MetaGameEntity implements StringAbilityEntity {
         initAbilities();
         this.id = player.getWorld().getNextEntityId(EntityIdType.TEAM);
         this.abilities = new TeamAbilityManager(this);
+
+        // Server global values, sent with the team's ability info
+        getGlobalAbilityValues().put(StaminaManager.PHLOGISTON_SGV, player.getProperty(PlayerProperty.PROP_CUR_PHLOGISTON) / 100f);
     }
 
     @Override

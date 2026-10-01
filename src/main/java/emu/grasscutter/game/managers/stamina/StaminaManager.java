@@ -9,10 +9,12 @@ import emu.grasscutter.game.player.Player;
 import emu.grasscutter.game.props.FightProperty;
 import emu.grasscutter.game.props.LifeState;
 import emu.grasscutter.game.props.PlayerProperty;
+import teyvat.ability.config.enums.PhlogistonChangeType;
 import emu.grasscutter.server.game.GameSession;
 import emu.grasscutter.server.packet.send.PacketAvatarLifeStateChangeNotify;
 import emu.grasscutter.server.packet.send.PacketEntityFightPropUpdateNotify;
 import emu.grasscutter.server.packet.send.PacketLifeStateChangeNotify;
+import emu.grasscutter.server.packet.send.PacketServerGlobalValueChangeNotify;
 import emu.grasscutter.server.packet.send.PacketVehicleStaminaNotify;
 import emu.grasscutter.utils.Position;
 import lombok.val;
@@ -324,6 +326,40 @@ public class StaminaManager extends BasePlayerManager {
     // One-off cost from ability action DeductStamina, in stamina points (e.g. a special jump, or a monster's hit)
     public void handleDeductStamina(float cost) {
         costFightStamina("DeductStamina", cost);
+    }
+
+    // Phlogiston lives in the team's server global value, in points; the player property (hundredths) persists it
+    public static final String PHLOGISTON_SGV = "SGV_PlayerTeam_Phlogiston";
+    public static final float MAX_PHLOGISTON = PlayerProperty.PROP_CUR_PHLOGISTON.getMax() / 100f;
+
+    public float getCurrentPhlogiston() {
+        var team = player.getTeamManager().getEntity();
+        Float value = team == null ? null : (Float) team.getGlobalAbilityValues().get(PHLOGISTON_SGV);
+        return value != null ? value : player.getProperty(PlayerProperty.PROP_CUR_PHLOGISTON) / 100f;
+    }
+
+    // One-off phlogiston change from ability action ChangePhlogiston, in points
+    public void handleChangePhlogiston(PhlogistonChangeType changeType, float points) {
+        changePhlogiston(changeType, points);
+    }
+
+    private void changePhlogiston(PhlogistonChangeType changeType, float points) {
+        var team = player.getTeamManager().getEntity();
+        if (team == null) return;
+
+        float current = getCurrentPhlogiston();
+        float value = switch (changeType) {
+            case Cost -> current - points;
+            case Add -> current + points;
+            case Set -> points;
+        };
+        value = Math.max(0f, Math.min(MAX_PHLOGISTON, value));
+        if (value == current) return;
+        logger.debug("Phlogiston {} {}: {} -> {}", changeType, points, current, value);
+
+        team.getGlobalAbilityValues().put(PHLOGISTON_SGV, value);
+        player.getScene().broadcastPacket(new PacketServerGlobalValueChangeNotify(team, PHLOGISTON_SGV, value));
+        player.setProperty(PlayerProperty.PROP_CUR_PHLOGISTON, Math.round(value * 100), false);
     }
 
     // Sustained cost from ability mixin CostStaminaMixin (e.g. claymore charged attack), in stamina points per second.
