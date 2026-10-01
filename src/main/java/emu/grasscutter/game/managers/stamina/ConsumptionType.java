@@ -8,7 +8,7 @@ public enum ConsumptionType {
     CLIMB_START(-500),
     CLIMB_JUMP(-2500),
     DASH(-360),
-    FIGHT(0), // See StaminaManager.getFightConsumption()
+    FIGHT(0), // amount given by the ability (AvatarSkillStart, CostStaminaMixin)
     FLY(-60),
     // Slow swimming is handled per movement, not per second.
     // Arm movement frequency depends on gender/age/height.
@@ -18,8 +18,8 @@ public enum ConsumptionType {
     SWIM_DASH_START(-2000),
     SWIM_DASH(-204), // -10.2 per second, 5Hz = -204 each tick
     SWIMMING(-80),
-    TALENT_DASH(-300), // -1500 per second, 5Hz = -300 each tick
-    TALENT_DASH_START(-1000),
+    DIVE_DASH_START(-500), // dive stamina
+    DIVE_DASH(-100), // dive stamina, per tick
 
     // restore
     POWERED_FLY(500),
@@ -27,7 +27,8 @@ public enum ConsumptionType {
     RUN(500),
     SKIFF(500),
     STANDBY(500),
-    WALK(500);
+    WALK(500),
+    DIVE_RECOVER(400); // dive stamina, per tick, the rate is observed from wire
 
     public final int amount;
 

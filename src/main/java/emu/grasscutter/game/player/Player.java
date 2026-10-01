@@ -1338,6 +1338,13 @@ public class Player {
         this.setProperty(PlayerProperty.PROP_PLAYER_MP_SETTING_TYPE, this.getMpSetting().ordinal(), false);
         this.setProperty(PlayerProperty.PROP_IS_MP_MODE_AVAILABLE, 1, false);
 
+        // Dive, stamina, also for players created before it existed
+        this.setProperty(PlayerProperty.PROP_IS_DIVEABLE, 1);   // TODO: implement unlocking
+        if (this.getProperty(PlayerProperty.PROP_MAX_DIVE_STAMINA) == 0) {
+            this.setProperty(PlayerProperty.PROP_MAX_DIVE_STAMINA, 12000, false);
+            this.setProperty(PlayerProperty.PROP_CUR_PERSIST_DIVE_STAMINA, 12000, false);
+        }
+
         // Execute daily reset logic if this is a new day.
         this.doDailyReset();
 
@@ -1500,6 +1507,7 @@ public class Player {
             return switch (prop) {
                 case PROP_CUR_SPRING_VOLUME -> getProperty(PlayerProperty.PROP_MAX_SPRING_VOLUME);
                 case PROP_CUR_PERSIST_STAMINA -> getProperty(PlayerProperty.PROP_MAX_STAMINA);
+                case PROP_CUR_PERSIST_DIVE_STAMINA -> getProperty(PlayerProperty.PROP_MAX_DIVE_STAMINA);
                 default -> 0;
             };
         } else {
