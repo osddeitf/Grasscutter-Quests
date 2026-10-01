@@ -9,10 +9,12 @@ import emu.grasscutter.game.player.Player;
 import emu.grasscutter.game.props.FightProperty;
 import emu.grasscutter.game.props.LifeState;
 import emu.grasscutter.game.props.PlayerProperty;
+import teyvat.ability.config.enums.PhlogistonChangeType;
 import emu.grasscutter.server.game.GameSession;
 import emu.grasscutter.server.packet.send.PacketAvatarLifeStateChangeNotify;
 import emu.grasscutter.server.packet.send.PacketEntityFightPropUpdateNotify;
 import emu.grasscutter.server.packet.send.PacketLifeStateChangeNotify;
+import emu.grasscutter.server.packet.send.PacketServerGlobalValueChangeNotify;
 import emu.grasscutter.server.packet.send.PacketVehicleStaminaNotify;
 import emu.grasscutter.utils.Position;
 import lombok.val;
@@ -321,6 +323,45 @@ public class StaminaManager extends BasePlayerManager {
         costFightStamina("Skill " + skillId, cost);
     }
 
+    // One-off cost from ability action DeductStamina, in stamina points (e.g. a special jump, or a monster's hit)
+    public void handleDeductStamina(float cost) {
+        costFightStamina("DeductStamina", cost);
+    }
+
+    // Phlogiston lives in the team's server global value, in points; the player property (hundredths) persists it
+    public static final String PHLOGISTON_SGV = "SGV_PlayerTeam_Phlogiston";
+    public static final float MAX_PHLOGISTON = PlayerProperty.PROP_CUR_PHLOGISTON.getMax() / 100f;
+
+    public float getCurrentPhlogiston() {
+        var team = player.getTeamManager().getEntity();
+        Float value = team == null ? null : (Float) team.getGlobalAbilityValues().get(PHLOGISTON_SGV);
+        return value != null ? value : player.getProperty(PlayerProperty.PROP_CUR_PHLOGISTON) / 100f;
+    }
+
+    // One-off phlogiston change from ability action ChangePhlogiston, in points
+    public void handleChangePhlogiston(PhlogistonChangeType changeType, float points) {
+        changePhlogiston(changeType, points);
+    }
+
+    private void changePhlogiston(PhlogistonChangeType changeType, float points) {
+        var team = player.getTeamManager().getEntity();
+        if (team == null) return;
+
+        float current = getCurrentPhlogiston();
+        float value = switch (changeType) {
+            case Cost -> current - points;
+            case Add -> current + points;
+            case Set -> points;
+        };
+        value = Math.max(0f, Math.min(MAX_PHLOGISTON, value));
+        if (value == current) return;
+        logger.debug("Phlogiston {} {}: {} -> {}", changeType, points, current, value);
+
+        team.getGlobalAbilityValues().put(PHLOGISTON_SGV, value);
+        player.getScene().broadcastPacket(new PacketServerGlobalValueChangeNotify(team, PHLOGISTON_SGV, value));
+        player.setProperty(PlayerProperty.PROP_CUR_PHLOGISTON, Math.round(value * 100), false);
+    }
+
     // Sustained cost from ability mixin CostStaminaMixin (e.g. claymore charged attack), in stamina points per second.
     // The mixin is dedicated to sustained cost: the client invokes it repeatedly while active,
     // each invoke charges a fixed interval, as the official server does.
@@ -375,6 +416,7 @@ public class StaminaManager extends BasePlayerManager {
 
     // Internal handler
 
+    // Start costs, charged once when entering a state (motionState is already the current state)
     private void handleImmediateStamina(GameSession session, @NotNull MotionState motionState) {
         // Don't double dip on sustained stamina start costs
         if (previousState == currentState) {
@@ -384,23 +426,18 @@ public class StaminaManager extends BasePlayerManager {
             updateDiveStaminaRelative(ConsumptionType.DIVE_DASH_START.amount);
             return;
         }
-        if (currentState == motionState) {
-            if (motionState.equals(MotionState.MOTION_CLIMB_JUMP)) {
-                updateStaminaRelative(session, new Consumption(ConsumptionType.CLIMB_JUMP), true);
-            }
-            return;
-        }
-        switch (motionState) {
-            case MOTION_CLIMB ->
-                    updateStaminaRelative(session, new Consumption(ConsumptionType.CLIMB_START), true);
-            case MOTION_DASH_BEFORE_SHAKE ->
-                    updateStaminaRelative(session, new Consumption(ConsumptionType.SPRINT), true);
-            case MOTION_CLIMB_JUMP ->
-                    updateStaminaRelative(session, new Consumption(ConsumptionType.CLIMB_JUMP), true);
-            case MOTION_SWIM_DASH ->
-                    updateStaminaRelative(session, new Consumption(ConsumptionType.SWIM_DASH_START), true);
-            default -> {}
-        }
+        var type = switch (motionState) {
+            case MOTION_CLIMB -> ConsumptionType.CLIMB_START;
+            case MOTION_DASH_BEFORE_SHAKE -> ConsumptionType.SPRINT;
+            case MOTION_CLIMB_JUMP -> ConsumptionType.CLIMB_JUMP;
+            case MOTION_SWIM_DASH -> ConsumptionType.SWIM_DASH_START;
+            default -> null;
+        };
+        if (type == null) return;
+
+        // delay recovering, like other costs
+        staminaRecoverDelay = 0;
+        updateStaminaRelative(session, new Consumption(type), true);
     }
 
     // Dive stamina is a separate pool: dashing underwater costs it, it recovers otherwise,

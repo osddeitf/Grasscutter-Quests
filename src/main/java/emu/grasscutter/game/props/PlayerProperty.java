@@ -64,7 +64,7 @@ public enum PlayerProperty {
     PROP_IS_CAN_PUT_FIVE_STAR_RELIQUARY     (10051),
     PROP_IS_AUTO_LOCK_FIVE_STAR_RELIQUARY   (10052),
     PROP_PLAYER_ROLE_COMBAT_COIN            (10053),
-    PROP_CUR_PHLOGISTON                     (10054),
+    PROP_CUR_PHLOGISTON                     (10054, 0, 10_000), // Phlogiston of the player (0 - 10000)
     PROP_RELIQUARY_TEMPORARY_EXP            (10055);
 
     private static final int inf = Integer.MAX_VALUE;  // Maybe this should be something else?

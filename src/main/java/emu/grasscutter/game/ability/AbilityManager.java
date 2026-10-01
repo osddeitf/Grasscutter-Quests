@@ -344,7 +344,8 @@ public final class AbilityManager extends BasePlayerManager {
         if (wrapper instanceof AbilityScalarValueEntry.Value.IntValue intValue) {
             return intValue.getValue().floatValue();
         }
-        return 0f;
+        // 4.8 and later: a plain float_value instead of the oneof
+        return entry.getFloatValue();
     }
 
     private void setAbilityOverrideValue(Ability ability, AbilityScalarValueEntry valueChange) {

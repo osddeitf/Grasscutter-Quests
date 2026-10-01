@@ -1328,6 +1328,10 @@ public class Player {
         // Activity needed for some quests
         activityManager = new ActivityManager(this);
 
+        // Phlogiston, always reset to full on login
+        // Before creating the world, as the team entity takes its value from it
+        this.setProperty(PlayerProperty.PROP_CUR_PHLOGISTON, PlayerProperty.PROP_CUR_PHLOGISTON.getMax(), false);
+
         // Create world
         World world = new World(this);
         world.addPlayer(this);

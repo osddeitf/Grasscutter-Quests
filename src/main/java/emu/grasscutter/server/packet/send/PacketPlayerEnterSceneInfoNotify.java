@@ -1,5 +1,6 @@
 package emu.grasscutter.server.packet.send;
 
+import emu.grasscutter.game.ability.AbilityScalars;
 import emu.grasscutter.game.player.Player;
 import emu.grasscutter.net.packet.BaseTypedPacket;
 import lombok.val;
@@ -9,6 +10,8 @@ import org.anime_game_servers.multi_proto.gi.messages.scene.AvatarEnterSceneInfo
 import org.anime_game_servers.multi_proto.gi.messages.scene.PlayerEnterSceneInfoNotify;
 import org.anime_game_servers.multi_proto.gi.messages.scene.entity.MPLevelEntityInfo;
 
+import java.util.Map;
+
 public class PacketPlayerEnterSceneInfoNotify extends BaseTypedPacket<PlayerEnterSceneInfoNotify> {
 
 	public PacketPlayerEnterSceneInfoNotify(Player player) {
@@ -16,13 +19,19 @@ public class PacketPlayerEnterSceneInfoNotify extends BaseTypedPacket<PlayerEnte
 
 		val empty = new AbilitySyncStateInfo();
 
+		val teamAbilityInfo = new AbilitySyncStateInfo();
+		Map<String, Float> teamGlobalValues = player.getTeamManager().getEntity().getGlobalAbilityValues();
+		teamAbilityInfo.setSgvDynamicValueMap(teamGlobalValues.entrySet().stream()
+			.map(entry -> AbilityScalars.from(entry.getKey(), entry.getValue()))
+			.toList());
+
         proto.setCurAvatarEntityId(player.getTeamManager().getCurrentAvatarEntity().getId());
         proto.setEnterSceneToken(player.getEnterSceneToken());
 
 		proto.setTeamEnterInfo(
 				new org.anime_game_servers.multi_proto.gi.messages.scene.TeamEnterSceneInfo(
                     player.getTeamManager().getEntity().getId(),
-                    empty,
+                    teamAbilityInfo,
                     player.getTeamManager().getEntity().getAbilities().toProto()
                 )
 		);
