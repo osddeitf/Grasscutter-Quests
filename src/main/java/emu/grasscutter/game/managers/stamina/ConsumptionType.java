@@ -20,6 +20,8 @@ public enum ConsumptionType {
     SWIMMING(-80),
     TALENT_DASH(-300), // -1500 per second, 5Hz = -300 each tick
     TALENT_DASH_START(-1000),
+    DIVE_DASH_START(-500), // dive stamina
+    DIVE_DASH(-100), // dive stamina, per tick
 
     // restore
     POWERED_FLY(500),
@@ -27,7 +29,8 @@ public enum ConsumptionType {
     RUN(500),
     SKIFF(500),
     STANDBY(500),
-    WALK(500);
+    WALK(500),
+    DIVE_RECOVER(400); // dive stamina, per tick, the rate is observed from wire
 
     public final int amount;
 

@@ -122,6 +122,7 @@ public class StaminaManager extends BasePlayerManager {
     private GameSession cachedSession = null;
     private GameEntity cachedEntity = null;
     private int staminaRecoverDelay = 0;
+    private int diveStaminaRecoverDelay = 0;
     private final HashMap<String, BeforeUpdateStaminaListener> beforeUpdateStaminaListeners = new HashMap<>();
     private final HashMap<String, AfterUpdateStaminaListener> afterUpdateStaminaListeners = new HashMap<>();
     private int lastSkillId = 0;
@@ -130,6 +131,7 @@ public class StaminaManager extends BasePlayerManager {
     private int vehicleId = -1;
     private int vehicleStamina = GlobalVehicleMaxStamina;
     private static final Set<Integer> TalentMovements = Set.of(10013, 10413);
+    private static final Set<MotionState> DiveDashStates = Set.of(MotionState.MOTION_DIVE_DASH, MotionState.MOTION_DIVE_SWIM_DASH);
     private static final float CostStaminaMixinInterval = 0.3f;  // s, hardcoded INTERVAL_TIME as in official server
 
     public static void initialize() {
@@ -154,6 +156,14 @@ public class StaminaManager extends BasePlayerManager {
 
     public int getCurrentCharacterStamina() {
         return player.getProperty(PlayerProperty.PROP_CUR_PERSIST_STAMINA);
+    }
+
+    public int getMaxDiveStamina() {
+        return player.getProperty(PlayerProperty.PROP_MAX_DIVE_STAMINA);
+    }
+
+    public int getCurrentDiveStamina() {
+        return player.getProperty(PlayerProperty.PROP_CUR_PERSIST_DIVE_STAMINA);
     }
 
     public int getMaxVehicleStamina() {
@@ -416,6 +426,10 @@ public class StaminaManager extends BasePlayerManager {
         if (previousState == currentState) {
             return;
         }
+        if (DiveDashStates.contains(motionState)) {
+            updateDiveStaminaRelative(ConsumptionType.DIVE_DASH_START.amount);
+            return;
+        }
         if (currentState == motionState) {
             if (motionState.equals(MotionState.MOTION_CLIMB_JUMP)) {
                 updateStaminaRelative(session, new Consumption(ConsumptionType.CLIMB_JUMP), true);
@@ -440,8 +454,39 @@ public class StaminaManager extends BasePlayerManager {
         updateStaminaRelative(session, consumption, true);
     }
 
+    // Dive stamina is a separate pool: dashing underwater costs it, it recovers otherwise,
+    // 1 second (5 ticks) after leaving a dash or a dolphin jump
+    private void updateSustainedDiveStamina() {
+        if (DiveDashStates.contains(currentState)) {
+            diveStaminaRecoverDelay = 0;
+            updateDiveStaminaRelative(ConsumptionType.DIVE_DASH.amount);
+            return;
+        }
+        if (currentState == MotionState.MOTION_DIVE_DOLPHIN) {
+            diveStaminaRecoverDelay = 0;
+            return;
+        }
+        if (diveStaminaRecoverDelay < 5) {
+            diveStaminaRecoverDelay++;
+            return;
+        }
+        updateDiveStaminaRelative(ConsumptionType.DIVE_RECOVER.amount);
+    }
+
+    private void updateDiveStaminaRelative(int amount) {
+        int max = getMaxDiveStamina();
+        int current = getCurrentDiveStamina();
+        int value = Math.max(0, Math.min(max, current + amount));
+        if (!GAME_OPTIONS.staminaUsage || player.getUnlimitedStamina()) {
+            value = max;
+        }
+        if (value == current) return;
+        player.setProperty(PlayerProperty.PROP_CUR_PERSIST_DIVE_STAMINA, value);
+    }
+
     private class SustainedStaminaHandler extends TimerTask {
         public void run() {
+            updateSustainedDiveStamina();
             boolean moving = isPlayerMoving();
             int currentCharacterStamina = getCurrentCharacterStamina();
             int maxCharacterStamina = getMaxCharacterStamina();

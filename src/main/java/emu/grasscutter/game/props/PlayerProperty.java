@@ -59,8 +59,8 @@ public enum PlayerProperty {
     PROP_PLAYER_WAIT_SUB_GCG_COIN           (10046),
     PROP_PLAYER_ONLINE_TIME                 (10047),
     PROP_IS_DIVEABLE                        (10048),
-    PROP_MAX_DIVE_STAMINA                   (10049),
-    PROP_CUR_PERSIST_DIVE_STAMINA           (10050),
+    PROP_MAX_DIVE_STAMINA                   (10049, 0, 12_000), // Maximum dive stamina of the player (0 - 12000)
+    PROP_CUR_PERSIST_DIVE_STAMINA           (10050, true), // Dive stamina of the player (0 - PROP_MAX_DIVE_STAMINA)
     PROP_IS_CAN_PUT_FIVE_STAR_RELIQUARY     (10051),
     PROP_IS_AUTO_LOCK_FIVE_STAR_RELIQUARY   (10052),
     PROP_PLAYER_ROLE_COMBAT_COIN            (10053),
