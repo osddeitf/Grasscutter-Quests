@@ -69,7 +69,7 @@ public class AbilityGroup {
         var group = new AbilityGroup();
         group.targetType = target;
         group.sourceType = AbilityGroupSource.ABILITY_GROUP_SOURCE_NONE;
-        group.hashedAbilities = Set.copyOf(abilityHashes);
+        group.hashedAbilities = abilityHashes.stream().distinct().toList();
         return group;
     }
 }
