@@ -321,6 +321,11 @@ public class StaminaManager extends BasePlayerManager {
         costFightStamina("Skill " + skillId, cost);
     }
 
+    // One-off cost from ability action DeductStamina, in stamina points (e.g. a special jump, or a monster's hit)
+    public void handleDeductStamina(float cost) {
+        costFightStamina("DeductStamina", cost);
+    }
+
     // Sustained cost from ability mixin CostStaminaMixin (e.g. claymore charged attack), in stamina points per second.
     // The mixin is dedicated to sustained cost: the client invokes it repeatedly while active,
     // each invoke charges a fixed interval, as the official server does.
