@@ -343,6 +343,16 @@ public class StaminaManager extends BasePlayerManager {
         changePhlogiston(changeType, points);
     }
 
+    // Sustained phlogiston change from ability mixin ChangePhlogistonMixin, speed in points per second.
+    // Like CostStaminaMixin, the client invokes it repeatedly while active, each invoke changes by one tick interval
+    public void handleChangePhlogistonMixin(PhlogistonChangeType changeType, float speed, float tickInterval) {
+        if (tickInterval <= 0) {
+            logger.warn("ChangePhlogistonMixin without a tick interval: {}", tickInterval);
+            return;
+        }
+        changePhlogiston(changeType, speed * tickInterval);
+    }
+
     private void changePhlogiston(PhlogistonChangeType changeType, float points) {
         var team = player.getTeamManager().getEntity();
         if (team == null) return;

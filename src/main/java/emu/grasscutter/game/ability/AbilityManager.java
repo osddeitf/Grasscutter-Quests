@@ -140,6 +140,7 @@ public final class AbilityManager extends BasePlayerManager {
             case ABILITY_META_TRIGGER_ELEMENT_REACTION -> this.handleTriggerElementReaction(invoke);
             case ABILITY_META_ADD_SPECIAL_ENERGY_VALUE -> this.handleAddSpecialEnergy(invoke);
             case ABILITY_MIXIN_COST_STAMINA -> this.handleServerInvoke(invoke);
+            case ABILITY_MIXIN_CHANGE_PHLOGISTON -> this.handleServerInvoke(invoke);
             default -> {}
         }
     }
