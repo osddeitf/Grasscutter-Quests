@@ -11,6 +11,7 @@ import lombok.val;
 import org.anime_game_servers.gi_lua.models.loader.GIScriptLoader;
 import org.anime_game_servers.gi_lua.models.loader.ScriptSource;
 import org.anime_game_servers.jnlua_engine.JNLuaEngine;
+import org.anime_game_servers.jnlua_engine.JNLuaScript;
 import org.anime_game_servers.lua.engine.LuaEngine;
 import org.anime_game_servers.lua.engine.LuaScript;
 import org.anime_game_servers.lua.engine.RequireMode;
@@ -21,6 +22,7 @@ import org.anime_game_servers.luaj_engine.LuaJEngine;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
+import org.terasology.jnlua.script.LuaBindings;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -59,6 +61,29 @@ public class ScriptLoaderLib implements GIScriptLoader {
         val gcConfig = Grasscutter.getConfig();
 
         return new ScriptConfig(this, RequireMode.ENABLED_WITH_WORKAROUND);
+    }
+
+    /**
+     * Drops the cached scripts, for bulk loading where they'd otherwise stay reachable (and JNLua's native states alive)
+     */
+    public void clearCache() {
+        scriptsCache.clear();
+    }
+
+    /**
+     * Closes the lua state of a JNLua script. Its native state holds JNI references back to the java side,
+     * so it's never garbage collected (nor finalized) without an explicit close.
+     * TODO: reflection until the lua engine exposes closing scripts
+     */
+    public static void closeScript(@Nullable LuaScript script) {
+        if (!(script instanceof JNLuaScript)) return;
+        try {
+            val bindingField = JNLuaScript.class.getDeclaredField("binding");
+            bindingField.setAccessible(true);
+            ((LuaBindings) bindingField.get(script)).getLuaState().close();
+        } catch (ReflectiveOperationException e) {
+            logger.error("Unable to close lua script", e);
+        }
     }
 
     public static <T> Optional<T> tryGet(SoftReference<T> softReference) {

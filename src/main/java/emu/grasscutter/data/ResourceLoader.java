@@ -186,6 +186,19 @@ public class ResourceLoader {
         logger.debug("Loading resources took {}ns == {}ms", ns, ns/1000000);
     }
 
+    /**
+     * Loads only the given resource classes, for standalone tools that don't need everything.
+     */
+    public static void loadResources(Class<?>... classes) {
+        for (val c : classes) {
+            try {
+                loadFromResource(c, c.getAnnotation(ResourceType.class), GameData.getMapByResourceDef(c), false);
+            } catch (Exception e) {
+                logger.error("Error loading resource file: " + c.getSimpleName(), e);
+            }
+        }
+    }
+
     @SuppressWarnings("rawtypes")
     protected static void loadFromResource(Class<?> c, ResourceType type, Int2ObjectMap map, boolean doReload) throws Exception {
         val simpleName = c.getSimpleName();

@@ -9,6 +9,7 @@ import emu.grasscutter.command.PermissionHandler;
 import emu.grasscutter.config.ConfigContainer;
 import emu.grasscutter.data.ResourceLoader;
 import emu.grasscutter.database.DatabaseManager;
+import emu.grasscutter.game.world.managers.SceneGridManager;
 import emu.grasscutter.plugin.PluginManager;
 import emu.grasscutter.plugin.api.ServerHook;
 import emu.grasscutter.server.game.GameServer;
@@ -96,6 +97,12 @@ public final class Grasscutter {
         // Parse start-up arguments.
         if (StartupArguments.parse(args)) {
             System.exit(0); // Exit early.
+        }
+
+        // One-shot scene grid cache generation (-cache-scene-grids[=<sceneId,...>]), standalone, then exit.
+        if (StartupArguments.isCacheSceneGrids()) {
+            SceneGridManager.generateGridCache(StartupArguments.getCacheSceneGridsTarget());
+            System.exit(0);
         }
 
         // Create command map.
