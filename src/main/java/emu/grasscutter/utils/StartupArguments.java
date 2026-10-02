@@ -6,6 +6,7 @@ import emu.grasscutter.BuildConfig;
 import emu.grasscutter.Grasscutter;
 import emu.grasscutter.Grasscutter.ServerRunMode;
 import emu.grasscutter.Loggers;
+import lombok.Getter;
 import lombok.val;
 import org.slf4j.LoggerFactory;
 
@@ -35,6 +36,11 @@ public final class StartupArguments {
         return verifySurrealTarget;
     }
 
+    /** Whether to generate the scene grid cache, then exit. */
+    @Getter private static boolean cacheSceneGrids = false;
+    /** Comma separated scene ids to generate the grid cache for, or null for all scenes. */
+    @Getter private static String cacheSceneGridsTarget = null;
+
     /* A map of parameter -> argument handler. */
     private static final Map<String, Function<String, Boolean>> argumentHandlers = Map.of(
         "-version", StartupArguments::printVersion,
@@ -53,6 +59,10 @@ public final class StartupArguments {
         // Compare MongoDB against an already-migrated SurrealDB target, then exit (handled in main()).
         "-verify-surreal", parameter -> {
             verifySurrealTarget = parameter; return false;
+        },
+        // Generate the scene grid cache, for the given comma separated scene ids or all scenes, then exit (handled in main()).
+        "-cache-scene-grids", parameter -> {
+            cacheSceneGrids = true; cacheSceneGridsTarget = parameter; return false;
         },
 
         // Aliases.
