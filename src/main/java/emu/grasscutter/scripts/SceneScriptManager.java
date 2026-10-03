@@ -864,6 +864,31 @@ public class SceneScriptManager {
         }
     }
 
+    /**
+     * Calls a ServerLuaCall function from the group's script, or from the generic ServerLuaCall scripts
+     * when the group is missing (e.g. a spawned monster's group 0) or doesn't define the function.
+     */
+    public boolean callServerLuaFunction(String funcName, ScriptArgs params, Object... args) {
+        val group = params.groupId != 0 ? getGroupById(params.groupId) : null;
+        var script = group != null ? group.getScript() : null;
+        if (script == null || !script.hasMethod(funcName)) {
+            script = getScene().getWorld().getServer().getScriptSystem().getServerLuaCallScript(funcName);
+        }
+        if (script == null) {
+            logger.error("[LUA] ServerLuaCall function {} not found in group {} nor the generic scripts", funcName, params.groupId);
+            return false;
+        }
+
+        val context = new GroupEventLuaContext(script.getEngine(), group, params, this);
+        try {
+            GIScriptHandler.callGroupFunction(script, funcName, context, args);
+            return true;
+        } catch (RuntimeException | ScriptException | NoSuchMethodException error) {
+            logger.error("[LUA] ServerLuaCall {} failed in group {}, {}", funcName, params.groupId, params, error);
+            return false;
+        }
+    }
+
     private LuaValue callScriptFunc(@Nonnull String funcName, SceneGroup group, ScriptArgs params) {
         val script = group.getScript();
         if(script==null){

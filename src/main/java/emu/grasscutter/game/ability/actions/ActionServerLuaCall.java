@@ -4,6 +4,7 @@ import emu.grasscutter.Grasscutter;
 import emu.grasscutter.data.binout.LuaCallType;
 import emu.grasscutter.data.common.AbilityMath;
 import emu.grasscutter.game.ability.Ability;
+import emu.grasscutter.game.entity.EntityAvatar;
 import emu.grasscutter.game.entity.GameEntity;
 import lombok.val;
 import org.anime_game_servers.gi_lua.models.ScriptArgs;
@@ -56,6 +57,9 @@ public class ActionServerLuaCall extends AbilityActionHandler<ServerLuaCall> {
         val scriptArgs = new ScriptArgs(groupId, 0)
             .setTargetEntityId(target.getId())
             .setSourceEntityId(source.getId());
+        // The player of the targeted avatar, e.g. the one indwelling a saurian, else the ability's
+        val player = target instanceof EntityAvatar avatar ? avatar.getPlayer() : ability.getPlayerOwner();
+        if (player != null) scriptArgs.setUid(player.getUid());
 
         val paramsCount = action.paramNum;
         val scriptParams = new Integer[paramsCount];
@@ -68,6 +72,6 @@ public class ActionServerLuaCall extends AbilityActionHandler<ServerLuaCall> {
                 scriptParams[0] = (int) AbilityMath.evaluate(action.param1, ability);
         }
 
-        return scriptManager.callGroupLuaFunction(action.funcName, scriptArgs, scriptParams);
+        return scriptManager.callServerLuaFunction(action.funcName, scriptArgs, scriptParams);
     }
 }
