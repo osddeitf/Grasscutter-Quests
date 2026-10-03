@@ -84,7 +84,7 @@ public class PlayerBuffManager extends BasePlayerManager {
     /**
      * Adds a server buff to the player.
      * @param buffId Server buff id
-     * @param duration Duration of the buff in seconds. Set to 0 for an infinite buff.
+     * @param duration Duration of the buff in seconds, the buff's own time if negative
      * @return True if a buff was added
      */
     public synchronized boolean addBuff(int buffId, float duration) {
@@ -95,7 +95,7 @@ public class PlayerBuffManager extends BasePlayerManager {
      * Adds a server buff to the player.
      * The buff's modifier and its actions (e.g. heal) are then applied by the client, through the buff's invokes.
      * @param buffId Server buff id
-     * @param duration Duration of the buff in seconds. Set to 0 for an infinite buff.
+     * @param duration Duration of the buff in seconds, the buff's own time if negative
      * @param target Target avatar of an avatar buff, the current avatar if null
      * @return True if a buff was added
      */
@@ -109,8 +109,8 @@ public class PlayerBuffManager extends BasePlayerManager {
             duration = buffData.getTime();
         }
 
-        // Dont add buff if duration is equal or less than 0
-        if (duration <= 0) {
+        // Dont add buff if duration is 0, a negative one (e.g. the buff's time -1) lasts until removed
+        if (duration == 0) {
             return false;
         }
 
@@ -202,7 +202,7 @@ public class PlayerBuffManager extends BasePlayerManager {
         public ServerBuffInstance(int uid, BuffData buffData, float duration, List<Long> avatarGuids, List<Integer> entityIds) {
             this.uid = uid;
             this.buffData = buffData;
-            this.endTime = System.currentTimeMillis() + (long) (duration * 1000);
+            this.endTime = duration < 0 ? Long.MAX_VALUE : System.currentTimeMillis() + (long) (duration * 1000);
             this.avatarGuids = avatarGuids;
             this.entityIds = entityIds;
         }
