@@ -23,7 +23,7 @@ public class MixinChangePhlogiston extends AbilityMixinHandler<ChangePhlogistonM
 
         // e.g. RansuRatio * 2.5, resolved through the ability
         var speed = AbilityMath.evaluate(mixinData.speed, ability);
-        player.getStaminaManager().handleChangePhlogistonMixin(mixinData.changeType, speed, mixinData.tickInterval);
+        player.getStaminaManager().handleChangePhlogistonMixin(owner, mixinData.changeType, speed, mixinData.tickInterval);
         return true;
     }
 }
