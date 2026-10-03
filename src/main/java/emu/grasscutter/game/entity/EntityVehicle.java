@@ -1,6 +1,7 @@
 package emu.grasscutter.game.entity;
 
 import emu.grasscutter.data.binout.config.ConfigEntityGadget;
+import emu.grasscutter.data.binout.config.fields.ConfigVehicle;
 import emu.grasscutter.game.entity.create_config.CreateGadgetEntityConfig;
 import emu.grasscutter.game.entity.gadget.content.GadgetContent;
 import emu.grasscutter.game.player.Player;
@@ -37,8 +38,16 @@ public class EntityVehicle extends EntityBaseGadget {
         super(scene, createConfig);
         this.owner = createConfig.getPlayerOwner();
         this.id = getScene().getWorld().getNextEntityId(EntityIdType.GADGET);
-        this.curStamina = 240; // might be in configGadget.GCALKECLLLP.JBAKBEFIMBN.ANBMPHPOALP
+        val vehicleConfig = getVehicleConfig();
+        this.curStamina = vehicleConfig != null && vehicleConfig.getStamina() != null
+            ? vehicleConfig.getStamina().getStaminaUpperLimit()
+            : 240;
         this.vehicleMembers = new ArrayList<>();
+    }
+
+    @Nullable
+    public ConfigVehicle getVehicleConfig() {
+        return getConfigGadget() != null ? getConfigGadget().getVehicle() : null;
     }
 
     @Override
