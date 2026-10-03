@@ -19,6 +19,7 @@ import org.anime_game_servers.multi_proto.gi.messages.general.Vector;
 import org.anime_game_servers.multi_proto.gi.messages.general.ability.AbilitySyncStateInfo;
 import org.anime_game_servers.multi_proto.gi.messages.general.vehicle.VehicleInfo;
 import org.anime_game_servers.multi_proto.gi.messages.general.vehicle.VehicleMember;
+import org.anime_game_servers.multi_proto.gi.messages.scene.VehicleLocationInfo;
 import org.anime_game_servers.multi_proto.gi.messages.scene.entity.*;
 
 import javax.annotation.Nullable;
@@ -32,6 +33,9 @@ public class EntityVehicle extends EntityBaseGadget {
 
 
     @Getter @Setter private float curStamina;
+    @Getter @Setter private float curPhlogiston;
+    /** The entity this vehicle was transformed from, e.g. an indwelled saurian */
+    @Getter @Setter private int transformEntityId;
     @Getter private final List<VehicleMember> vehicleMembers;
 
     public EntityVehicle(Scene scene, CreateGadgetEntityConfig createConfig) {
@@ -70,12 +74,26 @@ public class EntityVehicle extends EntityBaseGadget {
         return null;
     }
 
+    /** For ScenePlayerLocationNotify, with the uids of the players inside */
+    public VehicleLocationInfo toLocationInfo() {
+        val info = new VehicleLocationInfo(getId(), getGadgetId(), this.owner.getUid());
+        info.setPos(getPosition().toProto());
+        info.setRot(getRotation().toProto());
+        info.setCurHp(getFightProperty(FightProperty.FIGHT_PROP_CUR_HP));
+        info.setMaxHp(getFightProperty(FightProperty.FIGHT_PROP_MAX_HP));
+        info.setUidList(getVehicleMembers().stream().map(VehicleMember::getUid).toList());
+        return info;
+    }
+
     @Override
     public SceneEntityInfo toProto() {
 
         val vehicle = new VehicleInfo();
         vehicle.setOwnerUid(this.owner.getUid());
         vehicle.setCurStamina(getCurStamina());
+        vehicle.setCurPhlogiston(getCurPhlogiston());
+        vehicle.setTransformEntityId(getTransformEntityId());
+        vehicle.setMemberList(List.copyOf(getVehicleMembers()));
 
         val protoBornPos = getPosition().toProto();
         val protoPos = getPosition().toProto();
