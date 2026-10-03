@@ -9,6 +9,7 @@ import emu.grasscutter.scripts.scriptlib_handlers.entities.GroupGadgetHandler;
 import emu.grasscutter.scripts.scriptlib_handlers.entities.GroupMonsterHandler;
 import emu.grasscutter.scripts.scriptlib_handlers.entities.GroupRegionHandler;
 import emu.grasscutter.scripts.scriptlib_handlers.gadget.PlatformHandler;
+import emu.grasscutter.scripts.scriptlib_handlers.gadget.VehicleHandler;
 import emu.grasscutter.scripts.scriptlib_handlers.other.*;
 import emu.grasscutter.scripts.scriptlib_handlers.player.QuestScriptHandler;
 import emu.grasscutter.scripts.scriptlib_handlers.scene.*;
@@ -49,7 +50,7 @@ public class ScriptLibGroupHandlerProvider implements org.anime_game_servers.gi_
     // TODO GadgetGiving
     // TODO GadgetPlay
     final PlatformHandler platformHandler = new PlatformHandler();
-    // TODO Vehicle
+    final VehicleHandler vehicleHandler = new VehicleHandler();
 
     // other
     // TODO Aranara
@@ -195,6 +196,11 @@ public class ScriptLibGroupHandlerProvider implements org.anime_game_servers.gi_
     @Override
     public PlatformHandler getPlatformHandler() {
         return platformHandler;
+    }
+
+    @Override
+    public VehicleHandler getVehicleHandler() {
+        return vehicleHandler;
     }
 
     //other

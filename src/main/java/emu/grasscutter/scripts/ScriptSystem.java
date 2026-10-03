@@ -36,6 +36,7 @@ public class ScriptSystem extends BaseGameSystem {
      * Listed explicitly, as most common scripts are libraries required by group scripts.
      */
     private static final List<CommonScriptLoadParams> SERVER_LUA_CALL_SCRIPTS = List.of(
+        new CommonScriptLoadParams("V5_0/", "Natsaurus_Transfer.lua")
     );
     private List<LuaScript> serverLuaCallScripts;
 

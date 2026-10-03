@@ -22,7 +22,7 @@ public class ActionChangePhlogiston extends AbilityActionHandler<ChangePhlogisto
         if (player == null) return false;
 
         var points = AbilityMath.evaluate(action.value, ability);
-        player.getStaminaManager().handleChangePhlogiston(action.changeType, points);
+        player.getStaminaManager().handleChangePhlogiston(target, action.changeType, points);
         return true;
     }
 }

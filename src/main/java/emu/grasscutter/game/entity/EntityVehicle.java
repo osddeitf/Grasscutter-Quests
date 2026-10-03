@@ -1,6 +1,7 @@
 package emu.grasscutter.game.entity;
 
 import emu.grasscutter.data.binout.config.ConfigEntityGadget;
+import emu.grasscutter.data.binout.config.fields.ConfigVehicle;
 import emu.grasscutter.game.entity.create_config.CreateGadgetEntityConfig;
 import emu.grasscutter.game.entity.gadget.content.GadgetContent;
 import emu.grasscutter.game.player.Player;
@@ -8,6 +9,7 @@ import emu.grasscutter.game.props.EntityIdType;
 import emu.grasscutter.game.props.FightProperty;
 import emu.grasscutter.game.props.PlayerProperty;
 import emu.grasscutter.game.world.Scene;
+import emu.grasscutter.server.packet.send.PacketVehicleInteractRsp;
 import emu.grasscutter.utils.ProtoHelper;
 import it.unimi.dsi.fastutil.ints.Int2FloatMap;
 import it.unimi.dsi.fastutil.ints.Int2FloatOpenHashMap;
@@ -16,8 +18,10 @@ import lombok.Setter;
 import lombok.val;
 import org.anime_game_servers.multi_proto.gi.messages.general.Vector;
 import org.anime_game_servers.multi_proto.gi.messages.general.ability.AbilitySyncStateInfo;
+import org.anime_game_servers.multi_proto.gi.messages.gadget.VehicleInteractType;
 import org.anime_game_servers.multi_proto.gi.messages.general.vehicle.VehicleInfo;
 import org.anime_game_servers.multi_proto.gi.messages.general.vehicle.VehicleMember;
+import org.anime_game_servers.multi_proto.gi.messages.scene.VehicleLocationInfo;
 import org.anime_game_servers.multi_proto.gi.messages.scene.entity.*;
 
 import javax.annotation.Nullable;
@@ -25,20 +29,33 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class EntityVehicle extends EntityBaseGadget {
+    /** Observed: an indwelled saurian's phlogiston bar is full at 50 */
+    public static final float MAX_PHLOGISTON = 50;
 
     @Getter private final Player owner;
     private Int2FloatMap fightProperties;
 
 
     @Getter @Setter private float curStamina;
+    @Getter @Setter private float curPhlogiston;
+    /** The entity this vehicle was transformed from, e.g. an indwelled saurian */
+    @Getter @Setter private int transformEntityId;
     @Getter private final List<VehicleMember> vehicleMembers;
 
     public EntityVehicle(Scene scene, CreateGadgetEntityConfig createConfig) {
         super(scene, createConfig);
         this.owner = createConfig.getPlayerOwner();
         this.id = getScene().getWorld().getNextEntityId(EntityIdType.GADGET);
-        this.curStamina = 240; // might be in configGadget.GCALKECLLLP.JBAKBEFIMBN.ANBMPHPOALP
+        val vehicleConfig = getVehicleConfig();
+        this.curStamina = vehicleConfig != null && vehicleConfig.getStamina() != null
+            ? vehicleConfig.getStamina().getStaminaUpperLimit()
+            : 240;
         this.vehicleMembers = new ArrayList<>();
+    }
+
+    @Nullable
+    public ConfigVehicle getVehicleConfig() {
+        return getConfigGadget() != null ? getConfigGadget().getVehicle() : null;
     }
 
     @Override
@@ -61,12 +78,41 @@ public class EntityVehicle extends EntityBaseGadget {
         return null;
     }
 
+    /**
+     * When the vehicle dies (e.g. a saurian drowning), after it disappeared, control returns to the members as
+     * getting off does. The official server may do more, e.g. the server buff isn't removed.
+     */
+    @Override
+    public void onDeath(int killerId) {
+        super.onDeath(killerId);
+
+        for (val member : List.copyOf(getVehicleMembers())) {
+            getScene().broadcastPacket(new PacketVehicleInteractRsp(this, member, VehicleInteractType.VEHICLE_INTERACT_OUT));
+            // The avatar stays in the scene with a saurian (no disappear nor appear on the wire),
+            // other vehicles may need it to appear again
+        }
+    }
+
+    /** For ScenePlayerLocationNotify, with the uids of the players inside */
+    public VehicleLocationInfo toLocationInfo() {
+        val info = new VehicleLocationInfo(getId(), getGadgetId(), this.owner.getUid());
+        info.setPos(getPosition().toProto());
+        info.setRot(getRotation().toProto());
+        info.setCurHp(getFightProperty(FightProperty.FIGHT_PROP_CUR_HP));
+        info.setMaxHp(getFightProperty(FightProperty.FIGHT_PROP_MAX_HP));
+        info.setUidList(getVehicleMembers().stream().map(VehicleMember::getUid).toList());
+        return info;
+    }
+
     @Override
     public SceneEntityInfo toProto() {
 
         val vehicle = new VehicleInfo();
         vehicle.setOwnerUid(this.owner.getUid());
         vehicle.setCurStamina(getCurStamina());
+        vehicle.setCurPhlogiston(getCurPhlogiston());
+        vehicle.setTransformEntityId(getTransformEntityId());
+        vehicle.setMemberList(List.copyOf(getVehicleMembers()));
 
         val protoBornPos = getPosition().toProto();
         val protoPos = getPosition().toProto();

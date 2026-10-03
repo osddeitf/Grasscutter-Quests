@@ -3,6 +3,7 @@ package emu.grasscutter.game.managers.stamina;
 import emu.grasscutter.Grasscutter;
 import emu.grasscutter.game.entity.EntityAvatar;
 import emu.grasscutter.game.entity.EntityAbilityProperty;
+import emu.grasscutter.game.entity.EntityVehicle;
 import emu.grasscutter.game.entity.GameEntity;
 import emu.grasscutter.game.player.BasePlayerManager;
 import emu.grasscutter.game.player.Player;
@@ -15,6 +16,7 @@ import emu.grasscutter.server.packet.send.PacketAvatarLifeStateChangeNotify;
 import emu.grasscutter.server.packet.send.PacketEntityFightPropUpdateNotify;
 import emu.grasscutter.server.packet.send.PacketLifeStateChangeNotify;
 import emu.grasscutter.server.packet.send.PacketServerGlobalValueChangeNotify;
+import emu.grasscutter.server.packet.send.PacketVehiclePhlogistonNotify;
 import emu.grasscutter.server.packet.send.PacketVehicleStaminaNotify;
 import emu.grasscutter.utils.Position;
 import lombok.val;
@@ -338,38 +340,76 @@ public class StaminaManager extends BasePlayerManager {
         return value != null ? value : player.getProperty(PlayerProperty.PROP_CUR_PHLOGISTON) / 100f;
     }
 
-    // One-off phlogiston change from ability action ChangePhlogiston, in points
-    public void handleChangePhlogiston(PhlogistonChangeType changeType, float points) {
-        changePhlogiston(changeType, points);
+    // One-off phlogiston change from ability action ChangePhlogiston, in points, on the entity it runs on
+    public void handleChangePhlogiston(GameEntity<?> entity, PhlogistonChangeType changeType, float points) {
+        changePhlogiston(entity, changeType, points);
     }
 
     // Sustained phlogiston change from ability mixin ChangePhlogistonMixin, speed in points per second.
     // Like CostStaminaMixin, the client invokes it repeatedly while active, each invoke changes by one tick interval
-    public void handleChangePhlogistonMixin(PhlogistonChangeType changeType, float speed, float tickInterval) {
+    public void handleChangePhlogistonMixin(GameEntity<?> entity, PhlogistonChangeType changeType, float speed, float tickInterval) {
         if (tickInterval <= 0) {
             logger.warn("ChangePhlogistonMixin without a tick interval: {}", tickInterval);
             return;
         }
-        changePhlogiston(changeType, speed * tickInterval);
+        changePhlogiston(entity, changeType, speed * tickInterval);
     }
 
-    private void changePhlogiston(PhlogistonChangeType changeType, float points) {
-        var team = player.getTeamManager().getEntity();
-        if (team == null) return;
-
-        float current = getCurrentPhlogiston();
-        float value = switch (changeType) {
+    // The changed phlogiston, unclamped
+    private static float changedPhlogiston(PhlogistonChangeType changeType, float current, float points) {
+        return switch (changeType) {
             case Cost -> current - points;
             case Add -> current + points;
             case Set -> points;
         };
-        value = Math.max(0f, Math.min(MAX_PHLOGISTON, value));
+    }
+
+    private void changePhlogiston(GameEntity<?> entity, PhlogistonChangeType changeType, float points) {
+        // On a vehicle (e.g. an indwelled saurian) its own phlogiston changes instead
+        if (entity instanceof EntityVehicle vehicle) {
+            changeVehiclePhlogiston(vehicle, changeType, points);
+        } else {
+            changeTeamPhlogiston(changeType, points);
+        }
+    }
+
+    private void changeTeamPhlogiston(PhlogistonChangeType changeType, float points) {
+        var team = player.getTeamManager().getEntity();
+        if (team == null) return;
+
+        float current = getCurrentPhlogiston();
+        float value = Math.max(0f, Math.min(MAX_PHLOGISTON, changedPhlogiston(changeType, current, points)));
         if (value == current) return;
         logger.debug("Phlogiston {} {}: {} -> {}", changeType, points, current, value);
 
         team.getGlobalAbilityValues().put(PHLOGISTON_SGV, value);
         player.getScene().broadcastPacket(new PacketServerGlobalValueChangeNotify(team, PHLOGISTON_SGV, value));
         player.setProperty(PlayerProperty.PROP_CUR_PHLOGISTON, Math.round(value * 100), false);
+    }
+
+    // The excess handling is assumed
+    private void changeVehiclePhlogiston(EntityVehicle vehicle, PhlogistonChangeType changeType, float points) {
+        float current = vehicle.getCurPhlogiston();
+        // A Cost on an empty vehicle is taken from the team's phlogiston
+        if (current <= 0 && changeType == PhlogistonChangeType.Cost) {
+            changeTeamPhlogiston(changeType, points);
+            return;
+        }
+
+        float changed = changedPhlogiston(changeType, current, points);
+        float value = Math.max(0f, Math.min(EntityVehicle.MAX_PHLOGISTON, changed));
+        if (value != current) {
+            logger.debug("Vehicle {} phlogiston {} {}: {} -> {}", vehicle.getId(), changeType, points, current, value);
+            vehicle.setCurPhlogiston(value);
+            player.getScene().broadcastPacket(new PacketVehiclePhlogistonNotify(vehicle.getId(), value));
+        }
+
+        if (changeType == PhlogistonChangeType.Set) return;
+        // An Add overflowing the vehicle goes to the team's phlogiston, a Cost beyond what the vehicle has left is discarded
+        float excess = changed - value;
+        if (excess > 0) {
+            changeTeamPhlogiston(PhlogistonChangeType.Add, excess);
+        }
     }
 
     // Sustained cost from ability mixin CostStaminaMixin (e.g. claymore charged attack), in stamina points per second.
