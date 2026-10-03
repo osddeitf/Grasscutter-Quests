@@ -107,9 +107,10 @@ public class GridPosition implements Serializable {
     @Override
     public int hashCode()
     {
-        int result = (int) (x ^ (x >>> 32));
-        result = 31 * result + (int) (z ^ (z >>> 32));
-        result = 31 * result + (int) (width ^ (width >>> 32));
+        // Fields are ints, the long hashing idiom (x ^ (x >>> 32)) made every hash 0
+        int result = x;
+        result = 31 * result + z;
+        result = 31 * result + width;
         return result;
     }
 
