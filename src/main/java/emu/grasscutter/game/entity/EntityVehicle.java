@@ -27,6 +27,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class EntityVehicle extends EntityBaseGadget {
+    /** Observed: an indwelled saurian's phlogiston bar is full at 50 */
+    public static final float MAX_PHLOGISTON = 50;
 
     @Getter private final Player owner;
     private Int2FloatMap fightProperties;
