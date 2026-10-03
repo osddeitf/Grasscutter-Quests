@@ -1,6 +1,7 @@
 package emu.grasscutter.data.common;
 
 import emu.grasscutter.game.ability.Ability;
+import emu.grasscutter.game.ability.AbilityManager;
 import emu.grasscutter.game.entity.GameEntity;
 import emu.grasscutter.utils.Utils;
 import it.unimi.dsi.fastutil.floats.FloatArrayList;
@@ -26,9 +27,12 @@ public final class AbilityMath {
     public static float evaluate(DynamicFloat value, Ability ability, float defaultValue) {
         return evaluate(value, (key) -> {
             var hash = Utils.abilityHash(key);
+            // TODO: implement a config, when set to true, get from server override map, then return early (ignore other map)
             var overrideMap = ability.getOverrideMap();
             if (!overrideMap.containsKey(hash)) {
-                return ability.getData().getAbilitySpecials().get(key);
+                // Assumption: skip abilitySpecials, since always init by client
+                // Assumption: the global value in question is from ability entity owner
+                return ability.getOwner().getGlobalAbilityValues().get(key);
             }
             return overrideMap.get(hash);
         }, defaultValue);
@@ -37,7 +41,12 @@ public final class AbilityMath {
     public static float evaluate(DynamicFloat value, Function<String, Float> resolver, float defaultValue) {
         if (value instanceof DynamicFloat.Key k) {
             var key = k.getKey();
-            return resolver.apply(key) * (k.getNegative()? -1: 1);
+            var resolvedValue = resolver.apply(key);
+            if (resolvedValue == null) {
+                AbilityManager.getLogger().warn("Evaluate DynamicFloat missing key {}", key);
+                return 0;
+            }
+            return resolvedValue * (k.getNegative()? -1: 1);
         }
         if (value instanceof DynamicFloat.Constant c) {
             return c.getValue();
