@@ -9,6 +9,7 @@ import emu.grasscutter.game.props.EntityIdType;
 import emu.grasscutter.game.props.FightProperty;
 import emu.grasscutter.game.props.PlayerProperty;
 import emu.grasscutter.game.world.Scene;
+import emu.grasscutter.server.packet.send.PacketVehicleInteractRsp;
 import emu.grasscutter.utils.ProtoHelper;
 import it.unimi.dsi.fastutil.ints.Int2FloatMap;
 import it.unimi.dsi.fastutil.ints.Int2FloatOpenHashMap;
@@ -17,6 +18,7 @@ import lombok.Setter;
 import lombok.val;
 import org.anime_game_servers.multi_proto.gi.messages.general.Vector;
 import org.anime_game_servers.multi_proto.gi.messages.general.ability.AbilitySyncStateInfo;
+import org.anime_game_servers.multi_proto.gi.messages.gadget.VehicleInteractType;
 import org.anime_game_servers.multi_proto.gi.messages.general.vehicle.VehicleInfo;
 import org.anime_game_servers.multi_proto.gi.messages.general.vehicle.VehicleMember;
 import org.anime_game_servers.multi_proto.gi.messages.scene.VehicleLocationInfo;
@@ -74,6 +76,21 @@ public class EntityVehicle extends EntityBaseGadget {
     @Override
     public GadgetContent buildContent(CreateGadgetEntityConfig config) {
         return null;
+    }
+
+    /**
+     * When the vehicle dies (e.g. a saurian drowning), after it disappeared, control returns to the members as
+     * getting off does. The official server may do more, e.g. the server buff isn't removed.
+     */
+    @Override
+    public void onDeath(int killerId) {
+        super.onDeath(killerId);
+
+        for (val member : List.copyOf(getVehicleMembers())) {
+            getScene().broadcastPacket(new PacketVehicleInteractRsp(this, member, VehicleInteractType.VEHICLE_INTERACT_OUT));
+            // The avatar stays in the scene with a saurian (no disappear nor appear on the wire),
+            // other vehicles may need it to appear again
+        }
     }
 
     /** For ScenePlayerLocationNotify, with the uids of the players inside */
