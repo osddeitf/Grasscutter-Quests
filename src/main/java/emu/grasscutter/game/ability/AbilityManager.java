@@ -78,7 +78,7 @@ public final class AbilityManager extends BasePlayerManager {
         }
     }
 
-    public void executeAction(Ability ability, ConfigAbilityAction action, byte[] abilityData, GameEntity target) {
+    public void executeAction(Ability ability, ConfigAbilityAction action, byte[] abilityData, GameEntity source, GameEntity target) {
         var actionType = describeAction(action);
         var handler = actionHandlers.get(action.getClass());
 
@@ -90,7 +90,7 @@ public final class AbilityManager extends BasePlayerManager {
         // should be DEBUG level
         logger.info("handleServerInvoke content {}", action);
         eventExecutor.execute(() -> {
-            if (!handler.execute(ability, action, abilityData, target)) {
+            if (!handler.execute(ability, action, abilityData, source, target)) {
                 logger.error("executeAction exec ability action failed {} at {}", actionType, ability.getName());
             }
         });
@@ -255,7 +255,7 @@ public final class AbilityManager extends BasePlayerManager {
                     getEntityIdentity(entity), getEntityIdentity(target)
                 );
             }
-            executeAction(ability, action, invoke.getAbilityData(), target);
+            executeAction(ability, action, invoke.getAbilityData(), entity, target);
 
             return;
         } else {
