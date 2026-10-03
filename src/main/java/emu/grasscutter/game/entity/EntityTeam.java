@@ -25,6 +25,17 @@ public class EntityTeam extends MetaGameEntity implements StringAbilityEntity {
         this.id = player.getWorld().getNextEntityId(EntityIdType.TEAM);
         this.abilities = new TeamAbilityManager(this);
 
+        /*
+         * Full list as of v7.0:
+         *  2558787905 SGV_PlayerTeam_Phlogiston
+         *  1031130579 SGV_MoonPhaseLevel
+         *  3698231495 SGV_MoonPhaseType
+         *  1245369362 SGV_HexenzirkelLevel
+         *  583619525 SGV_HexenzirkelLevel_Temp
+         *  3430280279 SGV_SnezhnayaFrigid
+         *  2318692774 SGV_SnezhnayaEnergy
+         *  4148391354 SGV_SnezhnayaBuildResource
+         **/
         // Server global values, sent with the team's ability info
         getGlobalAbilityValues().put(StaminaManager.PHLOGISTON_SGV, player.getProperty(PlayerProperty.PROP_CUR_PHLOGISTON) / 100f);
     }
