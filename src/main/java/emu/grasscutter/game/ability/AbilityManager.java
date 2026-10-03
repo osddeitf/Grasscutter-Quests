@@ -446,6 +446,11 @@ public final class AbilityManager extends BasePlayerManager {
             var modifierOwner = head.getTargetId() != 0
                 ? this.player.getScene().getEntityById(head.getTargetId())
                 : entity;
+            if (modifierOwner == null) {
+                logger.warn("handleModifierChange missing ability owner entity: {}", head.getTargetId());
+                return;
+            }
+
             var instancedAbility = modifierOwner.getInstancedAbilities().get(head.getInstancedAbilityId());
             if (instancedAbility == null) {
                 logger.info("handleModifierChange No ability found. entity {}, owner {}, modChange: {}", getEntityIdentity(entity), getEntityIdentity(modifierOwner),  modChange);
