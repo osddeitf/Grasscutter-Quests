@@ -12,8 +12,10 @@ public class PacketScenePlayerLocationNotify extends BaseTypedPacket<ScenePlayer
         super(new ScenePlayerLocationNotify(scene.getId()));
 
         proto.setPlayerLocList(scene.getPlayers().stream().map(Player::getPlayerLocationInfo).toList());
+        // Players' vehicles only, not the ones placed by groups
         proto.setVehicleLocList(scene.getEntities().values().stream()
             .filter(EntityVehicle.class::isInstance).map(EntityVehicle.class::cast)
+            .filter(vehicle -> vehicle.getOwner() != null)
             .map(EntityVehicle::toLocationInfo).toList());
     }
 }

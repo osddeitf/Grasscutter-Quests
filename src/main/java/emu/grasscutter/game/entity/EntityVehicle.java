@@ -5,7 +5,6 @@ import emu.grasscutter.data.binout.config.fields.ConfigVehicle;
 import emu.grasscutter.game.entity.create_config.CreateGadgetEntityConfig;
 import emu.grasscutter.game.entity.gadget.content.GadgetContent;
 import emu.grasscutter.game.player.Player;
-import emu.grasscutter.game.props.EntityIdType;
 import emu.grasscutter.game.props.FightProperty;
 import emu.grasscutter.game.props.PlayerProperty;
 import emu.grasscutter.game.props.VehicleType;
@@ -13,13 +12,9 @@ import emu.grasscutter.game.quest.enums.QuestContent;
 import emu.grasscutter.game.world.Scene;
 import emu.grasscutter.server.packet.send.PacketVehicleInteractRsp;
 import emu.grasscutter.utils.ProtoHelper;
-import it.unimi.dsi.fastutil.ints.Int2FloatMap;
-import it.unimi.dsi.fastutil.ints.Int2FloatOpenHashMap;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.val;
-import org.anime_game_servers.multi_proto.gi.messages.general.Vector;
-import org.anime_game_servers.multi_proto.gi.messages.general.ability.AbilitySyncStateInfo;
 import org.anime_game_servers.multi_proto.gi.messages.gadget.VehicleInteractType;
 import org.anime_game_servers.multi_proto.gi.messages.general.Retcode;
 import org.anime_game_servers.multi_proto.gi.messages.general.vehicle.VehicleInfo;
@@ -31,13 +26,16 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
-public class EntityVehicle extends EntityBaseGadget {
+/**
+ * A vehicle, either created for a player (e.g. a skiff, an indwelled saurian), or placed by a group (e.g. a saurian
+ * standing in the world): no owner nor transform entity, and not kept by the world
+ */
+public class EntityVehicle extends EntityGadget {
     /** Observed: an indwelled saurian's phlogiston bar is full at 50 */
     public static final float MAX_PHLOGISTON = 50;
 
-    @Getter private final Player owner;
-    private Int2FloatMap fightProperties;
-
+    /** Null for a vehicle placed by a group */
+    @Nullable @Getter private final Player owner;
 
     // TODO: never updated, StaminaManager tracks the riding player's vehicle stamina on its own (one per player,
     //  reset to its global max on getting in); it should read and write this instead
@@ -50,11 +48,14 @@ public class EntityVehicle extends EntityBaseGadget {
     public EntityVehicle(Scene scene, CreateGadgetEntityConfig createConfig) {
         super(scene, createConfig);
         this.owner = createConfig.getPlayerOwner();
-        this.id = getScene().getWorld().getNextEntityId(EntityIdType.GADGET);
         val vehicleConfig = getVehicleConfig();
         this.curStamina = vehicleConfig != null && vehicleConfig.getStamina() != null
             ? vehicleConfig.getStamina().getStaminaUpperLimit()
             : 240;
+        if (getGroupId() > 0) {
+            // TODO: from the gadget config, its phlogiston field isn't identified yet. Full, as on indwelling
+            this.curPhlogiston = MAX_PHLOGISTON;
+        }
         this.vehicleMembers = new ArrayList<>();
     }
 
@@ -155,20 +156,13 @@ public class EntityVehicle extends EntityBaseGadget {
     }
 
     @Override
-    public Int2FloatMap getFightProperties() {
-        if(fightProperties == null){
-            fightProperties = new Int2FloatOpenHashMap();
-        }
-        return fightProperties;
-    }
-
-    @Override
     protected void fillFightProps(ConfigEntityGadget configGadget) {
         super.fillFightProps(configGadget);
         this.addFightProperty(FightProperty.FIGHT_PROP_CUR_SPEED, 0);
         this.addFightProperty(FightProperty.FIGHT_PROP_CHARGE_EFFICIENCY, 0);
     }
 
+    /** None, whatever the gadget type: the vehicle info is the content */
     @Override
     public GadgetContent buildContent(CreateGadgetEntityConfig config) {
         return null;
@@ -203,7 +197,7 @@ public class EntityVehicle extends EntityBaseGadget {
 
     /** For ScenePlayerLocationNotify, with the uids of the players inside */
     public VehicleLocationInfo toLocationInfo() {
-        val info = new VehicleLocationInfo(getId(), getGadgetId(), this.owner.getUid());
+        val info = new VehicleLocationInfo(getId(), getGadgetId(), getOwnerUid());
         info.setPos(getPosition().toProto());
         info.setRot(getRotation().toProto());
         info.setCurHp(getFightProperty(FightProperty.FIGHT_PROP_CUR_HP));
@@ -212,40 +206,32 @@ public class EntityVehicle extends EntityBaseGadget {
         return info;
     }
 
+    private int getOwnerUid() {
+        return this.owner != null ? this.owner.getUid() : 0;
+    }
+
+    /** The gadget's, with the vehicle info as content */
     @Override
     public SceneEntityInfo toProto() {
+        val entityInfo = super.toProto();
 
         val vehicle = new VehicleInfo();
-        vehicle.setOwnerUid(this.owner.getUid());
+        vehicle.setOwnerUid(getOwnerUid());
         vehicle.setCurStamina(getCurStamina());
         vehicle.setCurPhlogiston(getCurPhlogiston());
         vehicle.setTransformEntityId(getTransformEntityId());
         vehicle.setMemberList(List.copyOf(getVehicleMembers()));
 
-        val protoBornPos = getPosition().toProto();
-        val protoPos = getPosition().toProto();
-        val protoRot = getRotation().toProto();
-        val aiInfo = new SceneEntityAiInfo(true, protoBornPos);
-        val authority = new EntityAuthorityInfo(new AbilitySyncStateInfo(), new EntityRendererChangedInfo(), aiInfo, protoBornPos);
-
-        val gadgetInfo = new SceneGadgetInfo(this.getGadgetId());
-        // TODO: co-op, the authority stays with the owner, even when another player drives
-        gadgetInfo.setAuthorityPeerId(this.getOwner().getPeerId());
-        gadgetInfo.setEnableInteract(true);
+        val gadgetInfo = ((SceneEntityInfo.Entity.Gadget) entityInfo.getEntity()).getValue();
         gadgetInfo.setContent(new SceneGadgetInfo.Content.VehicleInfo(vehicle));
+        // TODO: co-op, the authority stays with the owner, even when another player drives
+        if (this.owner != null) {
+            gadgetInfo.setAuthorityPeerId(this.owner.getPeerId());
+        }
 
-        val entityInfo = new SceneEntityInfo(ProtEntityType.PROT_ENTITY_GADGET, getId());
-        entityInfo.setMotionInfo(new MotionInfo(protoPos, protoRot, new Vector()));
-        entityInfo.setAnimatorParaList(List.of(new AnimatorParameterValueInfoPair()));
-        entityInfo.setEntity(new SceneEntityInfo.Entity.Gadget(gadgetInfo));
-        entityInfo.setEntityAuthorityInfo(authority);
-        entityInfo.setLifeState(1);
-        entityInfo.setTagList(getEntityTags().stream().toList());
-
-
-        this.addAllFightPropsToEntityInfo(entityInfo);
-
-        val pair = new PropPair(PlayerProperty.PROP_LEVEL.getId(), ProtoHelper.newPropValue(PlayerProperty.PROP_LEVEL, 47));
+        // A group's level, else as observed for a player's
+        val level = getLevel() > 0 ? getLevel() : 47;
+        val pair = new PropPair(PlayerProperty.PROP_LEVEL.getId(), ProtoHelper.newPropValue(PlayerProperty.PROP_LEVEL, level));
         entityInfo.setPropList(List.of(pair));
 
         return entityInfo;
