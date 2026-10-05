@@ -28,13 +28,18 @@ public final class AbilityMath {
         return evaluate(value, (key) -> {
             var hash = Utils.abilityHash(key);
             // TODO: implement a config, when set to true, get from server override map, then return early (ignore other map)
-            var overrideMap = ability.getOverrideMap();
-            if (!overrideMap.containsKey(hash)) {
-                // Assumption: skip abilitySpecials, since always init by client
-                // Assumption: the global value in question is from ability entity owner
-                return ability.getOwner().getGlobalAbilityValues().get(key);
+            if (ability.getOverrideMap().containsKey(hash)) {
+                return ability.getOverrideMap().get(hash);
             }
-            return overrideMap.get(hash);
+
+            // Assumption: client doesn't always init the override map
+            // Assumption: skip abilitySpecials, since always init by client/server?
+            if (ability.getServerOverrideMap().containsKey(hash)) {
+                return ability.getServerOverrideMap().get(hash);
+            }
+
+            // Assumption: the global value in question is from ability entity owner
+            return ability.getOwner().getGlobalAbilityValues().get(key);
         }, defaultValue);
     }
 
