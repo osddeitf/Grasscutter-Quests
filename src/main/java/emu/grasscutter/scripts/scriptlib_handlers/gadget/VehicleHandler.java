@@ -11,15 +11,11 @@ import emu.grasscutter.game.props.VehicleType;
 import emu.grasscutter.scripts.lua_engine.GroupEventLuaContext;
 import emu.grasscutter.scripts.scriptlib_handlers.BaseHandler;
 import emu.grasscutter.server.packet.send.PacketScenePlayerLocationNotify;
-import emu.grasscutter.server.packet.send.PacketVehicleInteractRsp;
-import emu.grasscutter.server.packet.send.PacketVehicleStaminaNotify;
 import emu.grasscutter.utils.Position;
 import lombok.Getter;
 import lombok.val;
 import org.anime_game_servers.core.gi.models.Vector;
 import org.anime_game_servers.gi_lua.script_lib.handler.gadget.VehicleScriptHandler;
-import org.anime_game_servers.multi_proto.gi.messages.gadget.VehicleInteractType;
-import org.anime_game_servers.multi_proto.gi.messages.general.vehicle.VehicleMember;
 import org.anime_game_servers.multi_proto.gi.messages.scene.VisionType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -69,13 +65,13 @@ public class VehicleHandler extends BaseHandler implements VehicleScriptHandler<
         vehicle.setTransformEntityId(monster.getId());
         vehicle.setCurPhlogiston(EntityVehicle.MAX_PHLOGISTON); // starts full
         scene.addEntity(vehicle);
+
+        // The saurian is considered killed, with VISION_MISS as the official does. It may reappear on changing scene,
+        // or through the scene's usual entity persistence
         scene.removeEntities(List.of(monster), VisionType.VISION_MISS);
 
-        player.getBuffManager().addBuff(vehicle.getVehicleConfig().getServerBuffId());
-        player.sendPacket(new PacketVehicleStaminaNotify(vehicle.getId(), vehicle.getCurStamina()));
-        // Adds the member to the vehicle
-        val member = new VehicleMember(player.getUid(), avatar.getAvatar().getGuid());
-        player.sendPacket(new PacketVehicleInteractRsp(vehicle, member, VehicleInteractType.VEHICLE_INTERACT_IN));
+        // Switching from another vehicle: entering gets fully off it first, as getting off does
+        vehicle.enter(player, avatar.getAvatar().getGuid());
         player.sendPacket(new PacketScenePlayerLocationNotify(scene));
         return 0;
     }

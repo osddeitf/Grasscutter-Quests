@@ -10,6 +10,7 @@ import lombok.Data;
 public class ConfigVehicle {
     VehicleType vehicleType;
     int serverBuffId;
+    int maxSeatCount;
     ConfigVehicleStamina stamina;
 
     @Data
