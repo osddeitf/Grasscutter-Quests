@@ -194,6 +194,13 @@ public class EntityVehicle extends EntityBaseGadget {
         }
     }
 
+    /** No longer kept by the world, e.g. killed or evicted */
+    @Override
+    public void onRemoved() {
+        super.onRemoved();
+        getScene().getWorld().getVehicleStore().remove(this);
+    }
+
     /** For ScenePlayerLocationNotify, with the uids of the players inside */
     public VehicleLocationInfo toLocationInfo() {
         val info = new VehicleLocationInfo(getId(), getGadgetId(), this.owner.getUid());

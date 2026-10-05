@@ -53,6 +53,8 @@ public class World implements Iterable<Player> {
     @Getter private long currentGameTime = 540;
 
     @Getter private Random worldRandomGenerator;
+    /** The vehicles kept beyond their scene's lifetime */
+    @Getter private final VehicleStore vehicleStore = new VehicleStore();
 
     public World(Player player) {
         this(player, false);
@@ -130,6 +132,7 @@ public class World implements Iterable<Player> {
         if (sceneData != null) {
             scene = new Scene(this, sceneData);
             this.registerScene(scene);
+            this.vehicleStore.restore(scene);
             return scene;
         }
 

@@ -409,6 +409,21 @@ public class Scene {
         broadcastPacket(new PacketSceneEntityAppearNotify(newEntity, VisionType.VISION_REPLACE, oldEntity.getId()));
     }
 
+    /** Adds a vehicle, kept by the world beyond this scene for some types: the vehicles it evicts are removed */
+    public void addVehicle(EntityVehicle vehicle) {
+        // e.g. the owner's previous skiff, or the oldest saurians over the limit
+        val evicted = getWorld().getVehicleStore().add(vehicle);
+        evicted.forEach(this::removeVehicle);
+
+        addEntity(vehicle);
+    }
+
+    /** Removes a vehicle that's replaced, not killed: control returns to its members first */
+    public void removeVehicle(EntityVehicle vehicle) {
+        vehicle.ejectMembers();
+        removeEntities(List.of(vehicle), VisionType.VISION_REMOVE);
+    }
+
     /** The vehicles the player is in */
     public List<EntityVehicle> getVehiclesOf(Player player) {
         return this.entities.values().stream()

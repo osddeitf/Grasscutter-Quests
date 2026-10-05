@@ -49,7 +49,7 @@ public class VehicleHandler extends BaseHandler implements VehicleScriptHandler<
             return transferToVehicle(player, vehicle, monster, scene.getEntityById(context.getArgs().getTargetEntityId()));
         }
 
-        scene.addEntity(vehicle);
+        scene.addVehicle(vehicle);
         return 0;
     }
 
@@ -64,7 +64,7 @@ public class VehicleHandler extends BaseHandler implements VehicleScriptHandler<
         val scene = player.getScene();
         vehicle.setTransformEntityId(monster.getId());
         vehicle.setCurPhlogiston(EntityVehicle.MAX_PHLOGISTON); // starts full
-        scene.addEntity(vehicle);
+        scene.addVehicle(vehicle);
 
         // The saurian is considered killed, with VISION_MISS as the official does. It may reappear on changing scene,
         // or through the scene's usual entity persistence

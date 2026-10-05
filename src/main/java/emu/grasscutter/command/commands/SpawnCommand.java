@@ -158,6 +158,7 @@ public final class SpawnCommand implements CommandHandler {
         EntityBaseGadget entity;
         if (gadgetData.getType() == EntityType.Vehicle) {
             config.setPlayerOwner(targetPlayer);
+            // TODO: added without Scene.addVehicle, so not kept by the world nor capped
             entity = new EntityVehicle(param.scene, config);
         } else {
             entity = new EntityGadget(param.scene, config);
