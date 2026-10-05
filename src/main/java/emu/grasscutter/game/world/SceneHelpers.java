@@ -31,6 +31,7 @@ public class SceneHelpers {
                 gameEntity = switch (gadgetType){
                     case Vehicle -> {
                         createConfig.setPlayerOwner(player);
+                        // TODO: added without Scene.addVehicle, so not kept by the world nor capped
                         yield new EntityVehicle(scene, createConfig);
                     }
                     default -> new EntityGadget(scene, createConfig);

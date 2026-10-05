@@ -249,6 +249,11 @@ public class Scene {
         // Remove from challenge if leaving, challenge has progress check
         Optional.ofNullable(this.challenge).ifPresent(WorldChallenge::fail);
 
+        // Off any vehicle, without packets to the leaving player (e.g. the vehicle's server buff is removed).
+        // TODO: the official mechanism is unclear, other players in the scene may need notifying (e.g. the vehicle's
+        //  members changed)
+        getVehiclesOf(player).forEach(vehicle -> vehicle.removeMember(player));
+
         // Remove player from scene
         this.players.remove(player);
         player.setScene(null);
@@ -413,6 +418,29 @@ public class Scene {
         addEntityDirectly(newEntity);
         broadcastPacket(new PacketSceneEntityDisappearNotify(oldEntity, VisionType.VISION_REPLACE));
         broadcastPacket(new PacketSceneEntityAppearNotify(newEntity, VisionType.VISION_REPLACE, oldEntity.getId()));
+    }
+
+    /** Adds a vehicle, kept by the world beyond this scene for some types: the vehicles it evicts are removed */
+    public void addVehicle(EntityVehicle vehicle) {
+        // e.g. the owner's previous skiff, or the oldest saurians over the limit
+        val evicted = getWorld().getVehicleStore().add(vehicle);
+        evicted.forEach(this::removeVehicle);
+
+        addEntity(vehicle);
+    }
+
+    /** Removes a vehicle that's replaced, not killed: control returns to its members first */
+    public void removeVehicle(EntityVehicle vehicle) {
+        vehicle.ejectMembers();
+        removeEntities(List.of(vehicle), VisionType.VISION_REMOVE);
+    }
+
+    /** The vehicles the player is in */
+    public List<EntityVehicle> getVehiclesOf(Player player) {
+        return this.entities.values().stream()
+            .filter(EntityVehicle.class::isInstance).map(EntityVehicle.class::cast)
+            .filter(vehicle -> vehicle.hasMember(player.getUid()))
+            .toList();
     }
 
     public void showOtherEntities(Player player) {

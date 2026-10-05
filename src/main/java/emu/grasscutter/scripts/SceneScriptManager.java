@@ -9,6 +9,7 @@ import emu.grasscutter.game.entity.*;
 import emu.grasscutter.game.entity.create_config.CreateGadgetEntityConfig;
 import emu.grasscutter.game.entity.create_config.CreateMonsterEntityConfig;
 import emu.grasscutter.game.entity.create_config.CreateNpcEntityConfig;
+import emu.grasscutter.game.props.EntityType;
 import emu.grasscutter.game.quest.GameQuest;
 import emu.grasscutter.game.quest.QuestGroupSuite;
 import emu.grasscutter.game.quest.enums.QuestContent;
@@ -694,7 +695,12 @@ public class SceneScriptManager {
         }
         val createConfig = new CreateGadgetEntityConfig(g)
             .setGadgetState(state);
-        EntityGadget entity = new EntityGadget(getScene(), createConfig);
+        // A saurian placed by the group is a vehicle anyone may get in.
+        // TODO: not kept by the world as players' vehicles are, should persist like the group's other entities
+        val gadgetData = createConfig.getGadgetData();
+        EntityGadget entity = gadgetData != null && gadgetData.getType() == EntityType.Vehicle
+            ? new EntityVehicle(getScene(), createConfig)
+            : new EntityGadget(getScene(), createConfig);
 
         if (entity.getGadgetData() == null) {
             return null;
