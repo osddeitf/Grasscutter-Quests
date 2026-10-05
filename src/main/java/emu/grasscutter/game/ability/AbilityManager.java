@@ -42,6 +42,7 @@ public final class AbilityManager extends BasePlayerManager {
     private final static HashMap<Class<?>, AbilityMixinHandler> mixinHandlers = new HashMap<>();
 
     // Single thread: invokes are handled in order, e.g. a modifier's actions only after the modifier is added.
+    // A task must not throw: the loop runs tasks unguarded, an exception terminates it for good
     // TODO: should be world or scene scoped instead of shared by the whole server
     public static final ExecutorService eventExecutor = new DefaultEventLoop();
     static {
@@ -90,8 +91,12 @@ public final class AbilityManager extends BasePlayerManager {
         // should be DEBUG level
         logger.info("handleServerInvoke content {}", action);
         eventExecutor.execute(() -> {
-            if (!handler.execute(ability, action, abilityData, source, target)) {
-                logger.error("executeAction exec ability action failed {} at {}", actionType, ability.getName());
+            try {
+                if (!handler.execute(ability, action, abilityData, source, target)) {
+                    logger.error("executeAction exec ability action failed {} at {}", actionType, ability.getName());
+                }
+            } catch (Exception e) {
+                logger.error("executeAction exception in ability action {} at {}", actionType, ability.getName(), e);
             }
         });
     }
@@ -106,8 +111,12 @@ public final class AbilityManager extends BasePlayerManager {
         }
 
         eventExecutor.execute(() -> {
-            if (!handler.execute(ability, mixinData, abilityData)) {
-                logger.error("executeMixin exec ability action failed {} at {}", mixinType, ability.getName());
+            try {
+                if (!handler.execute(ability, mixinData, abilityData)) {
+                    logger.error("executeMixin exec ability action failed {} at {}", mixinType, ability.getName());
+                }
+            } catch (Exception e) {
+                logger.error("executeMixin exception in ability mixin {} at {}", mixinType, ability.getName(), e);
             }
         });
     }
