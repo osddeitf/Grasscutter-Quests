@@ -8,6 +8,7 @@ import emu.grasscutter.game.managers.stamina.StaminaManager;
 import emu.grasscutter.game.player.Player;
 import emu.grasscutter.game.props.PlayerProperty;
 import emu.grasscutter.game.props.EntityIdType;
+import emu.grasscutter.game.world.Scene;
 import emu.grasscutter.game.world.World;
 import lombok.Getter;
 
@@ -54,6 +55,12 @@ public class EntityTeam extends MetaGameEntity implements StringAbilityEntity {
     @Override
     public World getWorld() {
         return player.getWorld();
+    }
+
+    /** The player's current scene: the team is created before the player enters one, and follows them across scenes */
+    @Override
+    public Scene getScene() {
+        return player.getScene();
     }
 
     @Override
