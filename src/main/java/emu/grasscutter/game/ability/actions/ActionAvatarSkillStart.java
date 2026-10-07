@@ -26,6 +26,10 @@ public class ActionAvatarSkillStart extends AbilityActionHandler<AvatarSkillStar
                 var cost = AbilityMath.evaluate(action.costStaminaRatio, ability) * skillData.getCostStamina();
                 avatar.getPlayer().getStaminaManager().handleSkillStartCostStamina(action.skillID, cost);
             }
+
+            // Energy cost = ratio * skill costElemVal, e.g. a burst
+            avatar.getPlayer().getEnergyManager().handleSkillStartCostEnergy(avatar, action.skillID,
+                AbilityMath.evaluate(action.costEnergyRatio, ability));
         } else {
             logger.warn("AvatarSkillStart not implemented for other entities than EntityAvatar right now");
 

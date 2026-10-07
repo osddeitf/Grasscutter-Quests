@@ -130,19 +130,24 @@ public class EntityAvatar extends GameEntity {
         return this.heal(amount, false);
     }
 
-    // Consumes the whole energy, e.g. on burst
+    // Consumes the whole energy, e.g. on death
     public void clearEnergy(ChangeEnergyReason reason) {
+        costEnergy(this.avatar.getCurrentEnergy(), reason);
+    }
+
+    // Consumes some energy, down to 0, e.g. a burst's cost on skill start
+    public void costEnergy(float cost, ChangeEnergyReason reason) {
         val curEnergyProp = this.avatar.getCurEnergyProp();
         float curEnergy = this.avatar.getCurrentEnergy();
+        float newEnergy = Math.max(0, curEnergy - cost);
 
-        // Set energy to zero.
-        this.avatar.setCurrentEnergy(0);
+        this.avatar.setCurrentEnergy(newEnergy);
 
         // Send packets.
         this.getScene().broadcastPacket(new PacketEntityFightPropUpdateNotify(this, curEnergyProp));
 
         if (reason == ChangeEnergyReason.CHANGE_ENERGY_SKILL_START) {
-            this.getScene().broadcastPacket(new PacketEntityFightPropChangeReasonNotify(this, curEnergyProp, -curEnergy, reason));
+            this.getScene().broadcastPacket(new PacketEntityFightPropChangeReasonNotify(this, curEnergyProp, newEnergy - curEnergy, reason));
         }
     }
 

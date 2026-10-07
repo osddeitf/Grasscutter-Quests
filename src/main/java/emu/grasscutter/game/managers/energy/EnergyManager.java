@@ -20,7 +20,6 @@ import emu.grasscutter.game.player.Player;
 import emu.grasscutter.game.props.ElementType;
 import emu.grasscutter.game.props.FightProperty;
 import emu.grasscutter.game.props.MonsterType;
-import emu.grasscutter.server.game.GameSession;
 import emu.grasscutter.utils.Position;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
@@ -173,32 +172,33 @@ public class EnergyManager extends BasePlayerManager {
      * Energy logic related to using skills.
      */
 
-    private void handleBurstCast(Avatar avatar, int skillId) {
-        // Don't do anything if energy usage is disabled.
-        if (!GAME_OPTIONS.energyUsage || !this.energyUsage) {
+    /**
+     * A skill's energy cost on AvatarSkillStart, by the action's costEnergyRatio (e.g. 0 for a free variant, as Skirk's
+     * special burst):
+     * - elemental energy: the skill's costElemVal, partial, as an avatar may have several bursts with different costs
+     *   (e.g. Varesa 70 and 30)
+     * - special energy (e.g. Mavuika, Skirk): the max special energy, for skills consuming it only (specialEnergyType),
+     *   not every skill of the avatar (e.g. Mavuika's elemental skill)
+     */
+    public void handleSkillStartCostEnergy(EntityAvatar avatar, int skillId, float ratio) {
+        if (!GAME_OPTIONS.energyUsage || !this.energyUsage) return;
+
+        var skillData = GameData.getAvatarSkillDataMap().get(skillId);
+        if (skillData == null) return;
+
+        float baseCost;
+        if (skillData.getCostElemVal() > 0) {
+            baseCost = skillData.getCostElemVal();
+        } else if (avatar.getAvatar().hasSpecialEnergy() && skillData.getSpecialEnergyCostType() != null
+            && !skillData.getSpecialEnergyCostType().isEmpty()) {
+            baseCost = avatar.getAvatar().getMaxEnergy();
+        } else {
             return;
         }
 
-        // If the cast skill was a burst, consume energy.
-        if (avatar.getSkillDepot() != null && skillId == avatar.getSkillDepot().getEnergySkill()) {
-            avatar.getAsEntity().clearEnergy(ChangeEnergyReason.CHANGE_ENERGY_SKILL_START);
-        }
-    }
-
-    public void handleEvtDoSkillSuccNotify(GameSession session, int skillId, int casterId) {
-        // Determine the entity that has cast the skill. Cancel if we can't find that avatar.
-        Optional<EntityAvatar> caster = this.player.getTeamManager().getActiveTeam().stream()
-                .filter(character -> character.getId() == casterId)
-                .findFirst();
-
-        if (caster.isEmpty()) {
-            return;
-        }
-
-        Avatar avatar = caster.get().getAvatar();
-
-        // Handle elemental burst.
-        this.handleBurstCast(avatar, skillId);
+        float cost = baseCost * ratio;
+        if (cost <= 0) return;
+        avatar.costEnergy(cost, ChangeEnergyReason.CHANGE_ENERGY_SKILL_START);
     }
 
     /*
