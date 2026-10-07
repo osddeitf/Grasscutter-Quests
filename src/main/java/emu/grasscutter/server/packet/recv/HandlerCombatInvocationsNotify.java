@@ -42,7 +42,6 @@ public class HandlerCombatInvocationsNotify extends TypedPacketHandler<CombatInv
 
                     // Handle damage
                     player.getAttackResults().add(attackResult);
-                    player.getEnergyManager().handleAttackHit(hitInfo);
                 }
                 case ENTITY_MOVE -> {
                     // Handle movement

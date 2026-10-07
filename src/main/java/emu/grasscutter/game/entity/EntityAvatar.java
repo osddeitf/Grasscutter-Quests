@@ -130,19 +130,24 @@ public class EntityAvatar extends GameEntity {
         return this.heal(amount, false);
     }
 
-    // Consumes the whole energy, e.g. on burst
+    // Consumes the whole energy, e.g. on death
     public void clearEnergy(ChangeEnergyReason reason) {
+        costEnergy(this.avatar.getCurrentEnergy(), reason);
+    }
+
+    // Consumes some energy, down to 0, e.g. a burst's cost on skill start
+    public void costEnergy(float cost, ChangeEnergyReason reason) {
         val curEnergyProp = this.avatar.getCurEnergyProp();
         float curEnergy = this.avatar.getCurrentEnergy();
+        float newEnergy = Math.max(0, curEnergy - cost);
 
-        // Set energy to zero.
-        this.avatar.setCurrentEnergy(0);
+        this.avatar.setCurrentEnergy(newEnergy);
 
         // Send packets.
         this.getScene().broadcastPacket(new PacketEntityFightPropUpdateNotify(this, curEnergyProp));
 
         if (reason == ChangeEnergyReason.CHANGE_ENERGY_SKILL_START) {
-            this.getScene().broadcastPacket(new PacketEntityFightPropChangeReasonNotify(this, curEnergyProp, -curEnergy, reason));
+            this.getScene().broadcastPacket(new PacketEntityFightPropChangeReasonNotify(this, curEnergyProp, newEnergy - curEnergy, reason));
         }
     }
 
@@ -165,7 +170,7 @@ public class EntityAvatar extends GameEntity {
     }
 
     /**
-     * Adds elemental energy (particles, attacks, items, ...), capped to max.
+     * Adds elemental energy (particles, attacks, items, ...), capped to max, or drains it (negative), down to 0.
      * Special energy isn't gained this way, so avatars using it are skipped.
      */
     public void addEnergy(float amount, PropChangeReason reason, boolean isFlat) {
@@ -181,8 +186,8 @@ public class EntityAvatar extends GameEntity {
             amount *= this.getFightProperty(FightProperty.FIGHT_PROP_CHARGE_EFFICIENCY);
         }
 
-        // Determine the new energy value.
-        float newEnergy = Math.min(curEnergy + amount, maxEnergy);
+        // Determine the new energy value, a negative amount drains it.
+        float newEnergy = Math.max(0, Math.min(curEnergy + amount, maxEnergy));
 
         // Set energy and notify.
         if (newEnergy != curEnergy) {

@@ -20,17 +20,12 @@ import emu.grasscutter.game.player.Player;
 import emu.grasscutter.game.props.ElementType;
 import emu.grasscutter.game.props.FightProperty;
 import emu.grasscutter.game.props.MonsterType;
-import emu.grasscutter.game.props.WeaponType;
-import emu.grasscutter.server.game.GameSession;
 import emu.grasscutter.utils.Position;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.objects.Object2IntMap;
-import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import lombok.val;
 import org.anime_game_servers.multi_proto.gi.messages.ability.AbilityInvokeEntry;
 import org.anime_game_servers.multi_proto.gi.messages.ability.action.AbilityActionGenerateElemBall;
-import org.anime_game_servers.multi_proto.gi.messages.battle.event.EvtBeingHitInfo;
 import org.anime_game_servers.multi_proto.gi.messages.general.PropChangeReason;
 import org.anime_game_servers.multi_proto.gi.messages.scene.entity.ChangeEnergyReason;
 
@@ -41,7 +36,6 @@ import java.util.concurrent.ThreadLocalRandom;
 import static emu.grasscutter.config.Configuration.GAME_OPTIONS;
 
 public class EnergyManager extends BasePlayerManager {
-    private final Object2IntMap<EntityAvatar> avatarNormalProbabilities;
 
     private boolean energyUsage; // Should energy usage be enabled for this player?
     private final static Int2ObjectMap<List<EnergyDropInfo>> energyDropData = new Int2ObjectOpenHashMap<>();
@@ -49,7 +43,6 @@ public class EnergyManager extends BasePlayerManager {
 
     public EnergyManager(Player player) {
         super(player);
-        this.avatarNormalProbabilities = new Object2IntOpenHashMap<>();
         this.energyUsage=GAME_OPTIONS.energyUsage;
     }
 
@@ -175,113 +168,37 @@ public class EnergyManager extends BasePlayerManager {
         }
     }
 
-    /**
-     * Energy generation for NAs/CAs.
-     * @param avatar The avatar.
-     */
-    private void generateEnergyForNormalAndCharged(EntityAvatar avatar) {
-        // This logic is based on the descriptions given in
-        //     https://genshin-impact.fandom.com/wiki/Energy#Energy_Generated_by_Normal_Attacks
-        //     https://library.keqingmains.com/combat-mechanics/energy#auto-attacking
-        // Those descriptions are lacking in some information, so this implementation most likely
-        // does not fully replicate the behavior of the official server. Open questions:
-        //    - Does the probability for a character reset after some time?
-        //    - Does the probability for a character reset when switching them out?
-        //    - Does this really count every individual hit separately?
-
-        // Get the avatar's weapon type.
-        WeaponType weaponType = avatar.getAvatar().getAvatarData().getWeaponType();
-
-        // Check if we already have probability data for this avatar. If not, insert it.
-        if (!this.avatarNormalProbabilities.containsKey(avatar)) {
-            this.avatarNormalProbabilities.put(avatar, weaponType.getEnergyGainInitialProbability());
-        }
-
-        // Roll for energy.
-        int currentProbability = this.avatarNormalProbabilities.getInt(avatar);
-        int roll = ThreadLocalRandom.current().nextInt(0, 100);
-
-        // If the player wins the roll, we increase the avatar's energy and reset the probability.
-        if (roll < currentProbability) {
-            avatar.addEnergy(1.0f, PropChangeReason.PROP_CHANGE_ABILITY, true);
-            this.avatarNormalProbabilities.put(avatar, weaponType.getEnergyGainInitialProbability());
-        }
-        // Otherwise, we increase the probability for the next hit.
-        else {
-            this.avatarNormalProbabilities.put(avatar, currentProbability + weaponType.getEnergyGainIncreaseProbability());
-        }
-    }
-
-    public void handleAttackHit(EvtBeingHitInfo hitInfo) {
-        // Get the attack result.
-        val attackRes = hitInfo.getAttackResult();
-
-        // Make sure the attack was performed by the currently active avatar. If not, we ignore the hit.
-        Optional<EntityAvatar> attackerEntity = this.getCastingAvatarEntityForEnergy(attackRes.getAttackerId());
-        if (attackerEntity.isEmpty() || this.player.getTeamManager().getCurrentAvatarEntity().getId() != attackerEntity.get().getId()) {
-            return;
-        }
-
-        // Make sure the target is an actual enemy.
-        GameEntity targetEntity = this.player.getScene().getEntityById(attackRes.getDefenseId());
-        if (!(targetEntity instanceof EntityMonster targetMonster)) {
-            return;
-        }
-
-        MonsterType targetType = targetMonster.getMonsterData().getType();
-        if (targetType != MonsterType.MONSTER_ORDINARY && targetType != MonsterType.MONSTER_BOSS) {
-            return;
-        }
-
-        // Get the ability that caused this hit.
-        val ability = attackRes.getAbilityIdentifier();
-
-        // Make sure there is no actual "ability" associated with the hit. For now, this is how we
-        // identify normal and charged attacks. Note that this is not completely accurate:
-        //    - Many character's charged attacks have an ability associated with them. This means that,
-        //      for now, we don't identify charged attacks reliably.
-        //    - There might also be some cases where we incorrectly identify something as a normal or
-        //      charged attack that is not (Diluc's E?).
-        //    - Catalyst normal attacks have an ability, so we don't handle those for now.
-        // ToDo: Fix all of that instead of checking for default value.
-        if(ability == null) {
-            return;
-        }
-
-        // Handle the energy generation.
-        this.generateEnergyForNormalAndCharged(attackerEntity.get());
-    }
-
     /*
      * Energy logic related to using skills.
      */
 
-    private void handleBurstCast(Avatar avatar, int skillId) {
-        // Don't do anything if energy usage is disabled.
-        if (!GAME_OPTIONS.energyUsage || !this.energyUsage) {
+    /**
+     * A skill's energy cost on AvatarSkillStart, by the action's costEnergyRatio (e.g. 0 for a free variant, as Skirk's
+     * special burst):
+     * - elemental energy: the skill's costElemVal, partial, as an avatar may have several bursts with different costs
+     *   (e.g. Varesa 70 and 30)
+     * - special energy (e.g. Mavuika, Skirk): the max special energy, for skills consuming it only (specialEnergyType),
+     *   not every skill of the avatar (e.g. Mavuika's elemental skill)
+     */
+    public void handleSkillStartCostEnergy(EntityAvatar avatar, int skillId, float ratio) {
+        if (!GAME_OPTIONS.energyUsage || !this.energyUsage) return;
+
+        var skillData = GameData.getAvatarSkillDataMap().get(skillId);
+        if (skillData == null) return;
+
+        float baseCost;
+        if (skillData.getCostElemVal() > 0) {
+            baseCost = skillData.getCostElemVal();
+        } else if (avatar.getAvatar().hasSpecialEnergy() && skillData.getSpecialEnergyCostType() != null
+            && !skillData.getSpecialEnergyCostType().isEmpty()) {
+            baseCost = avatar.getAvatar().getMaxEnergy();
+        } else {
             return;
         }
 
-        // If the cast skill was a burst, consume energy.
-        if (avatar.getSkillDepot() != null && skillId == avatar.getSkillDepot().getEnergySkill()) {
-            avatar.getAsEntity().clearEnergy(ChangeEnergyReason.CHANGE_ENERGY_SKILL_START);
-        }
-    }
-
-    public void handleEvtDoSkillSuccNotify(GameSession session, int skillId, int casterId) {
-        // Determine the entity that has cast the skill. Cancel if we can't find that avatar.
-        Optional<EntityAvatar> caster = this.player.getTeamManager().getActiveTeam().stream()
-                .filter(character -> character.getId() == casterId)
-                .findFirst();
-
-        if (caster.isEmpty()) {
-            return;
-        }
-
-        Avatar avatar = caster.get().getAvatar();
-
-        // Handle elemental burst.
-        this.handleBurstCast(avatar, skillId);
+        float cost = baseCost * ratio;
+        if (cost <= 0) return;
+        avatar.costEnergy(cost, ChangeEnergyReason.CHANGE_ENERGY_SKILL_START);
     }
 
     /*
