@@ -130,7 +130,7 @@ public class EntityVehicle extends EntityGadget {
         getScene().getVehiclesOf(player).stream().filter(vehicle -> vehicle != this).forEach(vehicle -> vehicle.exit(player));
 
         // Resets StaminaManager's own vehicle stamina, not this vehicle's (see curStamina)
-        player.getStaminaManager().handleVehicleInteractReq(player.getSession(), getId(), VehicleInteractType.VEHICLE_INTERACT_IN);
+        player.getStaminaManager().handleVehicleInteractReq(getId(), VehicleInteractType.VEHICLE_INTERACT_IN);
 
         if (member == null) {
             member = addMember(player, avatarGuid);
@@ -145,7 +145,7 @@ public class EntityVehicle extends EntityGadget {
      * TODO: Sorush leaves nothing behind on getting off
      */
     public void exit(Player player) {
-        player.getStaminaManager().handleVehicleInteractReq(player.getSession(), getId(), VehicleInteractType.VEHICLE_INTERACT_OUT);
+        player.getStaminaManager().handleVehicleInteractReq(getId(), VehicleInteractType.VEHICLE_INTERACT_OUT);
 
         var member = removeMember(player);
         if (member == null) {

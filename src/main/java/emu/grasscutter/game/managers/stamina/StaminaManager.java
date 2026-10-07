@@ -11,7 +11,6 @@ import emu.grasscutter.game.props.FightProperty;
 import emu.grasscutter.game.props.LifeState;
 import emu.grasscutter.game.props.PlayerProperty;
 import teyvat.ability.config.enums.PhlogistonChangeType;
-import emu.grasscutter.server.game.GameSession;
 import emu.grasscutter.server.packet.send.PacketAvatarLifeStateChangeNotify;
 import emu.grasscutter.server.packet.send.PacketEntityFightPropUpdateNotify;
 import emu.grasscutter.server.packet.send.PacketLifeStateChangeNotify;
@@ -121,7 +120,6 @@ public class StaminaManager extends BasePlayerManager {
     private MotionState currentState = MotionState.MOTION_STANDBY;
     private MotionState previousState = MotionState.MOTION_STANDBY;
     private Timer sustainedStaminaHandlerTimer;
-    private GameSession cachedSession = null;
     private GameEntity cachedEntity = null;
     private int staminaRecoverDelay = 0;
     private int diveStaminaRecoverDelay = 0;
@@ -131,6 +129,8 @@ public class StaminaManager extends BasePlayerManager {
     private int vehicleStamina = GlobalVehicleMaxStamina;
     private static final Set<MotionState> DiveDashStates = Set.of(MotionState.MOTION_DIVE_DASH, MotionState.MOTION_DIVE_SWIM_DASH);
     private static final float CostStaminaMixinInterval = 0.3f;  // s, hardcoded INTERVAL_TIME as in official server
+    private static final int SustainedTickInterval = 200;  // ms, the sustained stamina timer's period
+    private static final int TicksPerSecond = 1000 / SustainedTickInterval;
 
     public static void initialize() {
         // TODO: Initialize foods etc.
@@ -218,35 +218,45 @@ public class StaminaManager extends BasePlayerManager {
         return Math.abs(diffX) > 0.3 || Math.abs(diffY) > 0.2 || Math.abs(diffZ) > 0.3;
     }
 
-    public int updateStaminaRelative(GameSession session, Consumption consumption, boolean isCharacterStamina) {
+    public int updateStaminaRelative(Consumption consumption, boolean isCharacterStamina) {
         int currentStamina = isCharacterStamina ? getCurrentCharacterStamina() : getCurrentVehicleStamina();
         if (consumption.amount == 0) {
             return currentStamina;
         }
+        // Costs only, not recovering, and the avatar's ability property doesn't apply to a vehicle.
+        // Actor_CostStaminaDelta is not supported, as no ability has it
+        float ratio = 1;
+        if (isCharacterStamina && consumption.amount < 0) {
+            ratio = getStaminaCostRatio(EntityAbilityProperty.Actor_CostStaminaRatio);
+            consumption.amount = Math.round(consumption.amount * ratio);
+        }
+
         // notify will update
         for (Map.Entry<String, BeforeUpdateStaminaListener> listener : beforeUpdateStaminaListeners.entrySet()) {
             Consumption overriddenConsumption = listener.getValue().onBeforeUpdateStamina(consumption.type.toString(), consumption, isCharacterStamina);
             if ((overriddenConsumption.type != consumption.type) && (overriddenConsumption.amount != consumption.amount)) {
-                logger.debug("Stamina update relative(" +
-                        consumption.type.toString() + ", " + consumption.amount + ") overridden to relative(" +
-                        consumption.type.toString() + ", " + consumption.amount + ") by: " + listener.getKey());
+                logger.debug("Stamina update relative ({}, {}) overridden to ({}, {}) by {}",
+                    consumption.type, consumption.amount, overriddenConsumption.type, overriddenConsumption.amount, listener.getKey());
                 return currentStamina;
             }
         }
         int maxStamina = isCharacterStamina ? getMaxCharacterStamina() : getMaxVehicleStamina();
-        logger.trace((isCharacterStamina ? "C " : "V ") + currentStamina + "/" + maxStamina + "\t" + currentState + "\t" +
-                (isPlayerMoving() ? "moving" : "      ") + "\t(" + consumption.type + "," +
-                consumption.amount + ")");
         int newStamina = currentStamina + consumption.amount;
         if (newStamina < 0) {
             newStamina = 0;
         } else if (newStamina > maxStamina) {
             newStamina = maxStamina;
         }
-        return setStamina(session, consumption.type.toString(), newStamina, isCharacterStamina);
+        if (logger.isTraceEnabled()) {  // isPlayerMoving() isn't free
+            logger.trace("{} stamina {} {}{}: {} -> {}/{}, {}{}",
+                isCharacterStamina ? "Character" : "Vehicle", consumption.type, consumption.amount,
+                ratio != 1 ? " (ratio " + ratio + ")" : "", currentStamina, newStamina, maxStamina,
+                currentState, isPlayerMoving() ? ", moving" : "");
+        }
+        return setStamina(consumption.type.toString(), newStamina, isCharacterStamina);
     }
 
-    public int updateStaminaAbsolute(GameSession session, String reason, int newStamina, boolean isCharacterStamina) {
+    public int updateStaminaAbsolute(String reason, int newStamina, boolean isCharacterStamina) {
         int currentStamina = isCharacterStamina ? getCurrentCharacterStamina() : getCurrentVehicleStamina();
         // notify will update
         for (Map.Entry<String, BeforeUpdateStaminaListener> listener : beforeUpdateStaminaListeners.entrySet()) {
@@ -264,13 +274,13 @@ public class StaminaManager extends BasePlayerManager {
         } else if (newStamina > maxStamina) {
             newStamina = maxStamina;
         }
-        return setStamina(session, reason, newStamina, isCharacterStamina);
+        return setStamina(reason, newStamina, isCharacterStamina);
     }
 
     // Returns new stamina and sends PlayerPropNotify or VehicleStaminaNotify
-    public int setStamina(GameSession session, String reason, int newStamina, boolean isCharacterStamina) {
+    public int setStamina(String reason, int newStamina, boolean isCharacterStamina) {
         // Target Player
-        if (!GAME_OPTIONS.staminaUsage || session.getPlayer().getUnlimitedStamina()) {
+        if (!GAME_OPTIONS.staminaUsage || player.getUnlimitedStamina()) {
             newStamina = getMaxCharacterStamina();
         }
 
@@ -279,7 +289,7 @@ public class StaminaManager extends BasePlayerManager {
             player.setProperty(PlayerProperty.PROP_CUR_PERSIST_STAMINA, newStamina);
         } else {
             vehicleStamina = newStamina;
-            session.send(new PacketVehicleStaminaNotify(vehicleId, ((float) newStamina) / 100));
+            player.sendPacket(new PacketVehicleStaminaNotify(vehicleId, ((float) newStamina) / 100));
         }
         // notify updated
         int s = newStamina;
@@ -289,10 +299,10 @@ public class StaminaManager extends BasePlayerManager {
 
     // Kills avatar, removes entity and sends notification.
     // TODO: Probably move this to Avatar class? since other components may also need to kill avatar.
-    public void killAvatar(GameSession session, GameEntity entity, PlayerDieType dieType) {
-        session.send(new PacketAvatarLifeStateChangeNotify(player.getTeamManager().getCurrentAvatarEntity().getAvatar(),
+    public void killAvatar(GameEntity entity, PlayerDieType dieType) {
+        player.sendPacket(new PacketAvatarLifeStateChangeNotify(player.getTeamManager().getCurrentAvatarEntity().getAvatar(),
                 LifeState.LIFE_DEAD, dieType));
-        session.send(new PacketLifeStateChangeNotify(entity, LifeState.LIFE_DEAD, dieType));
+        player.sendPacket(new PacketLifeStateChangeNotify(entity, LifeState.LIFE_DEAD, dieType));
         entity.setFightProperty(FightProperty.FIGHT_PROP_CUR_HP, 0);
         entity.getWorld().broadcastPacket(new PacketEntityFightPropUpdateNotify(entity, FightProperty.FIGHT_PROP_CUR_HP));
         entity.getWorld().broadcastPacket(new PacketLifeStateChangeNotify(0, entity, LifeState.LIFE_DEAD));
@@ -303,7 +313,7 @@ public class StaminaManager extends BasePlayerManager {
     public void startSustainedStaminaHandler() {
         if (!player.isPaused() && sustainedStaminaHandlerTimer == null) {
             sustainedStaminaHandlerTimer = new Timer();
-            sustainedStaminaHandlerTimer.scheduleAtFixedRate(new SustainedStaminaHandler(), 0, 200);
+            sustainedStaminaHandlerTimer.scheduleAtFixedRate(new SustainedStaminaHandler(), 0, SustainedTickInterval);
             logger.debug("[MovementManager] SustainedStaminaHandlerTimer started");
         }
     }
@@ -422,20 +432,19 @@ public class StaminaManager extends BasePlayerManager {
 
     private void costFightStamina(String reason, float cost) {
         if (cost <= 0) return;
-        int amount = Math.round(cost * 100 * getStaminaCostRatio());
+        int amount = Math.round(cost * 100);
         logger.debug("{} costs stamina {}", reason, amount);
         staminaRecoverDelay = 0;
-        updateStaminaRelative(player.getSession(), new Consumption(ConsumptionType.FIGHT, -amount), true);
+        updateStaminaRelative(new Consumption(ConsumptionType.FIGHT, -amount), true);
     }
 
-    public void handleCombatInvocationsNotify(@NotNull GameSession session, @NotNull EntityMoveInfo moveInfo, @NotNull GameEntity entity) {
+    public void handleCombatInvocationsNotify(@NotNull EntityMoveInfo moveInfo, @NotNull GameEntity entity) {
         // cache info for later use in SustainedStaminaHandler tick
-        cachedSession = session;
         cachedEntity = entity;
         val motionInfo = moveInfo.getMotionInfo();
         val motionState = motionInfo.getState();
         int notifyEntityId = entity.getId();
-        int currentAvatarEntityId = session.getPlayer().getTeamManager().getCurrentAvatarEntity().getId();
+        int currentAvatarEntityId = player.getTeamManager().getCurrentAvatarEntity().getId();
         if (notifyEntityId != currentAvatarEntityId && notifyEntityId != vehicleId) {
             return;
         }
@@ -450,16 +459,16 @@ public class StaminaManager extends BasePlayerManager {
             }
         }
         startSustainedStaminaHandler();
-        handleImmediateStamina(session, motionState);
+        handleImmediateStamina(motionState);
     }
 
-    public void handleVehicleInteractReq(GameSession session, int vehicleId, VehicleInteractType vehicleInteractType) {
+    public void handleVehicleInteractReq(int vehicleId, VehicleInteractType vehicleInteractType) {
         if (vehicleInteractType == VehicleInteractType.VEHICLE_INTERACT_IN) {
             this.vehicleId = vehicleId;
             // Reset character stamina here to prevent falling into water immediately on ejection if char stamina is
             //      close to empty when boarding.
-            updateStaminaAbsolute(session, "board vehicle", getMaxCharacterStamina(), true);
-            updateStaminaAbsolute(session, "board vehicle", getMaxVehicleStamina(), false);
+            updateStaminaAbsolute("board vehicle", getMaxCharacterStamina(), true);
+            updateStaminaAbsolute("board vehicle", getMaxVehicleStamina(), false);
         } else {
             this.vehicleId = -1;
         }
@@ -468,7 +477,7 @@ public class StaminaManager extends BasePlayerManager {
     // Internal handler
 
     // Start costs, charged once when entering a state (motionState is already the current state)
-    private void handleImmediateStamina(GameSession session, @NotNull MotionState motionState) {
+    private void handleImmediateStamina(@NotNull MotionState motionState) {
         // Don't double dip on sustained stamina start costs
         if (previousState == currentState) {
             return;
@@ -477,22 +486,23 @@ public class StaminaManager extends BasePlayerManager {
             updateDiveStaminaRelative(ConsumptionType.DIVE_DASH_START.amount);
             return;
         }
-        var type = switch (motionState) {
-            case MOTION_CLIMB -> ConsumptionType.CLIMB_START;
-            case MOTION_DASH_BEFORE_SHAKE -> ConsumptionType.SPRINT;
-            case MOTION_CLIMB_JUMP -> ConsumptionType.CLIMB_JUMP;
-            case MOTION_SWIM_DASH -> ConsumptionType.SWIM_DASH_START;
+        var consumption = switch (motionState) {
+            case MOTION_CLIMB -> new Consumption(ConsumptionType.CLIMB_START);
+            case MOTION_DASH_BEFORE_SHAKE -> new Consumption(ConsumptionType.SPRINT,
+                costWithDelta(ConsumptionType.SPRINT.amount, getStaminaCostDelta(EntityAbilityProperty.Actor_CostDashBsStaminaDelta)));
+            case MOTION_CLIMB_JUMP -> new Consumption(ConsumptionType.CLIMB_JUMP);
+            case MOTION_SWIM_DASH -> new Consumption(ConsumptionType.SWIM_DASH_START);
             default -> null;
         };
-        if (type == null) return;
+        if (consumption == null) return;
 
         // delay recovering, like other costs
         staminaRecoverDelay = 0;
-        updateStaminaRelative(session, new Consumption(type), true);
+        updateStaminaRelative(consumption, true);
     }
 
     // Dive stamina is a separate pool: dashing underwater costs it, it recovers otherwise,
-    // 1 second (5 ticks) after leaving a dash or a dolphin jump
+    // 1 second after leaving a dash or a dolphin jump
     private void updateSustainedDiveStamina() {
         if (DiveDashStates.contains(currentState)) {
             diveStaminaRecoverDelay = 0;
@@ -503,7 +513,7 @@ public class StaminaManager extends BasePlayerManager {
             diveStaminaRecoverDelay = 0;
             return;
         }
-        if (diveStaminaRecoverDelay < 5) {
+        if (diveStaminaRecoverDelay < TicksPerSecond) {
             diveStaminaRecoverDelay++;
             return;
         }
@@ -513,6 +523,9 @@ public class StaminaManager extends BasePlayerManager {
     private void updateDiveStaminaRelative(int amount) {
         int max = getMaxDiveStamina();
         int current = getCurrentDiveStamina();
+        if (amount < 0) {
+            amount = Math.round(amount * getStaminaCostRatio(EntityAbilityProperty.Actor_CostDiveStaminaRatio));  // costs only, not recovering
+        }
         int value = Math.max(0, Math.min(max, current + amount));
         if (!GAME_OPTIONS.staminaUsage || player.getUnlimitedStamina()) {
             value = max;
@@ -559,9 +572,8 @@ public class StaminaManager extends BasePlayerManager {
                     return;
                 }
 
-                logger.debug("Consume stamina {} with state {}", consumption.amount, currentState);
                 // Delay 1 seconds before starts recovering stamina
-                if (consumption.amount != 0 && cachedSession != null) {
+                if (consumption.amount != 0 && cachedEntity != null) {
                     if (consumption.amount < 0) {
                         staminaRecoverDelay = 0;
                     }
@@ -569,14 +581,14 @@ public class StaminaManager extends BasePlayerManager {
                             && consumption.type != ConsumptionType.POWERED_FLY
                             && consumption.type != ConsumptionType.POWERED_SKIFF) {
                         // For POWERED_* recover immediately - things like Amber's gliding exam and skiff challenges may require this.
-                        if (staminaRecoverDelay < 5) {
-                            // For others recover after 1 seconds (5 ticks) - as official server does.
+                        if (staminaRecoverDelay < TicksPerSecond) {
+                            // For others recover after 1 second - as official server does.
                             staminaRecoverDelay++;
                             consumption.amount = 0;
                             logger.trace("Delaying recovery: " + staminaRecoverDelay);
                         }
                     }
-                    updateStaminaRelative(cachedSession, consumption, isCharacterStamina);
+                    updateStaminaRelative(consumption, isCharacterStamina);
                 }
             }
             previousState = currentState;
@@ -591,19 +603,28 @@ public class StaminaManager extends BasePlayerManager {
             logger.trace(getCurrentCharacterStamina() + "/" +
                     getMaxCharacterStamina() + "\t" + currentState);
             if (currentState != MotionState.MOTION_SWIM_IDLE) {
-                killAvatar(cachedSession, cachedEntity, PlayerDieType.PLAYER_DIE_DRAWN);
+                killAvatar(cachedEntity, PlayerDieType.PLAYER_DIE_DRAWN);
             }
         }
     }
 
     // Consumption Calculators
     // Stamina Consumption Reduction: https://genshin-impact.fandom.com/wiki/Stamina
-    private float getStaminaCostRatio() {
+    /** A cost ratio from the current avatar's abilities, e.g. Freeze uses -999 to cancel the cost */
+    private float getStaminaCostRatio(EntityAbilityProperty property) {
         var entity = player.getTeamManager().getCurrentAvatarEntity();
-        var ratio = entity.getAbilityProperty(EntityAbilityProperty.Actor_CostStaminaRatio);
-        var value = Math.max(0f, 1f + ratio);  // e.g. Freeze uses -999 to cancel the cost
-        logger.info("Current stamina cost ratio: {}", value);
-        return value;
+        return Math.max(0f, 1f + entity.getAbilityProperty(property));
+    }
+
+    /** A cost delta from the current avatar's abilities: in stamina points there, in hundredths here */
+    private float getStaminaCostDelta(EntityAbilityProperty property) {
+        var entity = player.getTeamManager().getCurrentAvatarEntity();
+        return entity.getAbilityProperty(property) * 100;
+    }
+
+    /** A cost (negative) raised by a delta (positive costs more), never turning into a gain */
+    private static int costWithDelta(int cost, float delta) {
+        return Math.min(0, Math.round(cost - delta));
     }
 
     private Consumption getClimbConsumption() {
@@ -612,7 +633,6 @@ public class StaminaManager extends BasePlayerManager {
             consumption.type = ConsumptionType.CLIMBING;
             consumption.amount = ConsumptionType.CLIMBING.amount;
         }
-        consumption.amount *= getStaminaCostRatio();
         return consumption;
     }
 
@@ -627,7 +647,6 @@ public class StaminaManager extends BasePlayerManager {
             consumption.type = ConsumptionType.SWIM_DASH;
             consumption.amount = ConsumptionType.SWIM_DASH.amount;
         }
-        consumption.amount *= getStaminaCostRatio();
         return consumption;
     }
 
@@ -635,8 +654,9 @@ public class StaminaManager extends BasePlayerManager {
         Consumption consumption = new Consumption();
         if (currentState == MotionState.MOTION_DASH) {
             consumption.type = ConsumptionType.DASH;
-            consumption.amount = ConsumptionType.DASH.amount;
-            consumption.amount *= getStaminaCostRatio();
+            // The delta is likely per second (e.g. MoonGravity -11 of the 18 per second)
+            consumption.amount = costWithDelta(ConsumptionType.DASH.amount,
+                getStaminaCostDelta(EntityAbilityProperty.Actor_CostDashStaminaDelta) / TicksPerSecond);
         }
         return consumption;
     }
@@ -647,7 +667,6 @@ public class StaminaManager extends BasePlayerManager {
             return new Consumption(ConsumptionType.POWERED_FLY);
         }
         Consumption consumption = new Consumption(ConsumptionType.FLY);
-        consumption.amount *= getStaminaCostRatio();
         return consumption;
     }
 

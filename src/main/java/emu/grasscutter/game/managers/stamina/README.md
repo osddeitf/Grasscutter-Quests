@@ -4,10 +4,10 @@
 ## UpdateStamina
 ```java
 // will use consumption.consumptionType as reason
-public int updateStaminaRelative(GameSession session, Consumption consumption);
+public int updateStaminaRelative(Consumption consumption, boolean isCharacterStamina);
 ```
 ```java
-public int updateStaminaAbsolute(GameSession session, String reason, int newStamina)
+public int updateStaminaAbsolute(String reason, int newStamina, boolean isCharacterStamina);
 ```
 
 ---

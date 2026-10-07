@@ -70,7 +70,7 @@ public class HandlerCombatInvocationsNotify extends TypedPacketHandler<CombatInv
                         if(motionState!= null)
                             entity.setMotionState(motionState);
 
-                        session.getPlayer().getStaminaManager().handleCombatInvocationsNotify(session, moveInfo, entity);
+                        session.getPlayer().getStaminaManager().handleCombatInvocationsNotify(moveInfo, entity);
 
                         // TODO: handle MOTION_FIGHT landing which has a different damage factor
                         // 		Also, for plunge attacks, LAND_SPEED is always -30 and is not useful.
@@ -155,7 +155,7 @@ public class HandlerCombatInvocationsNotify extends TypedPacketHandler<CombatInv
         entity.setFightProperty(FightProperty.FIGHT_PROP_CUR_HP, newHP);
         entity.getWorld().broadcastPacket(new PacketEntityFightPropUpdateNotify(entity, FightProperty.FIGHT_PROP_CUR_HP));
         if (newHP == 0) {
-            session.getPlayer().getStaminaManager().killAvatar(session, entity, PlayerDieType.PLAYER_DIE_FALL);
+            session.getPlayer().getStaminaManager().killAvatar(entity, PlayerDieType.PLAYER_DIE_FALL);
         }
         cachedLandingSpeed = 0;
     }
