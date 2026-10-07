@@ -165,7 +165,7 @@ public class EntityAvatar extends GameEntity {
     }
 
     /**
-     * Adds elemental energy (particles, attacks, items, ...), capped to max.
+     * Adds elemental energy (particles, attacks, items, ...), capped to max, or drains it (negative), down to 0.
      * Special energy isn't gained this way, so avatars using it are skipped.
      */
     public void addEnergy(float amount, PropChangeReason reason, boolean isFlat) {
@@ -181,8 +181,8 @@ public class EntityAvatar extends GameEntity {
             amount *= this.getFightProperty(FightProperty.FIGHT_PROP_CHARGE_EFFICIENCY);
         }
 
-        // Determine the new energy value.
-        float newEnergy = Math.min(curEnergy + amount, maxEnergy);
+        // Determine the new energy value, a negative amount drains it.
+        float newEnergy = Math.max(0, Math.min(curEnergy + amount, maxEnergy));
 
         // Set energy and notify.
         if (newEnergy != curEnergy) {
