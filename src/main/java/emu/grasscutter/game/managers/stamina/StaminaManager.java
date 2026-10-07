@@ -357,6 +357,7 @@ public class StaminaManager extends BasePlayerManager {
 
     // The changed phlogiston, unclamped
     private static float changedPhlogiston(PhlogistonChangeType changeType, float current, float points) {
+        // TODO: Actor_CostPhlogistonRatio (cost reduction) isn't supported yet, only activity abilities use it (e.g. V5_5_AtkDfs)
         return switch (changeType) {
             case Cost -> current - points;
             case Add -> current + points;
