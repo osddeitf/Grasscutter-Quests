@@ -14,12 +14,19 @@ public enum EntityAbilityProperty {
     Animator_OverallSpeedRatioMultiplied(1, StackingType.Multiply),
     Actor_AniDamageDelta,
     Actor_AniDefenceDelta,
+
+    /** Stamina */
     Actor_MaxStaminaRatio,
     Actor_MaxStaminaDelta,
     Actor_CostStaminaDelta,
     Actor_CostStaminaRatio,
     Actor_RecoverStaminaDelta,
     Actor_RecoverStaminaRatio,
+    Actor_CostDashBsStaminaDelta,
+    Actor_CostDashStaminaDelta,
+    Actor_CostDiveStaminaRatio,
+    Actor_CostPhlogistonRatio,
+
     Actor_DebuffDurationRatioDelta(1, StackingType.OneMinusMultiply),
     Actor_WeightDelta,
     Actor_EndureDelta,
