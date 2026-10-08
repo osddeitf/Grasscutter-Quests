@@ -2,8 +2,10 @@ package emu.grasscutter.game.ability;
 
 import emu.grasscutter.data.common.AbilityMath;
 import emu.grasscutter.game.entity.GameEntity;
+import emu.grasscutter.game.managers.climate.ClimateManager;
 import lombok.Getter;
 import teyvat.ability.config.ConfigAbilityModifier;
+import teyvat.ability.config.mixins.ResistClimateMixin;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -24,11 +26,25 @@ public class AbilityModifierController {
             int idx = entity.addAbilityProperty(prop.getKey(), AbilityMath.evaluate(prop.getValue(), ability));
             abilityPropertyIdxMap.put(prop.getKey(), idx);
         }
+
+        var resistClimates = modifierData.getMixins().stream()
+            .filter(ResistClimateMixin.class::isInstance).map(ResistClimateMixin.class::cast).toList();
+        if (!resistClimates.isEmpty()) {
+            var player = ClimateManager.getAffectedPlayer(entity);
+            if (player != null) {
+                player.getClimateManager().addResists(this, entity, resistClimates, ability);
+            } else {
+                AbilityManager.getLogger().warn("ResistClimateMixin on {} isn't on an avatar nor a team, at {}", entity, ability.getName());
+            }
+        }
     }
 
     public void detach(GameEntity<?> entity) {
         for (var prop: modifierData.getProperties().entrySet()) {
             entity.removeAbilityProperty(prop.getKey(), abilityPropertyIdxMap.get(prop.getKey()));
         }
+
+        var player = ClimateManager.getAffectedPlayer(entity);
+        if (player != null) player.getClimateManager().removeResists(this);
     }
 }

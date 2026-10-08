@@ -13,6 +13,7 @@ public class HandlerEnterSceneDoneReq extends TypedPacketHandler<EnterSceneDoneR
     public void handle(GameSession session, byte[] header, EnterSceneDoneReq req) throws Exception {
         // Finished loading
         session.getPlayer().setSceneLoadState(SceneLoadState.LOADED);
+        session.getPlayer().getClimateManager().init();
 
         // Done
 
