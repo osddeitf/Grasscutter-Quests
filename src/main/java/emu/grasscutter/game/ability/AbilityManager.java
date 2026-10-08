@@ -431,7 +431,9 @@ public final class AbilityManager extends BasePlayerManager {
         var modChange = AbilityMetaModifierChange.parseBy(invoke.getAbilityData(), player.getSession().getVersion());
         var head = invoke.getHead();
 
-        if(head.getInstancedAbilityId() == 0 || head.getInstancedModifierId() > 2000) return; //Error: TODO: display error
+        if(head.getInstancedModifierId() > 2000) return; //Error: TODO: display error
+        // A removal only names the instanced modifier, its instanced ability id is 0
+        if(modChange.getAction() == ModifierAction.ADDED && head.getInstancedAbilityId() == 0) return;
 
         if(head.getServerBuffUid() != 0) {
             handleServerBuffModifierChange(invoke, modChange);
@@ -527,6 +529,7 @@ public final class AbilityManager extends BasePlayerManager {
             modifier.attach(holder);
         } else if (modChange.getAction() == ModifierAction.REMOVED) {
             var modifier = holder.getServerBuffModifiers().remove(uid);
+            logger.debug("Removing server buff {} modifier from {}: {}", uid, getEntityIdentity(holder), modifier != null);
             if (modifier != null) modifier.detach(holder);
         }
     }
