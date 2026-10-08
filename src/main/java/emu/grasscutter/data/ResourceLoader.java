@@ -247,7 +247,9 @@ public class ResourceLoader {
 
     private static void loadClimateConfig() {
         try {
-            GameData.setConfigClimate(JsonUtils.loadToClass(getResourcePath("BinOutput/Climate/ConfigClimate.json"), ConfigClimate.class));
+            val config = JsonUtils.loadToClass(getResourcePath("BinOutput/Climate/ConfigClimate.json"), ConfigClimate.class);
+            config.onLoad();
+            GameData.setConfigClimate(config);
         } catch (IOException e) {
             logger.error("Unable to load climate config.", e);
         }
