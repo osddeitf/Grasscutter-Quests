@@ -155,6 +155,10 @@ public class ClimateManager extends BasePlayerManager {
     /** Updates the meter and its climate (Normal once empty), notifies the changes, then the high level debuff */
     private void setMeter(int newMeter, ClimateType newMeterType) {
         if (newMeter == 0) newMeterType = ClimateType.Normal;
+        if (newMeter != this.meter || newMeterType != this.meterType) {
+            logger.debug("Climate meter {} ({}) -> {} ({}), area {} ({})", this.meter, this.meterType, newMeter, newMeterType,
+                this.areaId, this.areaType);
+        }
 
         if (newMeter != this.meter) {
             this.meter = newMeter;
