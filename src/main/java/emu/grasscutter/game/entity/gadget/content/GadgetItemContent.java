@@ -2,6 +2,7 @@ package emu.grasscutter.game.entity.gadget.content;
 
 import emu.grasscutter.game.entity.EntityBaseGadget;
 import emu.grasscutter.game.inventory.GameItem;
+import emu.grasscutter.game.inventory.MaterialType;
 import emu.grasscutter.game.player.Player;
 import emu.grasscutter.game.props.ActionReason;
 import emu.grasscutter.server.packet.send.PacketGadgetInteractRsp;
@@ -39,8 +40,9 @@ public class GadgetItemContent extends GadgetContent {
 
         val scene = getGadget().getScene();
 
-        // Add to inventory
-        boolean success = player.getInventory().addItem(item, ActionReason.SubfieldDrop);
+        // Add to inventory. A consumable (e.g. Dulin's Blood, used on gain to add a buff) isn't stored, but is picked up too
+        boolean success = player.getInventory().addItem(item, ActionReason.SubfieldDrop)
+            || item.getItemData().getMaterialType() == MaterialType.MATERIAL_CONSUME;
         if (success) {
             if (!this.isShare()) { // not shared drop
                 player.sendPacket(new PacketGadgetInteractRsp(getGadget(), InteractType.INTERACT_PICK_ITEM));
