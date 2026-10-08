@@ -2,6 +2,7 @@ package emu.grasscutter.game.world;
 
 import emu.grasscutter.Grasscutter;
 import emu.grasscutter.data.GameData;
+import emu.grasscutter.data.excels.WeatherData;
 import emu.grasscutter.data.GameDepot;
 import emu.grasscutter.data.binout.SceneNpcBornEntry;
 import emu.grasscutter.data.binout.routes.Route;
@@ -97,8 +98,10 @@ public class Scene {
     @Getter private boolean finishedLoading = false;
     @Getter private int tickCount = 0;
     @Getter private boolean isPaused = false;
+    /** Scene seconds after which a weather area without players is released */
+    public static final int WEATHER_AREA_RELEASE_DELAY = 60;
+    /** The weather areas with a player inside, or empty for less than WEATHER_AREA_RELEASE_DELAY */
     @Getter private final Map<Integer, WeatherArea> weatherAreas = new ConcurrentHashMap<>();
-    private boolean weatherLoaded = false;
 
     @Getter private final GameEntity sceneEntity;
     @Getter private final SpawnManager spawnManager;
@@ -253,6 +256,10 @@ public class Scene {
         // TODO: the official mechanism is unclear, other players in the scene may need notifying (e.g. the vehicle's
         //  members changed)
         getVehiclesOf(player).forEach(vehicle -> vehicle.removeMember(player));
+
+        // Out of its weather area
+        Optional.ofNullable(this.weatherAreas.get(player.getWeatherAreaId())).ifPresent(area -> area.leaveArea(player));
+        player.setWeatherAreaId(0);
 
         // Remove player from scene
         this.players.remove(player);
@@ -541,6 +548,7 @@ public class Scene {
 
         platformManager.tick();
         npcGroupManager.tick();
+        tickWeatherAreas();
         finishLoading();
         respawnManager.tick();
         this.getSealBattleManager().onTick();
@@ -699,79 +707,60 @@ public class Scene {
         return dungeonManager != null ? dungeonManager.getDungeonData().getId() : 0;
     }
 
+    /**
+     * The weather area at a position: the one turned on with the highest priority containing it, created if none
+     * @return null if none
+     */
+    @Nullable
     public WeatherArea getWeatherArea(Position position) {
         val data = GameData.getWeatherAreaPointData().get(getId());
         if(data == null) return null;
 
-        int areaId = 0;
-        int maxPriority = -1;
+        WeatherData found = null;
         for (val points : data) {
-            if(points.isInside(position)) {
-                val area = weatherAreas.get(points.getArea_id());
-                if(area == null) continue;
-
-                int priority = area.getConfig().getPriority();
-                if(priority > maxPriority) {
-                    areaId = points.area_id;
-                    maxPriority = priority;
-                }
-            }
+            if (!points.isInside(position)) continue;
+            val config = GameData.getWeatherDataMap().get(points.getArea_id());
+            if (config == null || !isWeatherAreaEnabled(config) || !config.isUnderMaxHeight(position.getY())) continue;
+            if (found == null || config.getPriority() > found.getPriority()) found = config;
         }
+        if (found == null) return null;
 
-        if(areaId == 0) return null;
-
-        return weatherAreas.get(areaId);
+        val config = found;
+        return weatherAreas.computeIfAbsent(config.getAreaID(), id -> new WeatherArea(this, config));
     }
 
-    //TODO: notify(recalculate current player weather) and save the current weather to database
+    /** On if turned on by a script or quest, else as its isDefaultValid */
+    public boolean isWeatherAreaEnabled(WeatherData config) {
+        val state = this.sceneInstanceData.getWeatherAreaState(config.getAreaID());
+        return state != null ? state : config.isDefaultValid();
+    }
 
-    public boolean removeWeatherArea(int areaId) {
-        if(!weatherAreas.containsKey(areaId)) return true;
+    /**
+     * Turns a weather area on or off, e.g. by SetWeatherAreaState: persisted per scene, the players change area on
+     * their next weather check
+     * @return False if the area doesn't exist
+     */
+    public boolean setWeatherAreaEnabled(int areaId, boolean on) {
+        if (!GameData.getWeatherDataMap().containsKey(areaId)) return false;
 
-        val area = weatherAreas.get(areaId);
-        Grasscutter.getLogger().error("Removing Weather Area {}({})", areaId, area.getConfig().getProfileName());
-
-        area.remove();
-        weatherAreas.remove(areaId);
-        this.sceneInstanceData.removeWeather(areaId);
-
+        this.sceneInstanceData.setWeatherAreaState(areaId, on);
+        Grasscutter.getLogger().debug("Weather area {} turned {} in scene {}", areaId, on ? "on" : "off", getId());
+        if (!on) {
+            val area = this.weatherAreas.remove(areaId);
+            if (area != null) area.remove();
+        }
         return true;
     }
 
-    public boolean addWeatherArea(int areaId) {
-        if(weatherAreas.containsKey(areaId)) return false;
-
-        val w = GameData.getWeatherDataMap().get(areaId);
-        if (w == null) {
-            return false;
-        }
-
-        WeatherArea area = new WeatherArea(this, w);
-        area.init();
-        weatherAreas.put(areaId, area);
-        this.sceneInstanceData.addWeather(areaId);
-
-        //update all weather areas affected by players on this scene
-        this.players.forEach(p -> p.updateWeather(this));
-
-        Grasscutter.getLogger().error("Added Weather Area {}({}), climateType {}", areaId, area.getConfig().getProfileName(), area.getCurrentClimateType().name());
-
-        return true;
-    }
-
-    public void reloadWeathers() {
-        if(weatherLoaded) return;
-
-        this.sceneInstanceData.getWeatherAreas().entrySet().forEach(e -> {
-            val w = GameData.getWeatherDataMap().get((int)e.getKey());
-
-            if(w != null && !this.weatherAreas.containsKey(e.getKey())) {
-                WeatherArea area = new WeatherArea(this, w);
-                area.setClimateType(ClimateType.getTypeByValue((int)e.getValue()));
-                weatherAreas.put((int)e.getKey(), area);
-            }
+    /** The weather areas' random changes, and the release of the ones empty for WEATHER_AREA_RELEASE_DELAY */
+    private void tickWeatherAreas() {
+        int sceneTime = getSceneTimeSeconds();
+        this.weatherAreas.values().removeIf(area -> {
+            boolean release = area.getPlayers().isEmpty()
+                && area.getEmptySince() >= 0 && sceneTime - area.getEmptySince() >= WEATHER_AREA_RELEASE_DELAY;
+            if (release) Grasscutter.getLogger().debug("Weather area {} released in scene {}, empty since {}", area.getAreaId(), getId(), area.getEmptySince());
+            return release;
         });
-
-        weatherLoaded = true;
+        this.weatherAreas.values().forEach(area -> area.onTick(sceneTime));
     }
 }

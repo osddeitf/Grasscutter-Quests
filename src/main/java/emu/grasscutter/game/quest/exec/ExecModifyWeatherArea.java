@@ -22,11 +22,7 @@ public class ExecModifyWeatherArea extends QuestExecHandler {
             val weatherAreaId = Integer.parseInt(weatherAreaIds[i]);
             val openWeather = Integer.parseInt(openWeathers[i]) == 1 ? true : false;
 
-            if(openWeather) {
-                success = quest.getOwner().getScene().addWeatherArea(weatherAreaId);
-            } else {
-                success = quest.getOwner().getScene().removeWeatherArea(weatherAreaId);
-            }
+            success = quest.getOwner().getScene().setWeatherAreaEnabled(weatherAreaId, openWeather) && success;
         }
 
         return success;

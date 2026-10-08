@@ -14,12 +14,8 @@ public class WeatherHandler extends BaseHandler implements org.anime_game_server
 
     @Override
     public int setWeatherAreaState(@NotNull GroupEventLuaContext context, int weatherAreaId, boolean openWeather) {
-        logger.warn("[LUA] Call unimplemented SetWeatherAreaState with {} {}", weatherAreaId, openWeather);
-        if (openWeather) {
-            return context.getSceneScriptManager().getScene().addWeatherArea(weatherAreaId) ? 0 : 1;
-        } else {
-            return context.getSceneScriptManager().getScene().removeWeatherArea(weatherAreaId) ? 0 : 1;
-        }
+        logger.debug("[LUA] Call SetWeatherAreaState with {} {}", weatherAreaId, openWeather);
+        return context.getSceneScriptManager().getScene().setWeatherAreaEnabled(weatherAreaId, openWeather) ? 0 : 1;
     }
 
     @Override

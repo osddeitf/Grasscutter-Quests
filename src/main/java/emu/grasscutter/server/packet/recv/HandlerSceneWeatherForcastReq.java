@@ -1,6 +1,5 @@
 package emu.grasscutter.server.packet.recv;
 
-import emu.grasscutter.game.world.WeatherArea.WeatherRefreshType;
 import emu.grasscutter.net.packet.TypedPacketHandler;
 import emu.grasscutter.server.game.GameSession;
 import emu.grasscutter.server.packet.send.PacketSceneWeatherForcastRsp;
@@ -15,7 +14,6 @@ public class HandlerSceneWeatherForcastReq extends TypedPacketHandler<SceneWeath
         val player = session.getPlayer();
         val area = player.getScene().getWeatherAreas().get(areaId);
         if(area != null) {
-            area.refresh(WeatherRefreshType.REFRESH_WEATHER_FORCAST);
             val forcast = area.getForcastList();
             session.getPlayer().sendPacket(new PacketSceneWeatherForcastRsp(forcast));
         } else {

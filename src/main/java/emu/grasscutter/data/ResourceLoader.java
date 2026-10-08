@@ -308,6 +308,7 @@ public class ResourceLoader {
         val pattern = Pattern.compile("scene([0-9]+)_weather_areas\\.json");
         try (val dirStream = Files.newDirectoryStream(getResourcePath("Scripts/Scene"))) {
             dirStream.forEach(dirPath -> {
+                if (!Files.isDirectory(dirPath)) return;  // e.g. Scripts/Scene/groups_replacement.lua
                 try (val stream = Files.newDirectoryStream(dirPath, "scene*_weather_areas.json")){
                     stream.forEach(path -> {
                         val matcher = pattern.matcher(path.getFileName().toString());

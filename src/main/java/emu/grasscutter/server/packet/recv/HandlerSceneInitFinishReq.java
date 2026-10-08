@@ -39,7 +39,6 @@ public class HandlerSceneInitFinishReq extends TypedPacketHandler<SceneInitFinis
 		session.getPlayer().getTeamManager().onSceneInit();
 		session.send(new PacketPlayerEnterSceneInfoNotify(session.getPlayer()));
 
-		session.getPlayer().getScene().reloadWeathers();
 		session.getPlayer().updateWeather(session.getPlayer().getScene());
 		val area = session.getPlayer().getScene().getWeatherAreas().get(session.getPlayer().getWeatherAreaId());
 		if(area != null)

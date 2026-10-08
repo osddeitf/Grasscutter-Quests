@@ -14,11 +14,7 @@ public class ExecSetWeatherGadget extends QuestExecHandler {
         val weatherAreaId = Integer.parseInt(paramStr[0]);
         val openWeather = Integer.parseInt(paramStr[1]) == 1 ? true : false; //0 -> remove weather area, 1-> add weather area
 
-        if(openWeather) {
-            return quest.getOwner().getScene().addWeatherArea(weatherAreaId);
-        } else {
-            return quest.getOwner().getScene().removeWeatherArea(weatherAreaId);
-        }
+        return quest.getOwner().getScene().setWeatherAreaEnabled(weatherAreaId, openWeather);
     }
 
 }

@@ -1194,6 +1194,10 @@ public class Player {
         // Handle buff
         this.getBuffManager().onTick();
         this.getClimateManager().onTick();
+        // Entering or leaving a weather area while moving
+        if (this.getScene() != null && !this.isPaused() && this.getSceneLoadState() == SceneLoadState.LOADED) {
+            this.updateWeather(this.getScene(), false);
+        }
         // Ping
         if (this.getWorld() != null) {
             // RTT notify - very important to send this often
@@ -1546,28 +1550,35 @@ public class Player {
         return true;
     }
 
+    /** The weather area at the player's position, always notified, e.g. on entering the scene */
     public void updateWeather(Scene scene) {
-        val aVal = scene.getWeatherArea(getPosition());
-        if(aVal != null) {
-            if(getWeatherAreaId() != aVal.getConfig().getAreaID()) {
-                aVal.enterArea(this);
-                val lastArea = scene.getWeatherAreas().get(getWeatherAreaId());
-                if(lastArea != null) lastArea.leaveArea(this);
-            }
-            setWeatherAreaId(aVal.getConfig().getAreaID());
+        updateWeather(scene, true);
+    }
 
-            if(sceneLoadState.getValue() >= SceneLoadState.INIT.getValue())
-                sendPacket(new PacketSceneAreaWeatherNotify(aVal.getConfig().getAreaID(), aVal.getCurrentClimateType(), aVal.getTransDuration()));
-        } else {
+    /**
+     * The weather area at the player's position: entering it, leaving the previous one
+     * @param forceNotify Notify even if the area didn't change, else only on change (e.g. the per second check)
+     */
+    public void updateWeather(Scene scene, boolean forceNotify) {
+        val area = scene.getWeatherArea(getPosition());
+        int areaId = area != null ? area.getAreaId() : 0;
+        boolean changed = areaId != getWeatherAreaId();
+
+        if (changed) {
+            Grasscutter.getLogger().debug("Player {} weather area {} -> {} ({})", getUid(), getWeatherAreaId(), areaId,
+                area != null ? area.getCurrentClimateType() : "none");
             val lastArea = scene.getWeatherAreas().get(getWeatherAreaId());
-            if(lastArea != null) {
-                lastArea.leaveArea(this);
-            }
+            if (lastArea != null) lastArea.leaveArea(this);
+            if (area != null) area.enterArea(this);
+            setWeatherAreaId(areaId);
+        }
 
-            setWeatherAreaId(0);
-
-            if(sceneLoadState.getValue() >= SceneLoadState.INIT.getValue())
+        if ((changed || forceNotify) && sceneLoadState.getValue() >= SceneLoadState.INIT.getValue()) {
+            if (area != null) {
+                sendPacket(new PacketSceneAreaWeatherNotify(areaId, area.getCurrentClimateType(), area.getTransDuration()));
+            } else {
                 sendPacket(new PacketSceneAreaWeatherNotify(0, ClimateType.CLIMATE_SUNNY, 0));
+            }
         }
     }
 

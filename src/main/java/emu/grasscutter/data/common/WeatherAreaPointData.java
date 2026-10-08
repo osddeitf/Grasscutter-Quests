@@ -11,6 +11,10 @@ public class WeatherAreaPointData {
     public int area_id;
     public boolean isAccurateBorder = false;
     public PolygonPoint[] points;
+    /** Whether the area is limited in height, by top and bottom, a missing one being no limit on its side */
+    public boolean isUseHeightBorder = false;
+    public Float top;
+    public Float bottom;
 
     @Data
     @EqualsAndHashCode(callSuper = false)
@@ -21,6 +25,11 @@ public class WeatherAreaPointData {
     }
 
     public boolean isInside(Position position) {
+        if (isUseHeightBorder) {
+            if (bottom != null && position.getY() < bottom) return false;
+            if (top != null && position.getY() > top) return false;
+        }
+
         float posX = position.getX();
         float posZ = position.getZ();
         boolean result = false;
