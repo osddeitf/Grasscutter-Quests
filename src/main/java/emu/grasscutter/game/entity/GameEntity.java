@@ -1,5 +1,6 @@
 package emu.grasscutter.game.entity;
 
+import emu.grasscutter.Grasscutter;
 import emu.grasscutter.data.GameData;
 import emu.grasscutter.data.common.StackedValue;
 import emu.grasscutter.game.ability.Ability;
@@ -314,17 +315,33 @@ public abstract class GameEntity<T extends CreateEntityConfig<?>> {
 
     }
 
-    private int[] parseCountRange(String range) {
+    /**
+     * A count within the range, e.g. "1" or "1;3". A fractional count is an expected value, e.g. "1.02": 1, and 2% for
+     * one more
+     */
+    private int rollCount(String range, java.util.Random random) {
         var split = range.split(";");
-        if(split.length == 1) return new int[] {Integer.parseInt(split[0]), Integer.parseInt(split[0])};
-        return new int[] {Integer.parseInt(split[0]), Integer.parseInt(split[1])};
+        float min = Float.parseFloat(split[0]);
+        float max = split.length > 1 ? Float.parseFloat(split[1]) : min;
+        if (min == (int) min && max == (int) max) {
+            return (int) min + random.nextInt((int) max - (int) min + 1);
+        }
+        float count = min + random.nextFloat() * (max - min);
+        int whole = (int) count;
+        return whole + (random.nextFloat() < count - whole ? 1 : 0);
     }
 
     public boolean dropSubfieldItem(int dropId) {
         var drop = GameData.getDropSubfieldMappingMap().get(dropId);
-        if(drop == null) return false;
+        if(drop == null) {
+            Grasscutter.getLogger().warn("Subfield drop {} not found in DropSubfieldMapping, entity {}", dropId, getEntityTypeId());
+            return false;
+        }
         var dropTableEntry = GameData.getDropTableExcelConfigDataMap().get(drop.getItemId());
-        if(dropTableEntry == null) return false;
+        if(dropTableEntry == null) {
+            Grasscutter.getLogger().warn("Subfield drop {}: drop table {} not found, entity {}", dropId, drop.getItemId(), getEntityTypeId());
+            return false;
+        }
 
         var dropRandom = getScene().getWorld().getWorldRandomGenerator();
 
@@ -340,26 +357,33 @@ public abstract class GameEntity<T extends CreateEntityConfig<?>> {
                     weightCount = 0;
                     for(var entry : dropTableEntry.getDropVec()) {
                         if(randomValue >= weightCount && randomValue < (weightCount + entry.getWeight())) {
-                            var countRange = parseCountRange(entry.getCountRange());
-                            itemsToDrop.put(entry.getItemId(), Integer.valueOf((dropRandom.nextBoolean() ? countRange[0] : countRange[1])));
+                            itemsToDrop.put(entry.getItemId(), Integer.valueOf(rollCount(entry.getCountRange(), dropRandom)));
                         }
                     }
                 }
                 break;
-            case 1: //Select various
+            case 1: //Select various, each by its weight out of 10000
                 {
                     for(var entry : dropTableEntry.getDropVec()) {
-                        if(entry.getWeight() < dropRandom.nextInt(10000)) {
-                            var countRange = parseCountRange(entry.getCountRange());
-                            itemsToDrop.put(entry.getItemId(), Integer.valueOf((dropRandom.nextBoolean() ? countRange[0] : countRange[1])));
+                        if(dropRandom.nextInt(10000) < entry.getWeight()) {
+                            itemsToDrop.put(entry.getItemId(), Integer.valueOf(rollCount(entry.getCountRange(), dropRandom)));
                         }
                     }
                 }
                 break;
+            default:
+                Grasscutter.getLogger().warn("Subfield drop {}: drop table {} random type {} not handled", dropId, dropTableEntry.getId(), dropTableEntry.getRandomType());
         }
+
+        Grasscutter.getLogger().debug("Subfield drop {} (table {}) on entity {}: {}", dropId, dropTableEntry.getId(), getEntityTypeId(), itemsToDrop);
 
         for (var entry : itemsToDrop.int2ObjectEntrySet()) {
             val itemData = GameData.getItemDataMap().get(entry.getIntKey());
+            if (itemData == null) {
+                // TODO: a drop vector entry may be another drop table (nested), not handled
+                Grasscutter.getLogger().warn("Subfield drop {}: item {} not found", dropId, entry.getIntKey());
+                continue;
+            }
             val createConfig = new CreateGadgetEntityConfig(itemData, entry.getValue())
                 .setBornPos(getPosition().nearby2d(1f).addY(0.5f));
             EntityItem item = new EntityItem(scene, createConfig);
@@ -372,7 +396,10 @@ public abstract class GameEntity<T extends CreateEntityConfig<?>> {
 
     public boolean dropSubfield(String subfieldName) {
         var subfieldMapping = GameData.getSubfieldMappingMap().get(getEntityTypeId());
-        if(subfieldMapping == null || subfieldMapping.getSubfields() == null) return false;
+        if(subfieldMapping == null || subfieldMapping.getSubfields() == null) {
+            Grasscutter.getLogger().warn("Subfield {}: entity {} not found in SubfieldMapping", subfieldName, getEntityTypeId());
+            return false;
+        }
 
         for(var entry : subfieldMapping.getSubfields()) {
             if(entry.getSubfieldName().compareTo(subfieldName) == 0) {
@@ -380,6 +407,7 @@ public abstract class GameEntity<T extends CreateEntityConfig<?>> {
             }
         }
 
+        Grasscutter.getLogger().warn("Subfield {} not found for entity {} in SubfieldMapping", subfieldName, getEntityTypeId());
         return false;
     }
 
