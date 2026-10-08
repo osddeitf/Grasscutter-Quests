@@ -66,6 +66,14 @@ public class PlayerBuffManager extends BasePlayerManager {
     }
 
     /**
+     * @param buffId Server buff id
+     * @return True if the player has a buff of this id
+     */
+    public synchronized boolean hasBuff(int buffId) {
+        return allBuffs().anyMatch(buff -> buff.getBuffData().getId() == buffId);
+    }
+
+    /**
      * Clears all player buffs
      */
     public synchronized void clearBuffs() {

@@ -9,6 +9,7 @@ import emu.grasscutter.data.binout.config.*;
 import emu.grasscutter.data.binout.config.fields.ConfigAbilityData;
 import emu.grasscutter.data.binout.routes.SceneRoutes;
 import emu.grasscutter.data.common.PointData;
+import emu.grasscutter.data.common.ClimateAreaData;
 import emu.grasscutter.data.common.ScenePointArrayData;
 import emu.grasscutter.data.common.WeatherAreaPointData;
 import emu.grasscutter.data.common.quest.MainQuestData;
@@ -140,6 +141,7 @@ public class ResourceLoader {
         // Load scene points - must be done AFTER resources are loaded
         loadScenePoints();
         loadSceneWeatherAreas();
+        loadSceneClimateAreas();
         loadDungeonEntryAndExitPoints();
         // Load default home layout
         loadHomeworldDefaultSaveData();
@@ -157,6 +159,7 @@ public class ResourceLoader {
         loadCustomActivityData();
         loadTrialAvatarCustomData();
         loadGlobalCombatConfig();
+        loadClimateConfig();
         EntityControllerScriptManager.load();
         logger.info(translate("messages.status.resources.finish"));
         loadedAll = true;
@@ -242,6 +245,14 @@ public class ResourceLoader {
         });
     }
 
+    private static void loadClimateConfig() {
+        try {
+            GameData.setConfigClimate(JsonUtils.loadToClass(getResourcePath("BinOutput/Climate/ConfigClimate.json"), ConfigClimate.class));
+        } catch (IOException e) {
+            logger.error("Unable to load climate config.", e);
+        }
+    }
+
     private static void loadGlobalCombatConfig(){
         try {
             GameData.setConfigGlobalCombat(JsonUtils.loadToClass(getResourcePath("BinOutput/Common/ConfigGlobalCombat.json"), ConfigGlobalCombat.class));
@@ -321,6 +332,33 @@ public class ResourceLoader {
             });
         } catch (IOException e) {
             logger.error("Weather area files cannot be found");
+        }
+    }
+
+    private static void loadSceneClimateAreas() {
+        val pattern = Pattern.compile("scene([0-9]+)_climate_areas\\.json");
+        try (val dirStream = Files.newDirectoryStream(getResourcePath("Scripts/Scene"))) {
+            dirStream.forEach(dirPath -> {
+                if (!Files.isDirectory(dirPath)) return;  // e.g. Scripts/Scene/groups_replacement.lua
+                try (val stream = Files.newDirectoryStream(dirPath, "scene*_climate_areas.json")) {
+                    stream.forEach(path -> {
+                        val matcher = pattern.matcher(path.getFileName().toString());
+                        if (!matcher.find()) return;
+                        int sceneId = Integer.parseInt(matcher.group(1));
+
+                        try {
+                            val areas = JsonUtils.loadToList(path, ClimateAreaData.class);
+                            if (areas != null) GameData.getSceneClimateAreas().put(sceneId, areas);
+                        } catch (Exception e) {
+                            logger.error("Error loading climate area file: {}", path, e);
+                        }
+                    });
+                } catch (IOException e) {
+                    logger.error("Climate area files cannot be found in {}", dirPath);
+                }
+            });
+        } catch (IOException e) {
+            logger.error("Climate area files cannot be found");
         }
     }
 

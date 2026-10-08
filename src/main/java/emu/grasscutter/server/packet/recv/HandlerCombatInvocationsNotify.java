@@ -63,6 +63,9 @@ public class HandlerCombatInvocationsNotify extends TypedPacketHandler<CombatInv
 
                         if(position != null) {
                             entity.move(event.getPosition(), event.getRotation());
+                            if (entity == session.getPlayer().getTeamManager().getCurrentAvatarEntity()) {
+                                session.getPlayer().getClimateManager().onMove(event.getPosition());
+                            }
                         }
                         entity.setLastMoveSceneTimeMs(moveInfo.getSceneTime());
                         entity.setLastMoveReliableSeq(moveInfo.getReliableSeq());

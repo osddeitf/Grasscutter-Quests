@@ -49,6 +49,7 @@ import emu.grasscutter.game.managers.forging.ForgingManager;
 import emu.grasscutter.game.managers.giving.GivingManager;
 import emu.grasscutter.game.managers.mapmark.MapMark;
 import emu.grasscutter.game.managers.mapmark.MapMarksManager;
+import emu.grasscutter.game.managers.climate.ClimateManager;
 import emu.grasscutter.game.managers.stamina.StaminaManager;
 import emu.grasscutter.game.modules.shop.ShopModule;
 import emu.grasscutter.game.modules.widget.WidgetModule;
@@ -184,6 +185,7 @@ public class Player {
     @Getter private transient SotSManager sotsManager;
     @Getter private transient MapMarksManager mapMarksManager;
     @Getter private transient StaminaManager staminaManager;
+    @Getter private transient ClimateManager climateManager;
     @Getter private transient EnergyManager energyManager;
     @Getter private transient ResinManager resinManager;
     @Getter private transient ForgingManager forgingManager;
@@ -316,6 +318,7 @@ public class Player {
         this.messageHandler = null;
         this.mapMarksManager = new MapMarksManager(this);
         this.staminaManager = new StaminaManager(this);
+        this.climateManager = new ClimateManager(this);
         this.sotsManager = new SotSManager(this);
         this.energyManager = new EnergyManager(this);
         this.resinManager = new ResinManager(this);
@@ -1190,6 +1193,7 @@ public class Player {
         this.getCoopRequests().values().removeIf(this::expireCoopRequest);
         // Handle buff
         this.getBuffManager().onTick();
+        this.getClimateManager().onTick();
         // Ping
         if (this.getWorld() != null) {
             // RTT notify - very important to send this often
