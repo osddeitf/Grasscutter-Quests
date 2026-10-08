@@ -66,6 +66,14 @@ public class PlayerBuffManager extends BasePlayerManager {
     }
 
     /**
+     * The buffs an avatar holds, for the packets (re)creating it on the client, e.g. on entering a scene, a teleport
+     * included: the client drops its buffs' modifiers with the avatar
+     */
+    public synchronized List<ServerBuff> toAvatarProtos(long avatarGuid) {
+        return allBuffs().filter(buff -> buff.getAvatarGuids().contains(avatarGuid)).map(ServerBuffInstance::toProto).toList();
+    }
+
+    /**
      * @param buffId Server buff id
      * @return True if the player has a buff of this id
      */

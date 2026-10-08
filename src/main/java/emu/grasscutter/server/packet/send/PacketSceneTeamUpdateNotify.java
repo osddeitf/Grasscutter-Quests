@@ -30,6 +30,7 @@ public class PacketSceneTeamUpdateNotify extends BaseTypedPacket<SceneTeamUpdate
                 avatarProto.setAvatarAbilityInfo(new AbilitySyncStateInfo());
                 avatarProto.setWeaponAbilityInfo(new AbilitySyncStateInfo());
                 avatarProto.setAbilityControlBlock(entityAvatar.getAvatar().getAbilities().toProto());
+                avatarProto.setServerBuffList(p.getBuffManager().toAvatarProtos(entityAvatar.getAvatar().getGuid()));
 
                 if (player.getWorld().isMultiplayer()) {
                     avatarProto.setAvatarInfo(entityAvatar.getAvatar().toProto());
