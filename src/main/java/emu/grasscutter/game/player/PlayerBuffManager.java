@@ -9,6 +9,7 @@ import emu.grasscutter.server.packet.send.PacketServerBuffChangeNotify;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.val;
 import org.anime_game_servers.multi_proto.gi.messages.battle.ServerBuffChangeType;
 import org.anime_game_servers.multi_proto.gi.messages.general.ability.ServerBuff;
@@ -18,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -121,6 +123,7 @@ public class PlayerBuffManager extends BasePlayerManager {
         var avatarGuids = holders.stream().map(Avatar::getGuid).toList();
         var buff = new ServerBuffInstance(getNextBuffUid(), buffData, duration, avatarGuids, List.of());
         if (buff.getGroupId() == 0) {
+            allocateSlot(buff);
             this.ungroupedBuffs.put(buff.getUid(), buff);
         } else {
             // Replace the group's previous buff on the same holders
@@ -128,11 +131,24 @@ public class PlayerBuffManager extends BasePlayerManager {
             var replaced = group.stream().filter(buff::sharesHolder).toList();
             group.removeAll(replaced);
             notifyHolders(ServerBuffChangeType.DEL_SERVER_BUFF, replaced);
+            allocateSlot(buff);
             group.add(buff);
         }
 
         notifyHolders(ServerBuffChangeType.ADD_SERVER_BUFF, List.of(buff));
         return true;
+    }
+
+    /**
+     * The buff's modifier slot (its instanced modifier id for the client): the lowest one from 1 not taken by a buff
+     * sharing a holder, as the official server does per entity. A shared slot lets only the first buff of an ability
+     * apply, e.g. Sheer Cold's area, Lv1 and Lv2 buffs, all of ClimateAbility_Cold.
+     */
+    private void allocateSlot(ServerBuffInstance buff) {
+        var taken = allBuffs().filter(buff::sharesHolder).map(ServerBuffInstance::getSlot).collect(Collectors.toSet());
+        int slot = 1;
+        while (taken.contains(slot)) slot++;
+        buff.setSlot(slot);
     }
 
     /** An avatar buff goes to the target avatar (the current one if none), others to every avatar of the active team */
@@ -198,6 +214,8 @@ public class PlayerBuffManager extends BasePlayerManager {
         /** Holders: avatars by guid, other entities by id */
         private final List<Long> avatarGuids;
         private final List<Integer> entityIds;
+        /** The modifier slot (instanced modifier id) on its holders, see allocateSlot */
+        @Setter private int slot = 1;
 
         public ServerBuffInstance(int uid, BuffData buffData, float duration, List<Long> avatarGuids, List<Integer> entityIds) {
             this.uid = uid;
@@ -221,7 +239,7 @@ public class PlayerBuffManager extends BasePlayerManager {
             proto.setServerBuffUid(this.getUid());
             proto.setServerBuffId(this.getBuffData().getId());
             proto.setServerBuffType(this.getBuffData().getServerBuffType().getValue());
-            proto.setInstancedModifierId(1);
+            proto.setInstancedModifierId(this.slot);
             return proto;
         }
     }
