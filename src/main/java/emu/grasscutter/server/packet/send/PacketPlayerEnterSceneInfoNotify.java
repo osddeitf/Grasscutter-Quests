@@ -51,6 +51,7 @@ public class PacketPlayerEnterSceneInfoNotify extends BaseTypedPacket<PlayerEnte
             avatarInfo.setWeaponGuid(weaponGuid);
             avatarInfo.setWeaponEntityId(avatarEntity.getWeaponEntityId());
             avatarInfo.setWeaponAbilityInfo(empty);
+            avatarInfo.setServerBuffList(player.getBuffManager().toAvatarProtos(avatarEntity.getAvatar().getGuid()));
             return avatarInfo;
         }).toList());
 	}
