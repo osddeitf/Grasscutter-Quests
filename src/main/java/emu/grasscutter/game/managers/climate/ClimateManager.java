@@ -26,18 +26,19 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * The climate meter (e.g. Sheer Cold, Bale Thunder): it rises while in a climate area, fades outside.
- * - In a climate area: rises 1 unit (100 points) per second, by the ResistClimateMixin ratio, up to 100 units
+ * - In a climate area: rises by the climate's speed (ConfigClimate templates) units per second, by the
+ *   ResistClimateMixin ratio, up to 100 units (100 points a unit)
  * - Outside (Normal): fades by ConfigClimate fadeSpeed units per second
  * - AddClimateMeter adds to it, e.g. Dulin's Blood
  * - A different climate clears it (isForceClearDifferentClimateMeter, always as a default)
  * - In a climate area, its server buffs (ConfigClimate): the area buffs and the first level debuff
  * - From the threshold (ConfigClimate thresholdRatio of the max), the meter's climate high level debuff
- * TODO: per climate rise speed (ConfigClimate), the mixin's trend, source and type
+ * TODO: the mixin's trend, source and type
  */
 public class ClimateManager extends BasePlayerManager {
     private static final Logger logger = Grasscutter.getLogger();
 
-    public static final int METER_STEP = 100;  // 1 unit per second
+    public static final int METER_STEP = 100;  // points per unit
     public static final int METER_MAX = 100 * METER_STEP;
 
     private ClimateType meterType = ClimateType.Normal;
@@ -126,7 +127,7 @@ public class ClimateManager extends BasePlayerManager {
                 newMeter = 0;
                 newMeterType = this.areaType;
             }
-            newMeter = Math.min(METER_MAX, newMeter + Math.round(METER_STEP * getRatio(newMeterType)));
+            newMeter = Math.min(METER_MAX, newMeter + Math.round(METER_STEP * getRiseSpeed(newMeterType) * getRatio(newMeterType)));
         } else if (newMeter > 0) {
             newMeter = Math.max(0, newMeter - Math.round(METER_STEP * getFadeSpeed()));
         }
@@ -165,6 +166,13 @@ public class ClimateManager extends BasePlayerManager {
         }
 
         updateHighDebuff();
+    }
+
+    /** The climate's increase in its area, in units per second (ConfigClimate template temperatureOptions.speed) */
+    private static float getRiseSpeed(ClimateType type) {
+        var info = GameData.getConfigClimate().getClimateInfo(type);
+        float speed = info != null ? info.getTemperatureOptions().getSpeed() : 0;
+        return speed > 0 ? speed : ConfigClimate.DEFAULT_SPEED;
     }
 
     private static float getFadeSpeed() {
