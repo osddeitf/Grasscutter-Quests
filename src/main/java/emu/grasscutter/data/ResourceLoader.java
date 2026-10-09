@@ -18,6 +18,7 @@ import emu.grasscutter.data.custom.TrialAvatarActivityCustomData;
 import emu.grasscutter.data.custom.TrialAvatarCustomData;
 import emu.grasscutter.data.custom.activity.ActivityExtraInfo;
 import emu.grasscutter.data.excels.TrialAvatarActivityDataData;
+import emu.grasscutter.data.excels.MonsterData;
 import emu.grasscutter.data.server.*;
 import emu.grasscutter.game.ability.Ability;
 import emu.grasscutter.game.dungeons.DungeonDrop;
@@ -154,7 +155,6 @@ public class ResourceLoader {
         loadGadgetMappings();
         loadSubfieldMappings();
         loadWeatherMappings();
-        loadMonsterMappings();
         loadActivityCondGroups();
         loadCustomActivityData();
         loadTrialAvatarCustomData();
@@ -781,7 +781,7 @@ public class ResourceLoader {
     }
     private static void loadConfigData(){
         loadConfigData(GameData.getAvatarConfigData(), "BinOutput/Avatar/", ConfigEntityAvatar.class);
-        loadConfigData(GameData.getMonsterConfigData(), "BinOutput/Monster/", ConfigEntityMonster.class);
+        MonsterData.loadConfigFolders();
         loadConfigDataMap(GameData.getGadgetConfigData(), "BinOutput/Gadget/", ConfigEntityGadget.class);
     }
 
@@ -1003,18 +1003,6 @@ public class ResourceLoader {
             logger.debug("Loaded {} weather mappings.", weatherMap.size());
         } catch (Exception e) {
             logger.error("Unable to load weather mappings.", e);
-        }
-    }
-
-    private static void loadMonsterMappings() {
-        try {
-            val monsterMap = GameData.getMonsterMappingMap();
-            try {
-                JsonUtils.loadToList(getResourcePath("Server/MonsterMapping.json"), MonsterMapping.class).forEach(entry -> monsterMap.put(entry.getMonsterId(), entry));;
-            } catch (IOException | NullPointerException ignored) {}
-            logger.debug("Loaded {} monster mappings.", monsterMap.size());
-        } catch (Exception e) {
-            logger.error("Unable to load monster mappings.", e);
         }
     }
 

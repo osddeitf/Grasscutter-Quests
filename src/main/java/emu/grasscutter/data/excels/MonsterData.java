@@ -1,18 +1,39 @@
 package emu.grasscutter.data.excels;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
+import javax.annotation.Nullable;
+
+import com.google.gson.TypeAdapter;
+import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.annotations.SerializedName;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 
+import emu.grasscutter.Grasscutter;
+import emu.grasscutter.config.Configuration;
 import emu.grasscutter.data.GameData;
 import emu.grasscutter.data.GameResource;
 import emu.grasscutter.data.ResourceType;
 import emu.grasscutter.data.ResourceType.LoadPriority;
+import emu.grasscutter.data.binout.config.ConfigEntityMonster;
 import emu.grasscutter.data.common.PropGrowCurve;
 import emu.grasscutter.game.props.FightProperty;
 import emu.grasscutter.game.props.MonsterType;
+import emu.grasscutter.utils.FileUtils;
+import emu.grasscutter.utils.JsonUtils;
+import emu.grasscutter.utils.TextUtils;
 import lombok.Getter;
 import lombok.val;
 
@@ -58,15 +79,21 @@ public class MonsterData extends GameResource {
     private List<PropGrowCurve> propGrowCurves;
     private long nameTextMapHash;
     private int campID;
+    /** The hash of the combat config's path, see {@link #resolveConfig()} */
+    @JsonAdapter(UnsignedLongAdapter.class)
+    private long combatConfigHash;
 
     // Transient
     private int weaponId;
     private MonsterDescribeData describeData;
+    @Nullable private transient ConfigEntityMonster config;
 
 	private int specialNameId; // will only be set if describe data is available
 
 	@Override
 	public void onLoad() {
+		this.config = resolveConfig();
+
 		for (int id : this.equips) {
 			if (id == 0) {
 				continue;
@@ -108,6 +135,113 @@ public class MonsterData extends GameResource {
             case FIGHT_PROP_ICE_SUB_HURT -> this.iceSubHurt;
             default -> 0f;
         };
+    }
+
+    /** The monster config folders, the first being the primary one, see {@link #loadConfigFolders()} */
+    private static final List<MonsterConfigFolder> configFolders = new ArrayList<>();
+    /** The resolved configs by combatConfigHash, null when not found */
+    private static final Map<Long, ConfigEntityMonster> configsByHash = new HashMap<>();
+
+    /** Indexes the configured monster config folders, to be done before the monster excel loads */
+    public static void loadConfigFolders() {
+        configFolders.clear();
+        configsByHash.clear();
+        for (String folder : Configuration.c.folderStructure.monsterConfigs) {
+            val root = folder.startsWith("resources:")
+                ? FileUtils.getResourcePath(folder.substring("resources:".length()))
+                : Path.of(folder);
+            configFolders.add(MonsterConfigFolder.load(root));
+        }
+    }
+
+    /**
+     * Each folder is searched in order for the file whose path hashes to combatConfigHash, then for the file named after
+     * its hex digits [6,14). A file that doesn't parse is skipped.
+     */
+    @Nullable
+    private ConfigEntityMonster resolveConfig() {
+        if (configsByHash.containsKey(this.combatConfigHash)) return configsByHash.get(this.combatConfigHash);
+
+        ConfigEntityMonster config = null;
+        val shortName = String.format("%016x", this.combatConfigHash).substring(6, 14);
+        search:
+        for (int i = 0; i < configFolders.size(); i++) {
+            val folder = configFolders.get(i);
+            for (val path : new Path[]{folder.byHash.get(this.combatConfigHash), folder.byName.get(shortName)}) {
+                if (path == null) continue;
+                config = loadConfig(path);
+                if (config == null) continue;
+                if (i > 0) {
+                    Grasscutter.getLogger().warn("Monster {} config for combatConfigHash {} found in fallback folder: {}",
+                        this.id, Long.toUnsignedString(this.combatConfigHash), path);
+                }
+                break search;
+            }
+        }
+        if (config == null) {
+            Grasscutter.getLogger().warn("Monster {} config not found for combatConfigHash {}",
+                this.id, Long.toUnsignedString(this.combatConfigHash));
+        }
+        configsByHash.put(this.combatConfigHash, config);
+        return config;
+    }
+
+    @Nullable
+    private static ConfigEntityMonster loadConfig(Path path) {
+        try {
+            val config = JsonUtils.loadToClass(path, ConfigEntityMonster.class);
+            if (config != null) return config;
+            Grasscutter.getLogger().warn("Monster config {} is empty", path);
+        } catch (Exception e) {
+            Grasscutter.getLogger().warn("Monster config {} failed to parse: {}", path, e.toString());
+        }
+        return null;
+    }
+
+    /** A monster config folder's files by their path's hash, and by their path relative to the folder, without .json */
+    private record MonsterConfigFolder(Map<Long, Path> byHash, Map<String, Path> byName) {
+        static MonsterConfigFolder load(Path root) {
+            Map<Long, Path> byHash = new HashMap<>();
+            Map<String, Path> byName = new HashMap<>();
+            if (!Files.isDirectory(root)) {
+                Grasscutter.getLogger().warn("Monster config folder {} not found", root);
+                return new MonsterConfigFolder(byHash, byName);
+            }
+            try (val paths = Files.walk(root)) {
+                paths.filter(path -> path.toString().endsWith(".json") && Files.isRegularFile(path)).forEach(path -> {
+                    val relative = StreamSupport.stream(root.relativize(path).spliterator(), false)
+                        .map(Path::toString).collect(Collectors.joining("/"));
+                    val name = relative.substring(0, relative.length() - ".json".length());
+                    byName.put(name, path);
+                    byHash.put(hashPath(name), path);
+                });
+            } catch (IOException e) {
+                Grasscutter.getLogger().error("Failed to index monster config folder {}", root, e);
+            }
+            Grasscutter.getLogger().debug("Indexed {} monster configs in {}", byName.size(), root);
+            return new MonsterConfigFolder(byHash, byName);
+        }
+
+        static long hashPath(String name) {
+            try {
+                return TextUtils.getTextHash("Data/_BinOutput/Monster/" + name + ".MiHoYoBinData");
+            } catch (NoSuchAlgorithmException e) {
+                throw new IllegalStateException(e);
+            }
+        }
+    }
+
+    /** Reads an unsigned 64-bit number, which Gson's long adapter rejects past Long.MAX_VALUE */
+    private static class UnsignedLongAdapter extends TypeAdapter<Long> {
+        @Override
+        public void write(JsonWriter out, Long value) throws IOException {
+            out.value(Long.toUnsignedString(value));
+        }
+
+        @Override
+        public Long read(JsonReader in) throws IOException {
+            return Long.parseUnsignedLong(in.nextString());
+        }
     }
 
     @Getter

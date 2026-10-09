@@ -44,7 +44,6 @@ public class GameData {
     @Getter private static final Map<String, AbilityModifierEntry> abilityModifiers = new HashMap<>();
     @Getter private static final Map<String, ConfigEntityAvatar> avatarConfigData = new HashMap<>();
     @Getter private static final Map<String, ConfigEntityGadget> gadgetConfigData = new HashMap<>();
-    @Getter private static final Map<String, ConfigEntityMonster> monsterConfigData = new HashMap<>();
     @Getter private static final Map<String, OpenConfigEntry> openConfigEntries = new HashMap<>();
     @Getter private static final Int2ObjectMap<DungeonEntries> dungeonEntriesMap = new Int2ObjectOpenHashMap<>();
     protected static final Map<String, AbilityData> abilityDataMap = new HashMap<>();
@@ -196,7 +195,6 @@ public class GameData {
     @Getter private static final Int2ObjectMap<SubfieldMapping> subfieldMappingMap = new Int2ObjectOpenHashMap<>();
     @Getter private static final Int2ObjectMap<DropSubfieldMapping> dropSubfieldMappingMap = new Int2ObjectOpenHashMap<>();
     @Getter private static final Int2ObjectMap<DropTableExcelConfigData> dropTableExcelConfigDataMap = new Int2ObjectOpenHashMap<>();
-    @Getter private static final Int2ObjectMap<MonsterMapping> monsterMappingMap = new Int2ObjectOpenHashMap<>();
     @Getter private static final Int2ObjectMap<ActivityCondGroup> activityCondGroupMap = new Int2ObjectOpenHashMap<>();
     @Getter private static final Int2ObjectMap<SceneGroupReplacement> groupReplacements = new Int2ObjectOpenHashMap<>();
     @Getter private static final Int2ObjectMap<WeatherMapping> weatherMappingMap = new Int2ObjectOpenHashMap<>();
