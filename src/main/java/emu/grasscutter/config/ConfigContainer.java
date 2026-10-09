@@ -7,6 +7,7 @@ import emu.grasscutter.Grasscutter.ServerDebugMode;
 import emu.grasscutter.Grasscutter.ServerRunMode;
 import emu.grasscutter.utils.JsonUtils;
 
+import java.util.List;
 import java.util.Set;
 import java.lang.reflect.Field;
 import java.util.Arrays;
@@ -92,6 +93,8 @@ public class ConfigContainer {
         public String plugins = "./plugins/";
         public String cache = "./server/cache/";
         public AbilityResources abilityResources = new AbilityResources();
+        /** Monster config folders, tried in order, the first being the primary one; "resources:" is relative to the resources */
+        public List<String> monsterConfigs = List.of("resources:BinOutput/Monster/");
 
         // UNUSED (potentially added later?)
         // public String dumps = "./dumps/";

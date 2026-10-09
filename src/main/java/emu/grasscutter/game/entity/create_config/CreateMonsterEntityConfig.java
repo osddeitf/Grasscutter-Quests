@@ -32,7 +32,7 @@ public class CreateMonsterEntityConfig extends CreateEntityConfig<CreateMonsterE
         this.monsterId = monsterId;
 
         setupMonsterData(monsterId);
-        setupConfigEntity(monsterId);
+        setupConfigEntity();
         setupFromMonsterData();
     }
 
@@ -41,7 +41,7 @@ public class CreateMonsterEntityConfig extends CreateEntityConfig<CreateMonsterE
         this.monsterData = monsterData;
         this.campId = monsterData.getCampID();
 
-        setupConfigEntity(monsterId);
+        setupConfigEntity();
         setupFromMonsterData();
     }
 
@@ -50,7 +50,7 @@ public class CreateMonsterEntityConfig extends CreateEntityConfig<CreateMonsterE
         this.monsterId = monsterId;
 
         setupMonsterData(monsterId);
-        setupConfigEntity(monsterId);
+        setupConfigEntity();
         setupFromMonsterData();
     }
 
@@ -59,7 +59,7 @@ public class CreateMonsterEntityConfig extends CreateEntityConfig<CreateMonsterE
         this.monsterId = monsterId;
 
         setupMonsterData(monsterId);
-        setupConfigEntity(monsterId);
+        setupConfigEntity();
         setupFromMonsterData();
     }
 
@@ -77,7 +77,7 @@ public class CreateMonsterEntityConfig extends CreateEntityConfig<CreateMonsterE
         // TODO
 
         setupMonsterData(monsterId);
-        setupConfigEntity(monsterId);
+        setupConfigEntity();
         setupFromMonsterData();
     }
 
@@ -88,15 +88,12 @@ public class CreateMonsterEntityConfig extends CreateEntityConfig<CreateMonsterE
         // TODO
 
         setupMonsterData(monsterId);
-        setupConfigEntity(monsterId);
+        setupConfigEntity();
         setupFromMonsterData();
     }
 
-    private void setupConfigEntity(int monsterId){
-        val monsterMapping = GameData.getMonsterMappingMap().get(monsterId);
-        if(monsterMapping != null && monsterMapping.getMonsterJson() != null) {
-            this.configEntity = GameData.getMonsterConfigData().get(monsterMapping.getMonsterJson());
-        }
+    private void setupConfigEntity(){
+        this.configEntity = this.monsterData != null ? this.monsterData.getConfig() : null;
     }
 
     private void setupMonsterData(int monsterId){
