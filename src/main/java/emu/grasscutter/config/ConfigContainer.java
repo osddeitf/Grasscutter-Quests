@@ -95,6 +95,8 @@ public class ConfigContainer {
         public AbilityResources abilityResources = new AbilityResources();
         /** Monster config folders, tried in order, the first being the primary one; "resources:" is relative to the resources */
         public List<String> monsterConfigs = List.of("resources:BinOutput/Monster/");
+        /** Avatar config folders, tried in order, the first being the primary one; "resources:" is relative to the resources */
+        public List<String> avatarConfigs = List.of("resources:BinOutput/Avatar/");
 
         // UNUSED (potentially added later?)
         // public String dumps = "./dumps/";

@@ -170,9 +170,11 @@ public class AvatarAbilityManager extends BaseAbilityManager {
 
     private void initAbilityEmbryos() {
         var defaults = Arrays.stream(GameConstants.DEFAULT_ABILITY_HASHES);
-        var info = avatar.getAvatarData().getAbilityEmbryoInfo();
-        if (info != null) {
-            defaults = IntStream.concat(defaults, Arrays.stream(info.getAbilities()).mapToInt(Utils::abilityHash));
+        var combatConfig = avatar.getAvatarData().getCombatConfig();
+        if (combatConfig != null && combatConfig.getAbilities() != null) {
+            defaults = IntStream.concat(defaults, combatConfig.getAbilities().stream()
+                .map(ConfigAbilityData::getAbilityName)
+                .mapToInt(Utils::abilityHash));
         }
         updateAbilityEmbryos(AbilityType.DEFAULT, defaults);
     }

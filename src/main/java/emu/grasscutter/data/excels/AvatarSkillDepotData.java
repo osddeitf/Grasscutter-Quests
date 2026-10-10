@@ -4,7 +4,6 @@ import emu.grasscutter.data.GameData;
 import emu.grasscutter.data.GameResource;
 import emu.grasscutter.data.ResourceType;
 import emu.grasscutter.data.ResourceType.LoadPriority;
-import emu.grasscutter.data.binout.AbilityEmbryoEntry;
 import emu.grasscutter.game.props.ElementType;
 import emu.grasscutter.utils.Utils;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -38,9 +37,9 @@ public class AvatarSkillDepotData extends GameResource {
     private IntList abilities;
     private int talentCostItemId;
 
-    public void setAbilities(AbilityEmbryoEntry info) {
-        this.abilities = new IntArrayList(info.getAbilities().length);
-        for (String ability : info.getAbilities()) {
+    public void setAbilities(String[] abilities) {
+        this.abilities = new IntArrayList(abilities.length);
+        for (String ability : abilities) {
             this.abilities.add(Utils.abilityHash(ability));
         }
     }
@@ -59,7 +58,7 @@ public class AvatarSkillDepotData extends GameResource {
             var config = GameData.getAbilityGroupMap().get(getSkillDepotAbilityGroup());
 
             if (config != null) {
-                this.setAbilities(new AbilityEmbryoEntry(getSkillDepotAbilityGroup(), config.targetAbilities.stream().map(Object::toString).toArray(String[]::new)));
+                this.setAbilities(config.targetAbilities.stream().map(Object::toString).toArray(String[]::new));
             }
         }
 
