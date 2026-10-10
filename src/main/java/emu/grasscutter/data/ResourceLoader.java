@@ -6,7 +6,6 @@ import emu.grasscutter.Loggers;
 import emu.grasscutter.data.binout.*;
 import emu.grasscutter.data.binout.AbilityModifier.AbilityModifierAction;
 import emu.grasscutter.data.binout.config.*;
-import emu.grasscutter.data.binout.config.fields.ConfigAbilityData;
 import emu.grasscutter.data.binout.routes.SceneRoutes;
 import emu.grasscutter.data.common.PointData;
 import emu.grasscutter.data.common.ClimateAreaData;
@@ -122,8 +121,6 @@ public class ResourceLoader {
         loadAbilityConfigs();
 
         loadConfigData();
-        // Load ability lists
-        loadAbilityEmbryos();
         loadOpenConfig();
 //        loadAbilityModifiers();
         loadAbilityGroups();
@@ -433,43 +430,6 @@ public class ResourceLoader {
             GameData.proudSkillGroupMaxLevels.put((int) id, set.intStream().max().getAsInt()));
     }
 
-
-    private static void loadAbilityEmbryos() {
-        List<AbilityEmbryoEntry> embryoList = null;
-
-        // Read from cached file if exists
-        try {
-            embryoList = JsonUtils.loadToList(getDataPath("AbilityEmbryos.json"), AbilityEmbryoEntry.class);
-        } catch (Exception ignored) {}
-
-        if (embryoList == null) {
-            val pattern = Pattern.compile("ConfigAvatar_(.+)");
-            val l = new ArrayList<AbilityEmbryoEntry>();
-            // Load from BinOutput
-            GameData.getAvatarConfigData().forEach((key, config) -> {
-                val abilities = config.getAbilities();
-                val matcher = pattern.matcher(key);
-                if (abilities == null || !matcher.find()) {
-                    return;
-                }
-                String avatarName = matcher.group(1);
-                int s = abilities.size();
-                AbilityEmbryoEntry al = new AbilityEmbryoEntry(avatarName, abilities.stream().map(ConfigAbilityData::getAbilityName).toArray(size -> new String[s]));
-                l.add(al);
-            });
-
-            embryoList = l;
-        }
-
-        if (embryoList.isEmpty()) {
-            logger.error("No embryos loaded!");
-            return;
-        }
-
-        for (AbilityEmbryoEntry entry : embryoList) {
-            GameData.getAbilityEmbryoInfo().put(entry.getName(), entry);
-        }
-    }
 
     private static void loadAbilityConfigs() {
         var config = Configuration.c.folderStructure.abilityResources;
@@ -781,7 +741,6 @@ public class ResourceLoader {
         }
     }
     private static void loadConfigData(){
-        loadConfigData(GameData.getAvatarConfigData(), "BinOutput/Avatar/", ConfigEntityAvatar.class);
         AvatarData.loadConfigFolders();
         MonsterData.loadConfigFolders();
         loadConfigDataMap(GameData.getGadgetConfigData(), "BinOutput/Gadget/", ConfigEntityGadget.class);
@@ -803,24 +762,6 @@ public class ResourceLoader {
             logger.error("Failed to load {} folder.", className);
         }
     }
-    private static <T extends ConfigEntityBase> void loadConfigData(Map<String,T> targetMap, String folderPath, Class<T> configClass) {
-        val className = configClass.getName();
-        try(val stream = Files.newDirectoryStream(getResourcePath(folderPath), "*.json")) {
-            stream.forEach(path -> {
-                try {
-                    val name = path.getFileName().toString().replace(".json", "");
-                    targetMap.put(name, JsonUtils.loadToClass(path, configClass));
-                } catch (Exception e) {
-                    logger.error("failed to load {} entries for {}", className, path.toString(), e);
-                }
-            });
-
-            logger.debug("Loaded {} {} entries.", targetMap.size(), className);
-        } catch (IOException e) {
-            logger.error("Failed to load {} folder.", className);
-        }
-    }
-
     private static void loadSceneRoutes() {
         try(val stream = Files.newDirectoryStream(getResourcePath("BinOutput/LevelDesign/Routes/"), "*.json")) {
             stream.forEach(path -> {

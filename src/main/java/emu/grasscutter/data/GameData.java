@@ -42,7 +42,6 @@ public class GameData {
     @Getter private static final Int2ObjectMap<String> abilityHashes = new Int2ObjectOpenHashMap<>();
     @Deprecated(forRemoval = true)
     @Getter private static final Map<String, AbilityModifierEntry> abilityModifiers = new HashMap<>();
-    @Getter private static final Map<String, ConfigEntityAvatar> avatarConfigData = new HashMap<>();
     @Getter private static final Map<String, ConfigEntityGadget> gadgetConfigData = new HashMap<>();
     @Getter private static final Map<String, OpenConfigEntry> openConfigEntries = new HashMap<>();
     @Getter private static final Int2ObjectMap<DungeonEntries> dungeonEntriesMap = new Int2ObjectOpenHashMap<>();
@@ -51,7 +50,6 @@ public class GameData {
     private static final Int2ObjectMap<MainQuestData> mainQuestData = new Int2ObjectOpenHashMap<>();
     private static final Int2ObjectMap<QuestEncryptionKey> questsKeys = new Int2ObjectOpenHashMap<>();
     private static final Int2ObjectMap<SceneNpcBornData> npcBornData = new Int2ObjectOpenHashMap<>();
-    private static final Map<String, AbilityEmbryoEntry> abilityEmbryos = new HashMap<>();
     @Getter private static final Map<String, AbilityGroup> abilityGroupMap = new HashMap<>();
 
     // ExcelConfigs
@@ -231,8 +229,6 @@ public class GameData {
     public static Int2ObjectMap<MainQuestData> getMainQuestDataMap() {return mainQuestData;}
     public static Int2ObjectMap<QuestEncryptionKey> getMainQuestEncryptionMap() {return questsKeys;}
     public static Int2ObjectMap<SceneNpcBornData> getSceneNpcBornData() {return npcBornData;}
-    public static Map<String, AbilityEmbryoEntry> getAbilityEmbryoInfo() {return abilityEmbryos;}
-
     // Getters that get values rather than containers. If Lombok ever gets syntactic sugar for this, we should adopt that.
     public static AbilityData getAbilityData(String abilityName) {return abilityDataMap.get(abilityName);}
     public static IntSet getAvatarSkillLevels(int avatarSkillId) {return avatarSkillLevels.get(avatarSkillId);}

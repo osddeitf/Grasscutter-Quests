@@ -6,7 +6,6 @@ import emu.grasscutter.data.GameData;
 import emu.grasscutter.data.GameResource;
 import emu.grasscutter.data.ResourceType;
 import emu.grasscutter.data.ResourceType.LoadPriority;
-import emu.grasscutter.data.binout.AbilityEmbryoEntry;
 import emu.grasscutter.data.binout.config.CombatConfigFolder;
 import emu.grasscutter.data.binout.config.ConfigEntityAvatar;
 import emu.grasscutter.data.binout.config.UnsignedLongAdapter;
@@ -229,13 +228,6 @@ public class AvatarData extends GameResource {
         if (split.length > 0) {
             this.name = split[split.length - 1];
         }
-    }
-
-    public AbilityEmbryoEntry getAbilityEmbryoInfo() {
-        if (this.name != null) {
-            return GameData.getAbilityEmbryoInfo().get(this.name);
-        }
-        return null;
     }
 
 }
