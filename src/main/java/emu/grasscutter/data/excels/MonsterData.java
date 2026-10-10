@@ -1,25 +1,16 @@
 package emu.grasscutter.data.excels;
 
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 import javax.annotation.Nullable;
 
-import com.google.gson.TypeAdapter;
 import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.annotations.SerializedName;
-import com.google.gson.stream.JsonReader;
-import com.google.gson.stream.JsonWriter;
 
 import emu.grasscutter.Grasscutter;
 import emu.grasscutter.config.Configuration;
@@ -27,13 +18,14 @@ import emu.grasscutter.data.GameData;
 import emu.grasscutter.data.GameResource;
 import emu.grasscutter.data.ResourceType;
 import emu.grasscutter.data.ResourceType.LoadPriority;
+import emu.grasscutter.data.binout.config.CombatConfigFolder;
 import emu.grasscutter.data.binout.config.ConfigEntityMonster;
+import emu.grasscutter.data.binout.config.UnsignedLongAdapter;
 import emu.grasscutter.data.common.PropGrowCurve;
 import emu.grasscutter.game.props.FightProperty;
 import emu.grasscutter.game.props.MonsterType;
 import emu.grasscutter.utils.FileUtils;
 import emu.grasscutter.utils.JsonUtils;
-import emu.grasscutter.utils.TextUtils;
 import lombok.Getter;
 import lombok.val;
 
@@ -138,7 +130,7 @@ public class MonsterData extends GameResource {
     }
 
     /** The monster config folders, the first being the primary one, see {@link #loadConfigFolders()} */
-    private static final List<MonsterConfigFolder> configFolders = new ArrayList<>();
+    private static final List<CombatConfigFolder> configFolders = new ArrayList<>();
     /** The resolved configs by combatConfigHash, null when not found */
     private static final Map<Long, ConfigEntityMonster> configsByHash = new HashMap<>();
 
@@ -150,31 +142,28 @@ public class MonsterData extends GameResource {
             val root = folder.startsWith("resources:")
                 ? FileUtils.getResourcePath(folder.substring("resources:".length()))
                 : Path.of(folder);
-            configFolders.add(MonsterConfigFolder.load(root));
+            configFolders.add(CombatConfigFolder.load(root, "Monster"));
         }
     }
 
-    /**
-     * Each folder is searched in order for the file whose path hashes to combatConfigHash, then for the file named after
-     * its hex digits [6,14). A file that doesn't parse is skipped.
-     */
+    /** Each folder is searched in order by unsigned decimal name, path hash, then 8-character short hash. */
     @Nullable
     private ConfigEntityMonster resolveConfig() {
         if (configsByHash.containsKey(this.combatConfigHash)) return configsByHash.get(this.combatConfigHash);
 
         ConfigEntityMonster config = null;
-        val shortName = String.format("%016x", this.combatConfigHash).substring(6, 14);
         search:
         for (int i = 0; i < configFolders.size(); i++) {
             val folder = configFolders.get(i);
-            for (val path : new Path[]{folder.byHash.get(this.combatConfigHash), folder.byName.get(shortName)}) {
-                if (path == null) continue;
+            for (val path : folder.findCandidates(this.combatConfigHash)) {
                 config = loadConfig(path);
                 if (config == null) continue;
                 if (i > 0) {
                     Grasscutter.getLogger().warn("Monster {} config for combatConfigHash {} found in fallback folder: {}",
                         this.id, Long.toUnsignedString(this.combatConfigHash), path);
                 }
+                Grasscutter.getLogger().debug("Resolved monster {} config for combatConfigHash {}: {}",
+                    this.id, Long.toUnsignedString(this.combatConfigHash), path);
                 break search;
             }
         }
@@ -196,52 +185,6 @@ public class MonsterData extends GameResource {
             Grasscutter.getLogger().warn("Monster config {} failed to parse: {}", path, e.toString());
         }
         return null;
-    }
-
-    /** A monster config folder's files by their path's hash, and by their path relative to the folder, without .json */
-    private record MonsterConfigFolder(Map<Long, Path> byHash, Map<String, Path> byName) {
-        static MonsterConfigFolder load(Path root) {
-            Map<Long, Path> byHash = new HashMap<>();
-            Map<String, Path> byName = new HashMap<>();
-            if (!Files.isDirectory(root)) {
-                Grasscutter.getLogger().warn("Monster config folder {} not found", root);
-                return new MonsterConfigFolder(byHash, byName);
-            }
-            try (val paths = Files.walk(root)) {
-                paths.filter(path -> path.toString().endsWith(".json") && Files.isRegularFile(path)).forEach(path -> {
-                    val relative = StreamSupport.stream(root.relativize(path).spliterator(), false)
-                        .map(Path::toString).collect(Collectors.joining("/"));
-                    val name = relative.substring(0, relative.length() - ".json".length());
-                    byName.put(name, path);
-                    byHash.put(hashPath(name), path);
-                });
-            } catch (IOException e) {
-                Grasscutter.getLogger().error("Failed to index monster config folder {}", root, e);
-            }
-            Grasscutter.getLogger().debug("Indexed {} monster configs in {}", byName.size(), root);
-            return new MonsterConfigFolder(byHash, byName);
-        }
-
-        static long hashPath(String name) {
-            try {
-                return TextUtils.getTextHash("Data/_BinOutput/Monster/" + name + ".MiHoYoBinData");
-            } catch (NoSuchAlgorithmException e) {
-                throw new IllegalStateException(e);
-            }
-        }
-    }
-
-    /** Reads an unsigned 64-bit number, which Gson's long adapter rejects past Long.MAX_VALUE */
-    private static class UnsignedLongAdapter extends TypeAdapter<Long> {
-        @Override
-        public void write(JsonWriter out, Long value) throws IOException {
-            out.value(Long.toUnsignedString(value));
-        }
-
-        @Override
-        public Long read(JsonReader in) throws IOException {
-            return Long.parseUnsignedLong(in.nextString());
-        }
     }
 
     @Getter
