@@ -17,6 +17,7 @@ import emu.grasscutter.data.common.quest.SubQuestData;
 import emu.grasscutter.data.custom.TrialAvatarActivityCustomData;
 import emu.grasscutter.data.custom.TrialAvatarCustomData;
 import emu.grasscutter.data.custom.activity.ActivityExtraInfo;
+import emu.grasscutter.data.excels.AvatarData;
 import emu.grasscutter.data.excels.TrialAvatarActivityDataData;
 import emu.grasscutter.data.excels.MonsterData;
 import emu.grasscutter.data.server.*;
@@ -781,6 +782,7 @@ public class ResourceLoader {
     }
     private static void loadConfigData(){
         loadConfigData(GameData.getAvatarConfigData(), "BinOutput/Avatar/", ConfigEntityAvatar.class);
+        AvatarData.loadConfigFolders();
         MonsterData.loadConfigFolders();
         loadConfigDataMap(GameData.getGadgetConfigData(), "BinOutput/Gadget/", ConfigEntityGadget.class);
     }
