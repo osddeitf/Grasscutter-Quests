@@ -114,6 +114,7 @@ public class GameData {
     @Getter private static final Int2ObjectMap<EnvAnimalGatherConfigData> envAnimalGatherConfigDataMap = new Int2ObjectOpenHashMap<>();
     @Getter private static final Int2ObjectMap<EquipAffixData> equipAffixDataMap = new Int2ObjectOpenHashMap<>();
     @Getter private static final Int2ObjectMap<MonsterAffixData> monsterAffixDataMap = new Int2ObjectOpenHashMap<>();
+    @Getter private static final Int2ObjectMap<GadgetAffixData> gadgetAffixDataMap = new Int2ObjectOpenHashMap<>();
     @Getter private static final Int2ObjectMap<FetterCharacterCardData> fetterCharacterCardDataMap = new Int2ObjectOpenHashMap<>();
     @Getter private static final Int2ObjectMap<ForgeData> forgeDataMap = new Int2ObjectOpenHashMap<>();
     @Getter private static final Int2ObjectMap<FurnitureMakeConfigData> furnitureMakeConfigDataMap = new Int2ObjectOpenHashMap<>();
