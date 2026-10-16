@@ -25,6 +25,7 @@ import org.anime_game_servers.multi_proto.gi.messages.general.ability.AbilitySca
 import org.anime_game_servers.multi_proto.gi.messages.general.ability.AbilityString;
 import org.slf4j.Logger;
 import teyvat.ability.config.*;
+import teyvat.ability.config.actions.LoseHP;
 
 import javax.annotation.Nullable;
 import java.util.Collection;
@@ -173,10 +174,49 @@ public final class AbilityManager extends BasePlayerManager {
             case ABILITY_META_ADD_SPECIAL_ENERGY_VALUE -> this.handleAddSpecialEnergy(invoke);
             case ABILITY_MIXIN_COST_STAMINA -> this.handleServerInvoke(invoke);
             case ABILITY_MIXIN_CHANGE_PHLOGISTON -> this.handleServerInvoke(invoke);
+            case ABILITY_META_LOSE_HP -> this.handleLoseHp(invoke);
             default -> {
                 logger.warn("[UNIMPLEMENTED] {}: invoke type not handled", invoke.getArgumentType());
             }
         }
+    }
+
+    private void handleLoseHp(AbilityInvokeEntry invoke) {
+        var entity = getInvokeEntity(invoke);
+        if (entity == null) return;
+
+        var head = invoke.getHead();
+        var data = AbilityMetaLoseHp.parseBy(invoke.getAbilityData(), player.getSession().getVersion());
+        if (head == null || data == null) {
+            logger.warn("[INVALID] ABILITY_META_LOSE_HP: invoke head or data doesn't parse");
+            return;
+        }
+
+        var target = this.player.getScene().getEntityById(head.getTargetId());
+        if (target == null) {
+            logger.warn("[UNEXPECTED] ABILITY_META_LOSE_HP: target {} not found", head.getTargetId());
+            return;
+        }
+        var modifier = entity.getInstancedModifiers().get(head.getInstancedModifierId());
+        if (modifier == null) {
+            logger.warn("[UNEXPECTED] ABILITY_META_LOSE_HP: modifier id {} not found on {}",
+                head.getInstancedModifierId(), getEntityIdentity(entity));
+            return;
+        }
+
+        var ability = modifier.getAbility();
+        var localId = data.getLoseHpConfigIdx();
+        var action = GameData.getAbilityConfigs().action(ability.getData(), localId);
+        if (action == null) {
+            logger.warn("[MISSING] ABILITY_META_LOSE_HP: no action at local id {} of {}", localId, ability.getName());
+            return;
+        }
+        if (!(action instanceof LoseHP)) {
+            logger.warn("[UNEXPECTED] ABILITY_META_LOSE_HP: local id {} of {} is {}, not a LoseHP action",
+                localId, ability.getName(), describeAction(action));
+            return;
+        }
+        executeAction(ability, action, new byte[0], entity, target);
     }
 
     /** The invoke's entity, logged when not found */
