@@ -9,13 +9,10 @@ import org.anime_game_servers.multi_proto.gi.messages.gadget.GadgetInteractReq;
 import org.anime_game_servers.multi_proto.gi.messages.scene.entity.ClientGadgetInfo;
 import org.anime_game_servers.multi_proto.gi.messages.scene.entity.SceneGadgetInfo;
 
-import java.util.List;
-
 public class GadgetClient extends GadgetContent {
 
     @Getter private final int ownerEntityId;
-    private final int targetEntityId;
-    private final List<Integer> targetEntityIds;
+    private final EntityClientGadget entity;
     private final boolean asyncLoad;
 
     @Getter private final int originalOwnerEntityId;
@@ -23,10 +20,9 @@ public class GadgetClient extends GadgetContent {
         super(gadget);
         val scene = gadget.getScene();
         val createConfig = gadget.getSpawnConfig();
-        this.targetEntityId = createConfig.getTargetEntityId();
-        this.targetEntityIds = createConfig.getTargetEntityIds();
+        this.entity = gadget;
         if(createConfig.getInitDataSource() instanceof EvtCreateGadgetNotify notify){
-            this.ownerEntityId = notify.getPropOwnerEntityId();
+            this.ownerEntityId = notify.getOwnerEntityId();
             this.asyncLoad = notify.isAsyncLoad();
         } else {
             this.ownerEntityId = createConfig.getOwner().getId();
@@ -51,11 +47,12 @@ public class GadgetClient extends GadgetContent {
     public void onBuildProto(SceneGadgetInfo gadgetInfo) {
         val clientGadget = new ClientGadgetInfo(getGadget().getCampId(),getGadget().getCampType());
         clientGadget.setOwnerEntityId(this.ownerEntityId);
-        clientGadget.setTargetEntityId(this.targetEntityId);
-        clientGadget.setTargetEntityIdList(this.targetEntityIds);
+        clientGadget.setTargetEntityId(this.entity.getTargetEntityId());
+        clientGadget.setTargetEntityIdList(this.entity.getTargetEntityIds());
         clientGadget.setAsyncLoad(this.asyncLoad);
         gadgetInfo.setContent(new SceneGadgetInfo.Content.ClientGadget(clientGadget));
         gadgetInfo.setOwnerEntityId(this.ownerEntityId);
-        gadgetInfo.setPropOwnerEntityId(this.ownerEntityId);
+        val propOwnerEntityId = this.entity.getPropOwnerEntityId();
+        gadgetInfo.setPropOwnerEntityId(propOwnerEntityId != 0 ? propOwnerEntityId : this.ownerEntityId);
     }
 }

@@ -20,9 +20,12 @@ import java.util.List;
 
 @Getter
 public class EntityClientGadget extends EntityBaseGadget implements ConfigAbilityDataAbilityEntity {
+    private final List<Integer> targetEntityIds;
+
     public EntityClientGadget(Scene scene, EvtCreateGadgetNotify notify, CreateGadgetEntityConfig createConfig) {
         super(scene, createConfig);
         this.id = notify.getEntityId();
+        this.targetEntityIds = notify.getTargetEntityIdList();
     }
 
     @Override

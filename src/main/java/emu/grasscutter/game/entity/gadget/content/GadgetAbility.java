@@ -10,13 +10,11 @@ import org.anime_game_servers.multi_proto.gi.messages.scene.entity.SceneGadgetIn
 
 public class GadgetAbility extends GadgetContent {
     private EntityBaseGadget parent;
-    private int targetEntityId;
 
 
     public GadgetAbility(EntityGadget gadget, EntityBaseGadget parent) {
         super(gadget);
         this.parent = parent;
-        this.targetEntityId = gadget.getSpawnConfig().getTargetEntityId();
     }
 
     public boolean onInteract(Player player, GadgetInteractReq req) {
@@ -30,7 +28,7 @@ public class GadgetAbility extends GadgetContent {
         }
 
         val abilityGadgetInfo = new AbilityGadgetInfo(parent.getCampId(), parent.getCampType(), parent.getId());
-        abilityGadgetInfo.setTargetEntityId(targetEntityId);
+        abilityGadgetInfo.setTargetEntityId(getGadget().getTargetEntityId());
         abilityGadgetInfo.setCampId(getGadget().getCampId());
         abilityGadgetInfo.setCampTargetType(getGadget().getCampType());
         gadgetInfo.setContent(new SceneGadgetInfo.Content.AbilityGadget(abilityGadgetInfo));

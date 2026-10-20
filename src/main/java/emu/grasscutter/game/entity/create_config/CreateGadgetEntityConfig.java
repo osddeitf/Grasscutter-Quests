@@ -57,8 +57,8 @@ public class CreateGadgetEntityConfig extends CreateEntityConfig<CreateGadgetEnt
     private GadgetData gadgetData = null;
     private ConfigEntityGadget configEntityGadget = null;
     private List<Integer> arguments = new ArrayList<>();
+    private int propOwnerEntityId = 0;
     private int targetEntityId = 0;
-    private List<Integer> targetEntityIds = new ArrayList<>();
     private GameItem item = null;
     private boolean shareItem = true;
     private EntityController luaController = null;
@@ -121,13 +121,8 @@ public class CreateGadgetEntityConfig extends CreateEntityConfig<CreateGadgetEnt
         setBornRot(new Position(evt.getInitEulerAngles()));
         this.campId = evt.getCampId();
         this.campType = evt.getCampType();
-        val targetIds = evt.getTargetEntityIdList();
-        if(targetIds.isEmpty()){
-            this.targetEntityIds.addAll(targetIds);
-        }
-        if(evt.getTargetEntityId() != 0){
-            this.targetEntityId = evt.getTargetEntityId();
-        }
+        this.propOwnerEntityId = evt.getPropOwnerEntityId();
+        this.targetEntityId = evt.getTargetEntityId();
         initBaseData();
     }
 
