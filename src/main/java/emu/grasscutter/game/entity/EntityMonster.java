@@ -1,5 +1,6 @@
 package emu.grasscutter.game.entity;
 
+import emu.grasscutter.Grasscutter;
 import emu.grasscutter.data.GameData;
 import emu.grasscutter.data.binout.config.ConfigEntityMonster;
 import emu.grasscutter.data.binout.config.fields.ConfigAbilityData;
@@ -36,7 +37,6 @@ import org.anime_game_servers.multi_proto.gi.messages.scene.entity.*;
 
 import javax.annotation.Nullable;
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static org.anime_game_servers.gi_lua.models.constants.EventType.EVENT_SPECIFIC_MONSTER_HP_CHANGE;
 
@@ -50,6 +50,8 @@ public class EntityMonster extends GameEntity<CreateMonsterEntityConfig> impleme
     @Getter(onMethod = @__(@Override))
     private final Position rotation;
     private final MonsterData monsterData;
+    /** The affix ids, see {@link #buildAffixes} */
+    private final List<Integer> affixes;
     private final ConfigEntityMonster configEntityMonster;
     private final Position bornPos;
     private final Position bornRot;
@@ -76,6 +78,7 @@ public class EntityMonster extends GameEntity<CreateMonsterEntityConfig> impleme
 
 
         this.configEntityMonster = config.getConfigEntity();
+        this.affixes = buildAffixes(scene.getGroupManager().getSceneMonster(this));
 
         // Monster weapon
         this.weaponId = config.getWeaponId();
@@ -94,21 +97,28 @@ public class EntityMonster extends GameEntity<CreateMonsterEntityConfig> impleme
         initAbilities();
     }
 
-    @Nullable
-    private List<MonsterAffixData> getAffixes(@Nullable SceneMonster monster){
-        List<Integer> affixes = null;
-        if (monster != null) affixes = monster.getAffix();
+    /**
+     * The script's affixes then the excel's ones. Their order likely doesn't matter, as the abilities are ordered by
+     * preAdd instead, see {@link #getAbilityData()}
+     */
+    private List<Integer> buildAffixes(@Nullable SceneMonster monster) {
+        var affixes = new ArrayList<Integer>();
+        if (monster != null && monster.getAffix() != null) affixes.addAll(monster.getAffix());
+        if (monsterData != null && monsterData.getAffix() != null) affixes.addAll(monsterData.getAffix());
+        return List.copyOf(affixes);
+    }
 
-        if(monsterData != null) {
-            //TODO: Research if group affixes goes first
-            if(affixes == null) affixes = monsterData.getAffix();
-            else affixes.addAll(monsterData.getAffix());
+    private List<MonsterAffixData> getAffixData() {
+        var affixData = new ArrayList<MonsterAffixData>();
+        for (int affix : this.affixes) {
+            var data = GameData.getMonsterAffixDataMap().get(affix);
+            if (data == null) {
+                Grasscutter.getLogger().warn("Monster {} affix {} not found", getMonsterId(), affix);
+                continue;
+            }
+            affixData.add(data);
         }
-        return affixes != null ?
-            affixes.stream()
-                .map( value -> GameData.getMonsterAffixDataMap().get((int) value))
-                .collect(Collectors.toList())
-            : null;
+        return affixData;
     }
 
     @Override
@@ -125,16 +135,14 @@ public class EntityMonster extends GameEntity<CreateMonsterEntityConfig> impleme
         val defaultAbilities = GameData.getConfigGlobalCombat().getDefaultAbilities();
         //Affix abilities
         var monster = getScene().getGroupManager().getSceneMonster(this);
-        var affixes = getAffixes(monster);
+        var affixes = getAffixData();
 
         // first add pre add affix abilities
-        if(affixes != null) {
-            for(val affix : affixes) {
-                if(!affix.isPreAdd()) continue;
+        for(val affix : affixes) {
+            if(!affix.isPreAdd()) continue;
 
-                //Add the ability
-                abilityNames.addAll(Arrays.asList(affix.getAbilityName()));
-            }
+            //Add the ability
+            abilityNames.addAll(Arrays.asList(affix.getAbilityName()));
         }
 
         //TODO: Research if any monster is non humanoid
@@ -152,13 +160,11 @@ public class EntityMonster extends GameEntity<CreateMonsterEntityConfig> impleme
             abilityNames.add(defaultAbilities.getMonterEliteAbilityName());
         }
 
-        if(affixes != null) {
-            for(val affix : affixes) {
-                if(affix.isPreAdd()) continue;
+        for(val affix : affixes) {
+            if(affix.isPreAdd()) continue;
 
-                //Add the ability
-                abilityNames.addAll(List.of(affix.getAbilityName()));
-            }
+            //Add the ability
+            abilityNames.addAll(List.of(affix.getAbilityName()));
         }
 
         val sceneData = getScene().getSceneData();
@@ -332,7 +338,7 @@ public class EntityMonster extends GameEntity<CreateMonsterEntityConfig> impleme
 
         var monsterInfo = new SceneMonsterInfo(getMonsterId(), getGroupId(), getConfigId());
 
-        monsterInfo.setAffixList(getMonsterData().getAffix());
+        monsterInfo.setAffixList(this.affixes);
         monsterInfo.setAuthorityPeerId(getWorld().getHostPeerId());
         monsterInfo.setPoseId(this.getPoseId());
         monsterInfo.setBlockId(getScene().getId());
