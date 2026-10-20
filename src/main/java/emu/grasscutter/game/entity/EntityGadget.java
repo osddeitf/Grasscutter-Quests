@@ -302,6 +302,7 @@ public class EntityGadget extends EntityBaseGadget implements ConfigAbilityDataA
         if(getOwnerEntity() != null){
             gadgetInfo.setOwnerEntityId(getOwnerEntity().getId());
         }
+        gadgetInfo.setPropOwnerEntityId(this.getPropOwnerEntityId());
 
         if (this.getContent() != null) {
             this.getContent().onBuildProto(gadgetInfo);

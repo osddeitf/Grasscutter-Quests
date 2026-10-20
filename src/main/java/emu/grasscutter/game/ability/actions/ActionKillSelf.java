@@ -1,6 +1,7 @@
 package emu.grasscutter.game.ability.actions;
 
 import emu.grasscutter.game.ability.Ability;
+import emu.grasscutter.game.entity.EntityClientGadget;
 import emu.grasscutter.game.entity.GameEntity;
 import teyvat.ability.config.actions.KillSelf;
 
@@ -16,6 +17,13 @@ public class ActionKillSelf extends AbilityActionHandler<KillSelf> {
         if(target == null) {
             logger.warn("Tried killing null target");
             return false;
+        }
+
+        if (target instanceof EntityClientGadget) {
+            // Official server behavior.
+            // Seems that it is always destroyed by EvtDestroyGadgetNotify.
+            logger.debug("KillSelf: client gadget {} left to the client, at {}", target.getId(), ability.getName());
+            return true;
         }
 
         target.getScene().killEntity(target);

@@ -1,5 +1,6 @@
 package emu.grasscutter.game.entity;
 
+import emu.grasscutter.Grasscutter;
 import emu.grasscutter.data.binout.config.ConfigEntityGadget;
 import emu.grasscutter.data.binout.config.fields.ConfigAbilityData;
 import emu.grasscutter.data.excels.GadgetData;
@@ -50,9 +51,28 @@ public abstract class EntityBaseGadget extends GameEntity<CreateGadgetEntityConf
     @Getter private int interactId;
     @Getter @Setter private List<Integer> arguments;
     @Getter @Setter private Player owner;
-    @Getter @Setter private GameEntity<?> ownerEntity;
+//    @Getter @Setter private GameEntity<?> ownerEntity;
     @Getter @Setter private int ownerEntityId;
+    /** The entity whose properties this gadget uses, see {@link #getPropOwnerEntity()} */
+    @Getter private final int propOwnerEntityId;
+    @Getter private final int targetEntityId;
     @Getter @Setter private List<GameEntity<?>> children = new ArrayList<>();
+
+    public GameEntity<?> getOwnerEntity() {
+        return getScene().getEntityById(ownerEntityId);
+    }
+
+    /** The prop owner from the current scene, null when there is none or it's missing from the scene */
+    @Nullable
+    public GameEntity<?> getPropOwnerEntity() {
+        if (this.propOwnerEntityId == 0) return null;
+        val entity = getScene().getEntityById(this.propOwnerEntityId);
+        if (entity == null) {
+            Grasscutter.getLogger().warn("Gadget {} ({}) prop owner entity {} is missing from the scene",
+                this.gadgetId, getId(), this.propOwnerEntityId);
+        }
+        return entity;
+    }
 
     protected EntityBaseGadget(Scene scene, CreateGadgetEntityConfig gadgetCreateConfig) {
         super(scene, gadgetCreateConfig);
@@ -70,6 +90,8 @@ public abstract class EntityBaseGadget extends GameEntity<CreateGadgetEntityConf
         this.interactId = gadgetCreateConfig.getInteractId();
         this.arguments = gadgetCreateConfig.getArguments();
         this.owner = gadgetCreateConfig.getPlayerOwner();
+        this.propOwnerEntityId = gadgetCreateConfig.getPropOwnerEntityId();
+        this.targetEntityId = gadgetCreateConfig.getTargetEntityId();
 
         if(gadgetCreateConfig.getContent() == null) {
             this.content = buildContent(gadgetCreateConfig);
@@ -126,6 +148,8 @@ public abstract class EntityBaseGadget extends GameEntity<CreateGadgetEntityConf
         }
         var combatData = configGadget.getCombat();
         var combatProperties = combatData.getProperty();
+        // TODO: useCreatorProperty isn't handled here, the creator may be the prop owner (getPropOwnerEntity())
+        //  rather than the owner, unclear whether this is the right place to use it
 
         var targetHp = combatProperties.getHP();
         setFightProperty(FightProperty.FIGHT_PROP_MAX_HP, targetHp);
