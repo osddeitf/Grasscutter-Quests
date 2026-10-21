@@ -38,14 +38,14 @@ public class PlatformManager {
                 scheduledPlatforms.remove(key);
                 val entity = scene.getEntityById(key);
                 // Deleted entity
-                if (entity == null) return;
+                if (entity == null) continue;
                 // Not a platform
-                if (!(entity instanceof EntityGadget entityGadget)) return;
+                if (!(entity instanceof EntityGadget entityGadget)) continue;
                 // No configRoute
-                if (!(entityGadget.getRouteConfig() instanceof ConfigRoute configRoute)) return;
+                if (!(entityGadget.getRouteConfig() instanceof ConfigRoute configRoute)) continue;
                 // No route in file
                 val route = scene.getSceneRouteById(configRoute.getRouteId());
-                if (route == null) return;
+                if (route == null) continue;
 
                 val points = route.getPoints();
 

@@ -149,8 +149,22 @@ public class EntityGadget extends EntityBaseGadget implements ConfigAbilityDataA
     @Override
     public void afterCreate(List<Player> players) {
         if (this.routeConfig == null || !this.getSpawnConfig().isStartRoute()) return;
+        schedulePlatform();
         this.routeConfig.startRoute(this.getScene());
         players.forEach(p -> p.sendPacket(new PacketPlatformStartRouteNotify(this)));
+
+        // Starting counts as reaching the start point, which stops it right away when it's a reach stop
+        if (isAtReachStopPoint()) {
+            stopPlatform();
+        }
+    }
+
+    private boolean isAtReachStopPoint() {
+        if (!(this.routeConfig instanceof ConfigRoute configRoute)) return false;
+        val route = getScene().getSceneRouteById(configRoute.getRouteId());
+        if (route == null || route.getPoints() == null) return false;
+        val index = configRoute.getStartIndex();
+        return index < route.getPoints().length && route.getPoints()[index].isReachStop();
     }
 
 
