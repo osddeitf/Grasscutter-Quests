@@ -570,10 +570,9 @@ public class SceneScriptManager {
 
     private void callTrigger(SceneTrigger trigger, SceneGroup group, ScriptArgs params){
         val action = trigger.getAction();
-        LuaValue callResult = BooleanLuaValue.TRUE;
         if(action != null && !action.isBlank()){
             // the SetGroupVariableValueByGroup in tower need the param to record the first stage time
-            callResult = this.callScriptFunc(trigger.getAction(), group, params);
+            this.callScriptFunc(trigger.getAction(), group, params);
         }
 
         val invocationsCounter = triggerInvocations.get(trigger.getName());
@@ -597,9 +596,8 @@ public class SceneScriptManager {
         if(trigger.getEvent() == EVENT_TIMER_EVENT){
             cancelGroupTimerEvent(trigger.getGroupId(), trigger.getSource());
         }
-        // always deregister on error, otherwise only if the count is reached
-        if(callResult.isBoolean() && !callResult.asBoolean() || callResult.isInteger() && callResult.asInteger()!=0
-        || trigger.getTriggerCount() > INF_TRIGGERS && invocations >= trigger.getTriggerCount()) {
+        // only deregister once the count is reached: scripts return non-zero (e.g. -1) for "nothing to do"
+        if(trigger.getTriggerCount() > INF_TRIGGERS && invocations >= trigger.getTriggerCount()) {
             deregisterTrigger(trigger);
         }
     }
