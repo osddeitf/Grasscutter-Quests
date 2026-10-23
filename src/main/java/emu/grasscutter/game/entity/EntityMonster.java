@@ -220,12 +220,12 @@ public class EntityMonster extends GameEntity<CreateMonsterEntityConfig> impleme
     }
 
     @Override
-    public void damage(float amount, int killerId, ElementType attackType) {
+    public void damage(float amount, int killerId, ElementType attackType, boolean ignoreLockHP) {
         // Get HP before damage.
         float hpBeforeDamage = this.getFightProperty(FightProperty.FIGHT_PROP_CUR_HP);
 
         // Apply damage.
-        super.damage(amount, killerId, attackType);
+        super.damage(amount, killerId, attackType, ignoreLockHP);
 
         // Get HP after damage.
         float hpAfterDamage = this.getFightProperty(FightProperty.FIGHT_PROP_CUR_HP);

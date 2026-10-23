@@ -219,12 +219,17 @@ public abstract class GameEntity<T extends CreateEntityConfig<?>> {
         this.damage(amount, 0, attackType);
     }
 
+    public void damage(float amount, int killerId, ElementType attackType) {
+        damage(amount, killerId, attackType, false);
+    }
+
     /** Whether the HP is locked: by the entity's config, or by an attached modifier's LockHP state */
     public boolean isHpLocked() {
         return this.combatLockHP || hasAbilityState(AbilityState.LockHP);
     }
 
-    public void damage(float amount, int killerId, ElementType attackType) {
+    /** @param ignoreLockHP e.g. a LoseHP not respecting the lock, like a boss's HP loss at its stage end */
+    public void damage(float amount, int killerId, ElementType attackType, boolean ignoreLockHP) {
         // Check if the entity has properties.
         if (!hasFightProperty(FightProperty.FIGHT_PROP_CUR_HP)) {
             return;
@@ -243,7 +248,7 @@ public abstract class GameEntity<T extends CreateEntityConfig<?>> {
 
         float curHp = getFightProperty(FightProperty.FIGHT_PROP_CUR_HP);
         // A locked HP never changes, e.g. the platforms the boss lands on must not die
-        if (curHp != Float.POSITIVE_INFINITY && !isHpLocked()) {
+        if (curHp != Float.POSITIVE_INFINITY && (ignoreLockHP || !isHpLocked())) {
             // Add negative HP to the current HP property.
             this.addFightProperty(FightProperty.FIGHT_PROP_CUR_HP, -(event.getDamage()));
         }

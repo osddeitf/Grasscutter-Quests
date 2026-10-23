@@ -4,6 +4,7 @@ import emu.grasscutter.data.common.AbilityMath;
 import emu.grasscutter.game.ability.Ability;
 import emu.grasscutter.game.entity.EntityClientGadget;
 import emu.grasscutter.game.entity.GameEntity;
+import emu.grasscutter.game.props.ElementType;
 import emu.grasscutter.game.props.FightProperty;
 import teyvat.ability.config.actions.LoseHP;
 
@@ -57,7 +58,9 @@ public class ActionLoseHP extends AbilityActionHandler<LoseHP> {
         if(currentHp < (amountToLose + 0.01) && !action.lethal)
             amountToLose = 0;
 
-        target.damage(amountToLose);
+        // not a hit: the lock is respected above only with enableLockHP. Inferred, not confirmed: the Oceanid boss is
+        //  HP-locked (its config and a LockHP state), yet officially loses HP at each stage end through a LoseHP without it
+        target.damage(amountToLose, 0, ElementType.None, true);
 
         return true;
     }
