@@ -78,6 +78,10 @@ public class EntityMonster extends GameEntity<CreateMonsterEntityConfig> impleme
 
 
         this.configEntityMonster = config.getConfigEntity();
+        if (configEntityMonster != null && configEntityMonster.getCombat() != null && configEntityMonster.getCombat().getProperty() != null) {
+            // e.g. a boss losing HP only from its own abilities, not from hits
+            setCombatLockHP(configEntityMonster.getCombat().getProperty().isLockHP());
+        }
         this.affixes = buildAffixes(scene.getGroupManager().getSceneMonster(this));
 
         // Monster weapon
