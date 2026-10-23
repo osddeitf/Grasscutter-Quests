@@ -52,8 +52,12 @@ public class ActionLoseHP extends AbilityActionHandler<LoseHP> {
         amountToLose += amountByTargetCurrentHPRatio * currentHp;
         amountToLose += amountByTargetMaxHPRatio * maxHp;
 
-        if(limboByTargetMaxHPRatio > 1.192093e-07)
-            amountToLose = (float)Math.min(Math.max(currentHp -  Math.max(limboByTargetMaxHPRatio * maxHp, 1.0), 0.0), amountToLose);
+        if(limboByTargetMaxHPRatio > 1.192093e-07) {
+            // the target keeps at least this ratio of its max HP, and at least 1 HP
+            float hpToKeep = Math.max(limboByTargetMaxHPRatio * maxHp, 1f);
+            float maxLoss = Math.max(currentHp - hpToKeep, 0f);
+            amountToLose = Math.min(amountToLose, maxLoss);
+        }
 
         if(currentHp < (amountToLose + 0.01) && !action.lethal)
             amountToLose = 0;
