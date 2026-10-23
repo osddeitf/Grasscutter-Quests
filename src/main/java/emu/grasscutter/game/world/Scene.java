@@ -431,6 +431,12 @@ public class Scene {
         broadcastPacket(new PacketSceneEntityAppearNotify(newEntity, VisionType.VISION_REPLACE, oldEntity.getId()));
     }
 
+    /** Adds the avatar replacing one that died, which was already removed on death */
+    public synchronized void replaceDeadAvatar(EntityAvatar deadEntity, EntityAvatar newEntity) {
+        addEntityDirectly(newEntity);
+        broadcastPacket(new PacketSceneEntityAppearNotify(newEntity, VisionType.VISION_REPLACE_DIE, deadEntity.getId()));
+    }
+
     /** Adds a vehicle, kept by the world beyond this scene for some types: the vehicles it evicts are removed */
     public void addVehicle(EntityVehicle vehicle) {
         // e.g. the owner's previous skiff, or the oldest saurians over the limit
