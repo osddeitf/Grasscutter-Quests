@@ -19,9 +19,6 @@ public class ActionLoseHP extends AbilityActionHandler<LoseHP> {
         //handle client gadgets, that the effective caster is the current local avatar
         if(owner instanceof EntityClientGadget ownerGadget) {
             owner = ownerGadget.getScene().getEntityById(ownerGadget.getOwnerEntityId()); //Caster for EntityClientGadget
-
-            //TODO: Do this per entity, not just the player
-            if(ownerGadget.getOwner().getAbilityManager().isAbilityInvulnerable()) return true;
         }
         if(owner == null || target == null) return false;
 

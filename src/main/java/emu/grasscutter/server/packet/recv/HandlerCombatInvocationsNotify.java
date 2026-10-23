@@ -34,12 +34,6 @@ public class HandlerCombatInvocationsNotify extends TypedPacketHandler<CombatInv
                     val attackResult = hitInfo.getAttackResult();
                     Player player = session.getPlayer();
 
-                    // Check if the player is invulnerable.
-                    if (
-                        attackResult.getAttackerId() != player.getTeamManager().getCurrentAvatarEntity().getId() &&
-                            player.getAbilityManager().isAbilityInvulnerable()
-                    ) break;
-
                     // Handle damage
                     player.getAttackResults().add(attackResult);
                 }

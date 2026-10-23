@@ -70,8 +70,6 @@ public final class AbilityManager extends BasePlayerManager {
         registerHandlers();
     }
 
-    @Getter private boolean abilityInvulnerable = false;
-
     public AbilityManager(Player player) {
         super(player);
     }
@@ -359,56 +357,6 @@ public final class AbilityManager extends BasePlayerManager {
 
         logger.warn("[MISSING] {}: no action nor mixin at local id {} of {}, on {}", invoke.getArgumentType(),
             head.getLocalId(), ability.getName(), getEntityIdentity(entity));
-    }
-
-    /**
-     * Invoked when a player starts a skill.
-     * @param player The player who started the skill.
-     * @param skillId The skill ID.
-     * @param casterId The caster ID.
-     */
-    public void onSkillStart(Player player, int skillId, int casterId) {
-        // Check if the player matches this player.
-        if (player.getUid() != this.player.getUid()) {
-            return;
-        }
-
-        // Check if the caster matches the player.
-        if (player.getTeamManager().getCurrentAvatarEntity().getId() != casterId) {
-            return;
-        }
-
-        var skillData = GameData.getAvatarSkillDataMap().get(skillId);
-        if (skillData == null) {
-            return;
-        }
-
-        // Check if the skill is an elemental burst.
-        if (skillData.getCostElemVal() <= 0) {
-            return;
-        }
-
-        // Set the player as invulnerable.
-        this.abilityInvulnerable = true;
-    }
-
-    /**
-     * Invoked when a player ends a skill.
-     * @param player The player who started the skill.
-     */
-    public void onSkillEnd(Player player) {
-        // Check if the player matches this player.
-        if (player.getUid() != this.player.getUid()) {
-            return;
-        }
-
-        // Check if the player is invulnerable.
-        if (!this.abilityInvulnerable) {
-            return;
-        }
-
-        // Set the player as not invulnerable.
-        this.abilityInvulnerable = false;
     }
 
     // multi proto dynamic runtime only

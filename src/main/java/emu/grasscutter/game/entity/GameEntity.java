@@ -224,6 +224,10 @@ public abstract class GameEntity<T extends CreateEntityConfig<?>> {
         if (!hasFightProperty(FightProperty.FIGHT_PROP_CUR_HP)) {
             return;
         }
+        // e.g. during an avatar's elemental burst, the client reports the hits and leaves the immunity to the server
+        if (hasAbilityState(AbilityState.Invincible)) {
+            return;
+        }
 
         // Invoke entity damage event.
         EntityDamageEvent event = new EntityDamageEvent(this, amount, attackType, this.getScene().getEntityById(killerId));
