@@ -63,6 +63,8 @@ public abstract class GameEntity<T extends CreateEntityConfig<?>> {
     private final Map<EntityAbilityProperty, StackedValue> abilityPropertyMap = new HashMap<>();
     /** Run when this entity is killed, e.g. the ServerCreateGadgetOnKillMixins of its attached modifiers, by owner */
     private final Map<Object, Runnable> onKillEvents = new java.util.concurrent.ConcurrentHashMap<>();
+    /** Entities alive only while this one is, e.g. gadgets created with lifeByOwnerIsAlive, see {@link #addLifeBoundEntity} */
+    private final Set<GameEntity<?>> lifeBoundEntities = java.util.concurrent.ConcurrentHashMap.newKeySet();
     /** The states of the attached modifiers, by modifier, see {@link #hasAbilityState} */
     private final Map<Object, Long> abilityStates = new java.util.concurrent.ConcurrentHashMap<>();
     /** The states held by any attached modifier: or-ed rather than xor-ed, as two modifiers may hold the same state */
@@ -476,6 +478,25 @@ public abstract class GameEntity<T extends CreateEntityConfig<?>> {
         this.onKillEvents.remove(key);
     }
 
+    /** Binds the entity's life to this one's: it's killed when this one dies, or leaves the scene other than by an avatar switch */
+    public void addLifeBoundEntity(GameEntity<?> entity) {
+        // those already gone, e.g. killed on their own, would otherwise pile up on a long-lived owner
+        this.lifeBoundEntities.removeIf(bound -> !bound.isInScene());
+        this.lifeBoundEntities.add(entity);
+    }
+
+    /** Kills the entities whose life is bound to this one's, those still in the scene */
+    public void killLifeBoundEntities() {
+        val bound = List.copyOf(this.lifeBoundEntities);
+        this.lifeBoundEntities.clear();
+        bound.stream().filter(GameEntity::isInScene).forEach(entity -> entity.getScene().killEntity(entity));
+    }
+
+    /** Whether this very entity is in its scene, not removed or replaced by another of the same id */
+    public boolean isInScene() {
+        return getScene() != null && getScene().getEntityById(getId()) == this;
+    }
+
     /**
      * Called when this entity dies
      *
@@ -487,6 +508,7 @@ public abstract class GameEntity<T extends CreateEntityConfig<?>> {
         event.call();
 
         this.onKillEvents.values().forEach(Runnable::run);
+        killLifeBoundEntities();
 
         if (entityController != null) {
             entityController.onDie(this, getLastAttackType());
