@@ -583,7 +583,13 @@ public class SceneScriptManager {
         val action = trigger.getAction();
         if(action != null && !action.isBlank()){
             // the SetGroupVariableValueByGroup in tower need the param to record the first stage time
-            this.callScriptFunc(trigger.getAction(), group, params);
+            val result = this.callScriptFunc(trigger.getAction(), group, params);
+            // mostly a ScriptLib call failing in the action (the script logs its own warning first), or an early exit,
+            // a Lua error being logged on its own: it doesn't end the trigger
+            if (result.isInteger() && result.asInteger() != 0) {
+                logger.warn("[LUA] Trigger {} of group {}: action {} returned {}",
+                    trigger.getName(), group.getGroupInfo().getId(), action, result.asInteger());
+            }
         }
 
         val invocationsCounter = triggerInvocations.get(trigger.getName());
