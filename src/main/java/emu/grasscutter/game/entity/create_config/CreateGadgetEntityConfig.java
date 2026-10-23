@@ -44,6 +44,8 @@ public class CreateGadgetEntityConfig extends CreateEntityConfig<CreateGadgetEnt
     private int pointType;
     private Player playerOwner = null;
     private GameEntity<?> owner;
+    /** The entity this gadget takes its properties from with useCreatorProperty, e.g. a killed monster no longer in the scene */
+    private GameEntity<?> creator;
     private boolean isPersistent = false;
     private boolean enableInteract = true;
     private boolean forbidGuest = false;

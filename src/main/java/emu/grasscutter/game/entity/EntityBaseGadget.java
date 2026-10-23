@@ -148,8 +148,6 @@ public abstract class EntityBaseGadget extends GameEntity<CreateGadgetEntityConf
         }
         var combatData = configGadget.getCombat();
         var combatProperties = combatData.getProperty();
-        // TODO: useCreatorProperty isn't handled here, the creator may be the prop owner (getPropOwnerEntity())
-        //  rather than the owner, unclear whether this is the right place to use it
 
         var targetHp = combatProperties.getHP();
         setFightProperty(FightProperty.FIGHT_PROP_MAX_HP, targetHp);
@@ -168,6 +166,34 @@ public abstract class EntityBaseGadget extends GameEntity<CreateGadgetEntityConf
         setFightProperty(FightProperty.FIGHT_PROP_CUR_DEFENSE, def);
 
         setCombatLockHP(combatProperties.isLockHP());
+
+        if (combatProperties.isUseCreatorProperty()) {
+            useCreatorProperties();
+        }
+    }
+
+    /**
+     * The creator's properties, e.g. its attack for the gadget's damage, but the gadget's own HP: the creator may be dead.
+     * TODO may not be complete: which properties are taken from the creator, and which are kept, is assumed. A client
+     *  gadget creator has no properties on the server, e.g. Albedo's Solar Isotoma for its elevator: its owner's are needed
+     */
+    private void useCreatorProperties() {
+        val creator = getCreator();
+        if (creator == null || creator.getFightProperties() == null) {
+            Grasscutter.getLogger().warn("Gadget {} ({}) uses its creator's properties, but has no creator", this.gadgetId, getId());
+            return;
+        }
+        val hpProps = List.of(FightProperty.FIGHT_PROP_MAX_HP, FightProperty.FIGHT_PROP_BASE_HP, FightProperty.FIGHT_PROP_CUR_HP);
+        val ownHp = hpProps.stream().map(this::getFightProperty).toList();
+        getFightProperties().putAll(creator.getFightProperties());
+        for (int i = 0; i < hpProps.size(); i++) setFightProperty(hpProps.get(i), ownHp.get(i));
+    }
+
+    /** The entity this gadget was created by: given by its create config, e.g. a killed monster, else its prop owner */
+    @Nullable
+    public GameEntity<?> getCreator() {
+        val creator = getSpawnConfig().getCreator();
+        return creator != null ? creator : getPropOwnerEntity();
     }
 
     /*
