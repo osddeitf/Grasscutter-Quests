@@ -96,13 +96,13 @@ public class PlayerBuffManager extends BasePlayerManager {
      * @return True if a buff was added
      */
     public boolean addBuff(int buffId) {
-        return addBuff(buffId, -1f);
+        return addBuff(buffId, 0f);
     }
 
     /**
      * Adds a server buff to the player.
      * @param buffId Server buff id
-     * @param duration Duration of the buff in seconds, the buff's own time if negative
+     * @param duration Duration of the buff in seconds, overriding the buff's own time, which is used if 0. A buff without its own time is indefinite
      * @return True if a buff was added
      */
     public synchronized boolean addBuff(int buffId, float duration) {
@@ -113,7 +113,7 @@ public class PlayerBuffManager extends BasePlayerManager {
      * Adds a server buff to the player.
      * The buff's modifier and its actions (e.g. heal) are then applied by the client, through the buff's invokes.
      * @param buffId Server buff id
-     * @param duration Duration of the buff in seconds, the buff's own time if negative
+     * @param duration Duration of the buff in seconds, overriding the buff's own time, which is used if 0. A buff without its own time is indefinite
      * @param target Target avatar of an avatar buff, the current avatar if null
      * @return True if a buff was added
      */
@@ -122,14 +122,11 @@ public class PlayerBuffManager extends BasePlayerManager {
         BuffData buffData = GameData.getBuffDataMap().get(buffId);
         if (buffData == null) return false;
 
-        // Set duration
-        if (duration < 0f) {
+        // Set duration: a buff without its own time is indefinite (lasts until removed), else the given one overrides it
+        if (buffData.getTime() == 0) {
+            duration = -1f;
+        } else if (duration == 0) {
             duration = buffData.getTime();
-        }
-
-        // Dont add buff if duration is 0, a negative one (e.g. the buff's time -1) lasts until removed
-        if (duration == 0) {
-            return false;
         }
 
         var holders = getHolderAvatars(buffData, target);
