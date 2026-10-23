@@ -36,14 +36,21 @@ public class GroupManagementScriptHandler extends BaseHandler implements org.ani
             return 1;
         }
 
-        val old = variables.getOrDefault(varName, value);
+        val old = variables.getOrDefault(varName, 0);
         val newValue = isSet ? value : old + value;
         variables.put(varName, newValue);
+        callVariableChangeEvent(sceneScriptManager, groupId, varName, newValue, old);
+        return 0;
+    }
+
+    /** Fires EVENT_VARIABLE_CHANGE for a group variable or temp value, only when its value changed */
+    private static void callVariableChangeEvent(SceneScriptManager sceneScriptManager, int groupId, String name,
+                                                int newValue, int old) {
+        if (newValue == old) return;
         sceneScriptManager.callEvent(
             new ScriptArgs(groupId, EventType.EVENT_VARIABLE_CHANGE, newValue, old)
-                .setEventSource(varName)
+                .setEventSource(name)
         );
-        return 0;
     }
 
     @Override
