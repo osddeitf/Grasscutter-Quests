@@ -643,10 +643,12 @@ public final class AbilityManager extends BasePlayerManager {
         }
 
         var instancedAbilityId = meta.getAbility().getInstancedAbilityId();
-        var ability = entity.getInstancedAbilities().computeIfAbsent(
-            instancedAbilityId,
-            (id) -> new Ability(abilityData, entity, player)
-        );
+        var existing = entity.getInstancedAbilities().get(instancedAbilityId);
+        var ability = existing != null ? existing : new Ability(abilityData, entity, player);
+        if (existing == null) {
+            entity.getInstancedAbilities().put(instancedAbilityId, ability);
+            ability.attach();
+        }
 
         meta.getAbility().getOverrideMap()
             .forEach(entry -> setAbilityOverrideValue(ability, entry));
@@ -660,7 +662,8 @@ public final class AbilityManager extends BasePlayerManager {
         if (entity == null) return;
         Optional.ofNullable(invoke.getHead())
             .map(AbilityInvokeEntryHead::getInstancedAbilityId)
-            .ifPresent(id -> entity.getInstancedAbilities().remove((int)id));
+            .map(id -> entity.getInstancedAbilities().remove((int)id))
+            .ifPresent(Ability::detach);
     }
 
     /**
@@ -687,7 +690,9 @@ public final class AbilityManager extends BasePlayerManager {
             var abilityData = GameData.getAbilityConfigs().ability(abilityName);
             if (abilityData == null) continue;  // skip missing. TODO: logging
             var ability = new Ability(abilityData, entity, this.player);
-            entity.getInstancedAbilities().put(id, ability);
+            var replaced = entity.getInstancedAbilities().put(id, ability);
+            if (replaced != null) replaced.detach();
+            ability.attach();
         }
     }
 }

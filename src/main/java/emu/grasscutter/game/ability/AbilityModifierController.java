@@ -40,6 +40,8 @@ public class AbilityModifierController {
             }
         }
 
+        Ability.addOnKillMixins(entity, this, modifierData.getMixins(), ability);
+
         val state = modifierData.getState();
         if (state != null && state != AbilityState.None) entity.addAbilityState(this, state);
     }
@@ -52,6 +54,7 @@ public class AbilityModifierController {
         var player = ClimateManager.getAffectedPlayer(entity);
         if (player != null) player.getClimateManager().removeResists(this);
 
+        entity.removeOnKillEvent(this);
         entity.removeAbilityState(this);
     }
 }

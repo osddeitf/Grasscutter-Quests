@@ -2,6 +2,7 @@ package emu.grasscutter.game.entity;
 
 import emu.grasscutter.data.GameData;
 import emu.grasscutter.data.binout.config.fields.ConfigAbilityData;
+import emu.grasscutter.game.ability.Ability;
 import emu.grasscutter.game.ability.AbilityManager;
 import emu.grasscutter.game.ability.AbilityModifierController;
 import emu.grasscutter.game.entity.interfaces.StringAbilityEntity;
@@ -74,6 +75,7 @@ public class EntityScene extends MetaGameEntity implements StringAbilityEntity {
     public void reinitAbilities() {
         getInstancedModifiers().values().forEach(modifier -> ((AbilityModifierController) modifier).detach(this));
         getInstancedModifiers().clear();
+        getInstancedAbilities().values().forEach(ability -> ((Ability) ability).detach());
         getInstancedAbilities().clear();
         initAbilities();
     }

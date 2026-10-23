@@ -61,6 +61,8 @@ public abstract class GameEntity<T extends CreateEntityConfig<?>> {
     @Getter private Map<String, Float> globalAbilityValues = new HashMap<>();
     @Getter private Set<String> entityTags = new HashSet<>();
     private final Map<EntityAbilityProperty, StackedValue> abilityPropertyMap = new HashMap<>();
+    /** Run when this entity is killed, e.g. the ServerCreateGadgetOnKillMixins of its attached modifiers, by owner */
+    private final Map<Object, Runnable> onKillEvents = new java.util.concurrent.ConcurrentHashMap<>();
     /** The states of the attached modifiers, by modifier, see {@link #hasAbilityState} */
     private final Map<Object, Long> abilityStates = new java.util.concurrent.ConcurrentHashMap<>();
     /** The states held by any attached modifier: or-ed rather than xor-ed, as two modifiers may hold the same state */
@@ -466,6 +468,14 @@ public abstract class GameEntity<T extends CreateEntityConfig<?>> {
         this.abilityStateMask = this.abilityStates.values().stream().reduce(0L, (a, b) -> a | b);
     }
 
+    public void addOnKillEvent(Object key, Runnable event) {
+        this.onKillEvents.put(key, event);
+    }
+
+    public void removeOnKillEvent(Object key) {
+        this.onKillEvents.remove(key);
+    }
+
     /**
      * Called when this entity dies
      *
@@ -475,6 +485,8 @@ public abstract class GameEntity<T extends CreateEntityConfig<?>> {
         // Invoke entity death event.
         EntityDeathEvent event = new EntityDeathEvent(this, killerId);
         event.call();
+
+        this.onKillEvents.values().forEach(Runnable::run);
 
         if (entityController != null) {
             entityController.onDie(this, getLastAttackType());
