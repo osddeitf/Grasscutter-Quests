@@ -9,6 +9,7 @@ import emu.grasscutter.game.player.Player;
 import emu.grasscutter.game.props.EntityIdType;
 import emu.grasscutter.game.props.FightProperty;
 import emu.grasscutter.game.props.PlayerProperty;
+import teyvat.ability.config.enums.AbilityState;
 import emu.grasscutter.game.world.Scene;
 import emu.grasscutter.server.event.player.PlayerMoveEvent;
 import emu.grasscutter.server.packet.send.PacketEntityFightPropChangeReasonNotify;
@@ -157,7 +158,7 @@ public class EntityAvatar extends GameEntity {
      */
     public boolean refillEnergy() {
         float maxEnergy = this.avatar.getMaxEnergy();
-        if (this.avatar.getCurrentEnergy() == maxEnergy) {
+        if (this.avatar.getCurrentEnergy() == maxEnergy || hasAbilityState(AbilityState.IgnoreAddEnergy)) {
             return false;
         }
         this.avatar.setCurrentEnergy(maxEnergy);
@@ -175,6 +176,8 @@ public class EntityAvatar extends GameEntity {
      */
     public void addEnergy(float amount, PropChangeReason reason, boolean isFlat) {
         if (this.avatar.hasSpecialEnergy()) return;
+        // a modifier's IgnoreAddEnergy state blocks gains only, e.g. during a burst, a drain still applies
+        if (amount > 0 && hasAbilityState(AbilityState.IgnoreAddEnergy)) return;
 
         // Get current and maximum energy for this avatar.
         val curEnergyProp = this.avatar.getCurEnergyProp();
