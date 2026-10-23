@@ -13,7 +13,8 @@ import java.util.Arrays;
 public class Route {
     private int localId;
     private String name;
-    private RouteType type = RouteType.Unknown;
+    // absent in the data when OneWay, the enum's default
+    private RouteType type = RouteType.OneWay;
     private RoutePoint[] points;
     private float arriveRange; // optional
     private RotType rotType; // optional

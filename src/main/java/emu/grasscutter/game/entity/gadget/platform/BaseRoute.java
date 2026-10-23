@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.val;
 import org.anime_game_servers.multi_proto.gi.messages.general.MathQuaternion;
+import org.anime_game_servers.multi_proto.gi.messages.general.Vector;
 import org.anime_game_servers.multi_proto.gi.messages.scene.entity.PlatformInfo;
 import org.anime_game_servers.gi_lua.models.scene.group.SceneGadget;
 
@@ -83,6 +84,9 @@ public abstract class BaseRoute {
         result.setStarted(isStarted);
         result.setActive(isActive);
         result.setStartRot(rotAsMathQuaternion());
+        // always present in official, even when unused
+        result.setPosOffset(new Vector());
+        result.setRotOffset(new MathQuaternion());
         result.setStartSceneTime(startSceneTime);
         if (!isStarted) {
             result.setStopSceneTime(stopSceneTime);
