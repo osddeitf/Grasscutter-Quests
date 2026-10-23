@@ -36,6 +36,11 @@ public class SceneGroupInstance implements SceneGroupUserData {
 
     @Getter private Map<Integer, Integer> cachedGadgetStates;
     @Getter private Map<String, Integer> cachedVariables;
+    /**
+     * The script's temp values, apart from the group variables: not saved, and dropped when the group unloads. Dropping
+     * them is assumed, from their name and their being kept apart from the saved variables, not confirmed
+     */
+    @Getter private final transient Map<String, Integer> tempVariables = new ConcurrentHashMap<>();
 
     @Getter @Setter private int lastTimeRefreshed;
     @Nullable @Getter @Setter private Boolean isReplaceable;
@@ -73,6 +78,8 @@ public class SceneGroupInstance implements SceneGroupUserData {
 
     public void setCached(boolean value) {
         this.isCached = value;
+        // cached means unloaded: the group's temp values live only while it's loaded, see tempVariables
+        if (value) this.tempVariables.clear();
         save(); //Save each time a group is registered or unregistered
     }
 

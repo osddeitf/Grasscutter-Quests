@@ -279,12 +279,27 @@ public class GroupManagementScriptHandler extends BaseHandler implements org.ani
     /* Group temp value */
     @Override
     public int setGroupTempValue(@NotNull GroupEventLuaContext context, @NotNull String name, int value, int groupId) {
-        return handleUnimplemented(name, value, groupId);
+        logger.debug("[LUA] Call SetGroupTempValue with {},{},{}", name, value, groupId);
+
+        val actualGroupId = getGroupIdOrCurrentId(context, groupId);
+        val instance = context.getSceneScriptManager().getCachedGroupInstanceById(actualGroupId);
+        if (instance == null) {
+            logger.warn("[LUA] trying to set temp value {} of unloaded/unknown group {}", name, actualGroupId);
+            return 1;
+        }
+        val old = instance.getTempVariables().getOrDefault(name, 0);
+        instance.getTempVariables().put(name, value);
+        callVariableChangeEvent(context.getSceneScriptManager(), actualGroupId, name, value, old);
+        return 0;
     }
 
     @Override
     public int getGroupTempValue(@NotNull GroupEventLuaContext context, @NotNull String name, int groupId) {
-        return handleUnimplemented(name, groupId);
+        logger.debug("[LUA] Call GetGroupTempValue with {},{}", name, groupId);
+
+        val actualGroupId = getGroupIdOrCurrentId(context, groupId);
+        val instance = context.getSceneScriptManager().getCachedGroupInstanceById(actualGroupId);
+        return instance != null ? instance.getTempVariables().getOrDefault(name, 0) : 0;
     }
 
     @Override
