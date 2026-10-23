@@ -247,18 +247,22 @@ public class EntityGadget extends EntityBaseGadget implements ConfigAbilityDataA
         }
 
         var points = route.getPoints();
+        if (points == null || points.length < 2) {
+            return false;
+        }
 
-        //restart platform if at end and told to start
-        if (configRoute.getStartIndex() == points.length - 1) {
+        //restart platform if at end and told to start, a Reciprocate one turns around instead
+        if (configRoute.isAtEnd(route)) {
             configRoute.setStartIndex(0);
         }
+        configRoute.turnAtEnd(route);
 
         val currIndex = configRoute.getStartIndex();
         if (currIndex == 0) {
             this.getScene().getPlatformManager().callPlatformEvent(this.getId());
         }
 
-        double distance = points[currIndex].getPos().computeDistance(points[currIndex + 1].getPos());
+        double distance = points[currIndex].getPos().computeDistance(points[configRoute.nextIndex(route)].getPos());
         double time = 1000 * distance / points[currIndex].getTargetVelocity();
         time += this.getScene().getSceneTime();
         this.getScene().getPlatformManager().schedule(this.getId(), time);

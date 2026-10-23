@@ -1,6 +1,5 @@
 package emu.grasscutter.game.world.managers;
 
-import emu.grasscutter.data.binout.routes.RouteType;
 import emu.grasscutter.game.entity.EntityGadget;
 import emu.grasscutter.game.entity.gadget.platform.ConfigRoute;
 import emu.grasscutter.game.world.Scene;
@@ -49,10 +48,9 @@ public class PlatformManager {
 
                 val points = route.getPoints();
 
-                // Increment the index
-                var index = 1 + entityGadget.getRouteConfig().getStartIndex();
-                if (index == points.length) index = 0;
-                entityGadget.getRouteConfig().setStartIndex(index);
+                // Move on to the next point, along the route's direction
+                var index = configRoute.nextIndex(route);
+                configRoute.setStartIndex(index);
 
                 // Update position
                 entity.getPosition().set(points[index].getPos());
@@ -63,16 +61,12 @@ public class PlatformManager {
                 }
 
                 //if there is a Reach Stop, or we have reached the end, call stop
-                if (points[index].isReachStop() || (index == points.length - 1)) {
+                if (points[index].isReachStop() || configRoute.isAtEnd(route)) {
                     entityGadget.stopPlatform();
-                    //otherwise, schedule the next one.
+                    //otherwise, schedule the next one: a Reciprocate route turns around at either end
                 } else {
-                    double distance;
-                    if (index == points.length - 1 && route.getType().equals(RouteType.Loop)) {
-                        distance = points[index].getPos().computeDistance(points[0].getPos());
-                    } else {
-                        distance = points[index].getPos().computeDistance(points[index + 1].getPos());
-                    }
+                    configRoute.turnAtEnd(route);
+                    double distance = points[index].getPos().computeDistance(points[configRoute.nextIndex(route)].getPos());
                     double time = 1000 * distance / points[index].getTargetVelocity();
                     scheduledPlatforms.put(key, value + time);
                 }
