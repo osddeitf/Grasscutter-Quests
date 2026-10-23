@@ -47,7 +47,7 @@ public abstract class GameEntity<T extends CreateEntityConfig<?>> {
     @Getter @Setter private int lastMoveSceneTimeMs;
     @Getter @Setter private int lastMoveReliableSeq;
 
-    @Getter @Setter private boolean lockHP;
+    @Getter @Setter private boolean combatLockHP;
     @Getter @Setter private int level = 0;
 
     // Lua controller for specific actions
@@ -219,6 +219,11 @@ public abstract class GameEntity<T extends CreateEntityConfig<?>> {
         this.damage(amount, 0, attackType);
     }
 
+    /** Whether the HP is locked: by the entity's config, or by an attached modifier's LockHP state */
+    public boolean isHpLocked() {
+        return this.combatLockHP || hasAbilityState(AbilityState.LockHP);
+    }
+
     public void damage(float amount, int killerId, ElementType attackType) {
         // Check if the entity has properties.
         if (!hasFightProperty(FightProperty.FIGHT_PROP_CUR_HP)) {
@@ -237,7 +242,8 @@ public abstract class GameEntity<T extends CreateEntityConfig<?>> {
         }
 
         float curHp = getFightProperty(FightProperty.FIGHT_PROP_CUR_HP);
-        if (curHp != Float.POSITIVE_INFINITY && !lockHP || lockHP && curHp <= event.getDamage()) {
+        // A locked HP never changes, e.g. the platforms the boss lands on must not die
+        if (curHp != Float.POSITIVE_INFINITY && !isHpLocked()) {
             // Add negative HP to the current HP property.
             this.addFightProperty(FightProperty.FIGHT_PROP_CUR_HP, -(event.getDamage()));
         }

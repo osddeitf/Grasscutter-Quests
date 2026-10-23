@@ -167,7 +167,7 @@ public abstract class EntityBaseGadget extends GameEntity<CreateGadgetEntityConf
         setFightProperty(FightProperty.FIGHT_PROP_BASE_DEFENSE, def);
         setFightProperty(FightProperty.FIGHT_PROP_CUR_DEFENSE, def);
 
-        setLockHP(combatProperties.isLockHP());
+        setCombatLockHP(combatProperties.isLockHP());
     }
 
     /*

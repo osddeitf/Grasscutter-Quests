@@ -22,7 +22,7 @@ public class ActionLoseHP extends AbilityActionHandler<LoseHP> {
         }
         if(owner == null || target == null) return false;
 
-        if(action.enableLockHP && target.isLockHP()) {
+        if(action.enableLockHP && target.isHpLocked()) {
             return true;
         }
 
