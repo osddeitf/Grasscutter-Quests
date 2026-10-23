@@ -46,6 +46,8 @@ public class CreateGadgetEntityConfig extends CreateEntityConfig<CreateGadgetEnt
     private GameEntity<?> owner;
     /** The entity this gadget takes its properties from with useCreatorProperty, e.g. a killed monster no longer in the scene */
     private GameEntity<?> creator;
+    /** Created by an ability action, sent with its camp and target as an ability gadget */
+    private boolean abilityGadget = false;
     private boolean isPersistent = false;
     private boolean enableInteract = true;
     private boolean forbidGuest = false;
