@@ -191,16 +191,18 @@ public class SceneScriptManager {
         //}
     }
     public int refreshGroup(SceneGroupInstance groupInstance, int suiteIndex, boolean excludePrevSuite) {
-        return refreshGroup(groupInstance, suiteIndex, excludePrevSuite, null, false);
+        return refreshGroup(groupInstance, suiteIndex, excludePrevSuite, null, false, true);
     }
     public int refreshGroup(SceneGroupInstance groupInstance, int suiteIndex, boolean excludePrevSuite, boolean dontLoad) {
-        return refreshGroup(groupInstance, suiteIndex, excludePrevSuite, null, dontLoad);
+        return refreshGroup(groupInstance, suiteIndex, excludePrevSuite, null, dontLoad, true);
     }
+    /** Sets up a group being loaded: its suite without EVENT_GROUP_REFRESH, the load has its own EVENT_GROUP_LOAD */
     public int refreshGroup(SceneGroupInstance groupInstance, int suiteIndex, boolean excludePrevSuite, List<GameEntity<?>> entitiesAdded) {
-        return refreshGroup(groupInstance, suiteIndex, excludePrevSuite, entitiesAdded, false);
+        return refreshGroup(groupInstance, suiteIndex, excludePrevSuite, entitiesAdded, false, false);
     }
 
-    public int refreshGroup(SceneGroupInstance groupInstance, int suiteIndex, boolean excludePrevSuite, List<GameEntity<?>> entitiesAdded, boolean dontLoad) {
+    public int refreshGroup(SceneGroupInstance groupInstance, int suiteIndex, boolean excludePrevSuite, List<GameEntity<?>> entitiesAdded,
+                            boolean dontLoad, boolean callRefreshEvent) {
         val groupId = groupInstance.getGroupId();
         SceneGroup group = meta.getGroups().get(groupId);
         if(suiteIndex == 0) {
@@ -252,7 +254,7 @@ public class SceneScriptManager {
 
         groupInstance.setActiveSuiteId(suiteIndex);
         groupInstance.setLastTimeRefreshed(getScene().getWorld().getGameTime());
-        callEvent(new ScriptArgs(groupId, EventType.EVENT_GROUP_REFRESH));
+        if (callRefreshEvent) callEvent(new ScriptArgs(groupId, EventType.EVENT_GROUP_REFRESH));
         return suiteIndex;
     }
 
