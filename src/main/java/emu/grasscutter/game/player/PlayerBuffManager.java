@@ -5,6 +5,7 @@ import emu.grasscutter.data.excels.BuffData;
 import emu.grasscutter.game.avatar.Avatar;
 import emu.grasscutter.game.entity.EntityAvatar;
 import emu.grasscutter.game.props.ServerBuffType;
+import emu.grasscutter.game.world.World;
 import emu.grasscutter.server.packet.send.PacketServerBuffChangeNotify;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
@@ -33,6 +34,9 @@ public class PlayerBuffManager extends BasePlayerManager {
     private final Int2ObjectMap<ServerBuffInstance> ungroupedBuffs;
     /** Buffs by group id: a holder has at most one buff of a group, a new one replaces it */
     private final Int2ObjectMap<List<ServerBuffInstance>> groupedBuffs;
+    /** The world and its time at the last tick: buffs run on world time, stopping while the game is paused */
+    private World lastTickWorld;
+    private long lastTickWorldTime;
 
     public PlayerBuffManager(Player player) {
         super(player);
@@ -96,13 +100,13 @@ public class PlayerBuffManager extends BasePlayerManager {
      * @return True if a buff was added
      */
     public boolean addBuff(int buffId) {
-        return addBuff(buffId, -1f);
+        return addBuff(buffId, 0f);
     }
 
     /**
      * Adds a server buff to the player.
      * @param buffId Server buff id
-     * @param duration Duration of the buff in seconds, the buff's own time if negative
+     * @param duration Duration of the buff in seconds, overriding the buff's own time, which is used if 0. A buff without its own time is indefinite
      * @return True if a buff was added
      */
     public synchronized boolean addBuff(int buffId, float duration) {
@@ -113,7 +117,7 @@ public class PlayerBuffManager extends BasePlayerManager {
      * Adds a server buff to the player.
      * The buff's modifier and its actions (e.g. heal) are then applied by the client, through the buff's invokes.
      * @param buffId Server buff id
-     * @param duration Duration of the buff in seconds, the buff's own time if negative
+     * @param duration Duration of the buff in seconds, overriding the buff's own time, which is used if 0. A buff without its own time is indefinite
      * @param target Target avatar of an avatar buff, the current avatar if null
      * @return True if a buff was added
      */
@@ -122,14 +126,11 @@ public class PlayerBuffManager extends BasePlayerManager {
         BuffData buffData = GameData.getBuffDataMap().get(buffId);
         if (buffData == null) return false;
 
-        // Set duration
-        if (duration < 0f) {
+        // Set duration: a buff without its own time is indefinite (lasts until removed), else the given one overrides it
+        if (buffData.getTime() == 0) {
+            duration = -1f;
+        } else if (duration == 0) {
             duration = buffData.getTime();
-        }
-
-        // Dont add buff if duration is 0, a negative one (e.g. the buff's time -1) lasts until removed
-        if (duration == 0) {
-            return false;
         }
 
         var holders = getHolderAvatars(buffData, target);
@@ -192,8 +193,17 @@ public class PlayerBuffManager extends BasePlayerManager {
     }
 
     public synchronized void onTick() {
-        long currentTime = System.currentTimeMillis();
-        var expired = removeBuffsIf(buff -> currentTime > buff.getEndTime());
+        // world time, not real time: a buff doesn't run out while paused. A world changed since, e.g. joining co-op,
+        // has its own time, the buffs only resume from it
+        val world = getPlayer().getWorld();
+        if (world == null) return;
+        long worldTime = world.getWorldTime();
+        long elapsed = world == this.lastTickWorld ? worldTime - this.lastTickWorldTime : 0;
+        this.lastTickWorld = world;
+        this.lastTickWorldTime = worldTime;
+        if (elapsed <= 0) return;
+
+        var expired = removeBuffsIf(buff -> buff.elapse(elapsed));
         notifyHolders(ServerBuffChangeType.DEL_SERVER_BUFF, expired);
     }
 
@@ -226,7 +236,8 @@ public class PlayerBuffManager extends BasePlayerManager {
     public static class ServerBuffInstance {
         private final int uid;
         private final BuffData buffData;
-        private final long endTime;
+        /** Milliseconds of world time left, Long.MAX_VALUE if indefinite */
+        private long remainingTime;
         /** Holders: avatars by guid, other entities by id */
         private final List<Long> avatarGuids;
         private final List<Integer> entityIds;
@@ -236,13 +247,20 @@ public class PlayerBuffManager extends BasePlayerManager {
         public ServerBuffInstance(int uid, BuffData buffData, float duration, List<Long> avatarGuids, List<Integer> entityIds) {
             this.uid = uid;
             this.buffData = buffData;
-            this.endTime = duration < 0 ? Long.MAX_VALUE : System.currentTimeMillis() + (long) (duration * 1000);
+            this.remainingTime = duration < 0 ? Long.MAX_VALUE : (long) (duration * 1000);
             this.avatarGuids = avatarGuids;
             this.entityIds = entityIds;
         }
 
         public int getGroupId() {
             return getBuffData().getGroupId();
+        }
+
+        /** Runs the buff for the given world time, returning whether it ran out */
+        public boolean elapse(long time) {
+            if (this.remainingTime == Long.MAX_VALUE) return false;
+            this.remainingTime -= time;
+            return this.remainingTime < 0;
         }
 
         public boolean sharesHolder(ServerBuffInstance other) {

@@ -758,25 +758,31 @@ public class InventorySystem extends BaseGameSystem {
         }
 
         int[] satiationParams = itemData.getSatiationParams();
+        float satiationIncrease = 0;
         if (satiationParams != null && satiationParams.length > 0 && target.isPresent()) {
             // Invoke and call player use food event.
             var event = new PlayerUseFoodEvent(params.player, itemData, params.targetAvatar.getAsEntity()); event.call();
             if (event.isCanceled()) return false;
 
-            float satiationIncrease = satiationParams[0] + ((float)satiationParams[1])/params.targetAvatar.getFightProperty(FightProperty.FIGHT_PROP_MAX_HP);
-            if (!params.targetAvatar.addSatiation(satiationIncrease)) {  // Make sure avatar can eat
+            if (params.targetAvatar.getSatiation() >= 100) {  // Make sure avatar can eat
                 return false;
             }
+            satiationIncrease = satiationParams[0] + ((float)satiationParams[1])/params.targetAvatar.getFightProperty(FightProperty.FIGHT_PROP_MAX_HP);
         }
 
         // Use
         var actions = itemData.getItemUseActions();
         Grasscutter.getLogger().info("Using - actions - {}", actions);
         params.player.getQuestManager().queueEvent(QuestContent.QUEST_CONTENT_USE_ITEM, itemData.getId());
-        if (actions == null) return true;  // Maybe returning false would be more appropriate?
-        return actions.stream()
+        boolean used = actions == null  // Maybe returning false would be more appropriate?
+            || actions.stream()
                 .map(use -> use.useItem(params))
                 .reduce(false, (a,b) -> a || b);  // Don't short-circuit!!!
+        // only once used: a failed use, e.g. its buff not added, mustn't fill the avatar
+        if (used && satiationIncrease > 0) {
+            params.targetAvatar.addSatiation(satiationIncrease);
+        }
+        return used;
     }
 
     public static synchronized int checkPlayerAvatarConstellationLevel(Player player, int id) {

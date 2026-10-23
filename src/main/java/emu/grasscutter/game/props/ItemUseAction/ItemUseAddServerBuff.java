@@ -3,6 +3,7 @@ package emu.grasscutter.game.props.ItemUseAction;
 import emu.grasscutter.game.props.ItemUseOp;
 
 public class ItemUseAddServerBuff extends ItemUseInt {
+    /** 0, the buff's own time, when the item doesn't give one, see {@link emu.grasscutter.game.player.PlayerBuffManager#addBuff} */
     private int duration = 0;
 
     @Override
