@@ -1,5 +1,6 @@
 package emu.grasscutter.scripts.scriptlib_handlers.entities;
 
+import org.anime_game_servers.multi_proto.gi.messages.scene.VisionType;
 import emu.grasscutter.Loggers;
 import emu.grasscutter.game.entity.EntityAvatar;
 import emu.grasscutter.game.entity.GameEntity;
@@ -171,7 +172,7 @@ public class GroupEntityHandler extends BaseHandler implements org.anime_game_se
 
     @Override
     public int removeEntityByConfigId(GroupEventLuaContext context, int groupId, EntityType entityType, int configId) {
-        logger.debug("[LUA] Call RemoveEntityByConfigId");
+        logger.debug("[LUA] Call RemoveEntityByConfigId {} {} {}", groupId, entityType, configId);
 
         val actualGroupId = getGroupIdOrCurrentId(context, groupId);
         val scene = context.getSceneScriptManager().getScene();
@@ -181,7 +182,8 @@ public class GroupEntityHandler extends BaseHandler implements org.anime_game_se
             return 1;
         }
 
-        context.getSceneScriptManager().getScene().removeEntity(entity);
+        // a removal, not a death: the client keeps entities that can't die (e.g. lock HP platforms) on VISION_DIE
+        context.getSceneScriptManager().getScene().removeEntity(entity, VisionType.VISION_REMOVE);
 
         return 0;
     }
