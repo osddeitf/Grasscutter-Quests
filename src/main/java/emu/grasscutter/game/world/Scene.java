@@ -567,6 +567,7 @@ public class Scene {
         this.entities.values().forEach(e -> e.onTick(getSceneTimeSeconds()));
 
         platformManager.tick();
+        scriptManager.tickTimeAxes();
         npcGroupManager.tick();
         tickWeatherAreas();
         finishLoading();

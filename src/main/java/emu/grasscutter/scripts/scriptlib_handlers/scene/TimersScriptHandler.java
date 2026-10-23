@@ -39,28 +39,34 @@ public class TimersScriptHandler extends BaseHandler implements org.anime_game_s
 
     @Override
     public int initTimeAxis(GroupEventLuaContext context, String timeAxisKey, List<Float> timers, boolean loop) {
-        return handleUnimplemented(timeAxisKey, timers, loop);
+        logger.debug("[LUA] Call InitTimeAxis with {},{},{}", timeAxisKey, timers, loop);
+        val groupId = getGroupIdOrCurrentId(context, 0);
+        return context.getSceneScriptManager().initTimeAxis(groupId, timeAxisKey, timers, loop);
     }
 
     @Override
     public int endTimeAxis(GroupEventLuaContext context, String timeAxisKey) {
-        return handleUnimplemented(timeAxisKey);
+        logger.debug("[LUA] Call EndTimeAxis with {}", timeAxisKey);
+        return context.getSceneScriptManager().endTimeAxis(getGroupIdOrCurrentId(context, 0), timeAxisKey);
     }
     @Override
     public int continueTimeAxis(GroupEventLuaContext context, String key) {
-        return handleUnimplemented(key);
+        logger.debug("[LUA] Call ContinueTimeAxis with {}", key);
+        return context.getSceneScriptManager().continueTimeAxis(getGroupIdOrCurrentId(context, 0), key);
     }
 
 
     @Override
     public int endAllTimeAxis(GroupEventLuaContext context) {
-        return handleUnimplemented();
+        logger.debug("[LUA] Call EndAllTimeAxis");
+        return context.getSceneScriptManager().endAllTimeAxis(getGroupIdOrCurrentId(context, 0));
     }
 
 
     @Override
     public int pauseTimeAxis(GroupEventLuaContext context, String key) {
-        return handleUnimplemented(key);
+        logger.debug("[LUA] Call PauseTimeAxis with {}", key);
+        return context.getSceneScriptManager().pauseTimeAxis(getGroupIdOrCurrentId(context, 0), key);
     }
 
 }

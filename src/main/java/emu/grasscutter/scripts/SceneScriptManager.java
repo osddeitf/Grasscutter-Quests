@@ -59,6 +59,8 @@ public class SceneScriptManager {
     private final Map<Integer, Set<SceneTrigger>> currentTriggers;
     private final Map<String, Set<SceneTrigger>> triggersByGroupScene;
     private final Map<Integer, Set<Pair<String, Integer>>> activeGroupTimers;
+    /** The running time axes, by group and time axis key, see {@link #tickTimeAxes} */
+    private final Map<Integer, Map<String, TimeAxis>> activeTimeAxes = new ConcurrentHashMap<>();
     private final Map<String, AtomicInteger> triggerInvocations;
     private final Map<Integer, SceneGroupInstance> sceneGroupsInstances;
     private final Map<Integer, SceneGroupInstance> cachedSceneGroupsInstances;
@@ -861,6 +863,107 @@ public class SceneScriptManager {
         return 0;
     }
 
+    /** A group's time axis: its points are times in milliseconds from the start of a run, in scene time */
+    private static final class TimeAxis {
+        private final int groupId;
+        private final String key;
+        private final long[] points;
+        private final boolean loop;
+        /** Scene time the current run started */
+        private long startTime;
+        /** Index of the next point to pass */
+        private int next;
+        /** Scene time it was paused, -1 if running */
+        private long pausedAt = -1;
+
+        private TimeAxis(int groupId, String key, long[] points, boolean loop, long startTime) {
+            this.groupId = groupId;
+            this.key = key;
+            this.points = points;
+            this.loop = loop;
+            this.startTime = startTime;
+        }
+    }
+
+    /**
+     * Fires EVENT_TIME_AXIS_PASS for each point of the axis, at its time in seconds from now: the axis key as the
+     * source, the point's 1-based index as param1. A looping axis starts over from its last point. The axis runs on
+     * scene time, so a paused game pauses it too.
+     */
+    public int initTimeAxis(int groupId, String key, List<Float> points, boolean loop) {
+        endTimeAxis(groupId, key);
+        if (points.isEmpty()) return 0;
+
+        val millis = points.stream().mapToLong(seconds -> Math.round(seconds * 1000)).toArray();
+        activeTimeAxes.computeIfAbsent(groupId, k -> new ConcurrentHashMap<>())
+            .put(key, new TimeAxis(groupId, key, millis, loop, scene.getSceneTime()));
+        return 0;
+    }
+
+    public int endTimeAxis(int groupId, String key) {
+        val groupAxes = activeTimeAxes.get(groupId);
+        if (groupAxes != null) groupAxes.remove(key);
+        return 0;
+    }
+
+    public int endAllTimeAxis(int groupId) {
+        activeTimeAxes.remove(groupId);
+        return 0;
+    }
+
+    public int pauseTimeAxis(int groupId, String key) {
+        val axis = getTimeAxis(groupId, key);
+        if (axis == null) return 1;
+        if (axis.pausedAt < 0) axis.pausedAt = scene.getSceneTime();
+        return 0;
+    }
+
+    /** Resumes a paused axis, its remaining points keeping their spacing */
+    public int continueTimeAxis(int groupId, String key) {
+        val axis = getTimeAxis(groupId, key);
+        if (axis == null) return 1;
+        if (axis.pausedAt >= 0) {
+            axis.startTime += scene.getSceneTime() - axis.pausedAt;
+            axis.pausedAt = -1;
+        }
+        return 0;
+    }
+
+    @Nullable
+    private TimeAxis getTimeAxis(int groupId, String key) {
+        val groupAxes = activeTimeAxes.get(groupId);
+        return groupAxes != null ? groupAxes.get(key) : null;
+    }
+
+    /**
+     * Passes the time axes' points due by now, on the scene tick: so up to a tick late.
+     * TODO points are mostly whole seconds, but as fine as 0.1s in some scripts (26 of 1000 literal points, e.g. the
+     *  "shining" axis of group 133302049: 0.1, 0.2, 0.4, 0.6, 0.8). On the current 1s scene tick those fire together,
+     *  so a 100ms tick for the time axes would be needed for exact timers
+     */
+    public void tickTimeAxes() {
+        long now = scene.getSceneTime();
+        // an axis replaced or ended by a script meanwhile is left alone: removeIf only tests the current one
+        activeTimeAxes.values().forEach(groupAxes -> groupAxes.values().removeIf(axis -> advanceTimeAxis(axis, now)));
+    }
+
+    /** Fires the axis's points due by now, in order, returning whether it ended */
+    private boolean advanceTimeAxis(TimeAxis axis, long now) {
+        if (axis.pausedAt >= 0) return false;
+        while (axis.startTime + axis.points[axis.next] <= now) {
+            callEvent(new ScriptArgs(axis.groupId, EventType.EVENT_TIME_AXIS_PASS)
+                .setParam1(axis.next + 1).setEventSource(axis.key));
+            if (++axis.next < axis.points.length) continue;
+            if (!axis.loop) return true;
+            // a new run from the last point, not from now, so a looping axis doesn't drift with the tick
+            val runLength = axis.points[axis.points.length - 1];
+            axis.startTime += runLength;
+            axis.next = 0;
+            if (runLength <= 0) break;  // a zero-length loop would never catch up
+        }
+        return false;
+    }
+
     // todo use killed monsters instead of spawned entites for check?
     public boolean isClearedGroupMonsters(int groupId) {
         val groupInstance = getGroupInstanceById(groupId);
@@ -879,5 +982,6 @@ public class SceneScriptManager {
     public void onDestroy(){
         activeGroupTimers.forEach((gid,times) -> times.forEach((e)->Grasscutter.getGameServer().getScheduler().cancelTask(e.getSecond())));
         activeGroupTimers.clear();
+        activeTimeAxes.clear();
     }
 }
