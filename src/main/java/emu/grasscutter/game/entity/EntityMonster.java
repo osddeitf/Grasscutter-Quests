@@ -350,6 +350,7 @@ public class EntityMonster extends GameEntity<CreateMonsterEntityConfig> impleme
 
         monsterInfo.setTitleId(getTitleId());
         monsterInfo.setSpecialNameId(getSpecialNameId());
+        monsterInfo.setMarkFlag(this.getSpawnConfig().getMarkFlag());
 
         if (this.getWeaponId() > 0) {
             val entityId = this.getWeaponEntity() != null ? this.getWeaponEntity().getId() : 0;

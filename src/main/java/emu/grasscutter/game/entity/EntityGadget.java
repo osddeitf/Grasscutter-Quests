@@ -303,6 +303,7 @@ public class EntityGadget extends EntityBaseGadget implements ConfigAbilityDataA
         if (this.draftId > 0) {
             gadgetInfo.setDraftId(this.draftId);
         }
+        gadgetInfo.setMarkFlag(this.getSpawnConfig().getMarkFlag());
 
         if(getOwnerEntity() != null){
             gadgetInfo.setOwnerEntityId(getOwnerEntity().getId());
