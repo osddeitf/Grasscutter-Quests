@@ -416,7 +416,7 @@ public class Scene {
         removeEntity(entity, VisionType.VISION_DIE);
     }
 
-    private synchronized void removeEntity(GameEntity entity, VisionType visionType) {
+    public synchronized void removeEntity(GameEntity entity, VisionType visionType) {
         Optional.ofNullable(removeEntityDirectly(entity)).ifPresent(removed ->
             broadcastPacket(new PacketSceneEntityDisappearNotify(removed, visionType)));
     }
@@ -567,6 +567,7 @@ public class Scene {
         this.entities.values().forEach(e -> e.onTick(getSceneTimeSeconds()));
 
         platformManager.tick();
+        scriptManager.tickTimeAxes();
         npcGroupManager.tick();
         tickWeatherAreas();
         finishLoading();

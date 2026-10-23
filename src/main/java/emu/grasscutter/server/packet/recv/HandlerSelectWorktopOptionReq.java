@@ -24,6 +24,7 @@ public class HandlerSelectWorktopOptionReq extends TypedPacketHandler<SelectWork
             session.getPlayer().getScene().selectWorktopOptionWith(req);
             session.getPlayer().getScene().getScriptManager().callEvent(
                     new ScriptArgs(entity.getGroupId(), EventType.EVENT_SELECT_OPTION, entity.getConfigId(), req.getOptionId())
+                        .setUid(session.getPlayer().getUid())
             );
             session.getPlayer().getQuestManager().queueEvent(QuestContent.QUEST_CONTENT_WORKTOP_SELECT, entity.getConfigId(), req.getOptionId());
         } finally {

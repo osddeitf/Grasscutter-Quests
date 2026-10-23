@@ -16,8 +16,8 @@ import java.util.Objects;
 public class ActivityData extends GameResource {
     int activityId;
     String activityType;
-    List<Integer> condGroupId;
-    List<Integer> watcherId;
+    List<Integer> condGroupId = List.of();
+    List<Integer> watcherId = List.of();
     List<ActivityWatcherData> watcherDataList;
 
     @Override
