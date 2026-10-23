@@ -4,6 +4,7 @@ import emu.grasscutter.Loggers;
 import emu.grasscutter.game.entity.EntityMonster;
 import emu.grasscutter.scripts.lua_engine.GroupEventLuaContext;
 import emu.grasscutter.scripts.scriptlib_handlers.BaseHandler;
+import emu.grasscutter.utils.Position;
 import lombok.Getter;
 import lombok.val;
 import org.anime_game_servers.core.gi.models.Vector;
@@ -37,7 +38,11 @@ public class GroupMonsterHandler extends BaseHandler implements org.anime_game_s
 
     @Override
     public int createMonsterByConfigIdByPos(@NotNull GroupEventLuaContext context, int configId, @NotNull Vector pos, @Nullable Vector rot) {
-        return handleUnimplemented(configId, pos, rot);
+        logger.debug("[LUA] Call CreateMonsterByConfigIdByPos with {},{},{}", configId, pos, rot);
+        val group = context.getCurrentGroup();
+        context.getSceneScriptManager().spawnMonstersByConfigId(group, configId, 0,
+            new Position(pos), rot != null ? new Position(rot) : null);
+        return 0;
     }
 
     @Override

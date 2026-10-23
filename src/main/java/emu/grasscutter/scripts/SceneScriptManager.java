@@ -37,6 +37,7 @@ import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import emu.grasscutter.utils.Position;
 import javax.script.ScriptException;
 import java.util.*;
 import java.util.concurrent.*;
@@ -480,6 +481,12 @@ public class SceneScriptManager {
         this.getScriptMonsterTideService().unload();
     }
     public void spawnMonstersByConfigId(SceneGroup group, int configId, int delayTime) {
+        spawnMonstersByConfigId(group, configId, delayTime, null, null);
+    }
+
+    /** Spawns the group's monster, at the given position and rotation instead of its own when not null */
+    public void spawnMonstersByConfigId(SceneGroup group, int configId, int delayTime,
+                                        @Nullable Position pos, @Nullable Position rot) {
         // TODO delay
         val groupId = group.getGroupInfo().getId();
         var entity = scene.getEntityByConfigId(configId, groupId);
@@ -497,7 +504,7 @@ public class SceneScriptManager {
             logger.warn("configId {} not found in group {}", configId, groupId);
             return;
         }
-        entity = createMonster(monster);
+        entity = createMonster(monster, pos, rot);
         if(entity!=null){
             getScene().addEntity(entity);
         } else {
@@ -712,11 +719,18 @@ public class SceneScriptManager {
         return new EntityNPC(getScene(), new CreateNpcEntityConfig(npc));
     }
     public EntityMonster createMonster(SceneMonster monster) {
+        return createMonster(monster, null, null);
+    }
+
+    /** Creates the group's monster, at the given position and rotation instead of its own when not null */
+    public EntityMonster createMonster(SceneMonster monster, @Nullable Position pos, @Nullable Position rot) {
         if (monster == null) {
             return null;
         }
 
         val config = new CreateMonsterEntityConfig(monster);
+        if (pos != null) config.setBornPos(pos).setPos(pos.clone());
+        if (rot != null) config.setBornRot(rot).setRot(rot.clone());
         val data = config.getMonsterData();
 
         if (data == null) {
