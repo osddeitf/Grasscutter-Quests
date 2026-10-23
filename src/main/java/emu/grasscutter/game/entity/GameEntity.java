@@ -247,8 +247,13 @@ public abstract class GameEntity<T extends CreateEntityConfig<?>> {
         // Check if dead
         boolean isDead = false;
         if (this.getFightProperty(FightProperty.FIGHT_PROP_CUR_HP) <= 0f) {
-            this.setFightProperty(FightProperty.FIGHT_PROP_CUR_HP, 0f);
-            isDead = true;
+            // a modifier's Limbo state survives the fatal hit at 1 HP, the client then removes the modifier
+            if (hasAbilityState(AbilityState.Limbo)) {
+                this.setFightProperty(FightProperty.FIGHT_PROP_CUR_HP, 1f);
+            } else {
+                this.setFightProperty(FightProperty.FIGHT_PROP_CUR_HP, 0f);
+                isDead = true;
+            }
         }
         callLuaHPEvent(event);
         callAbilityBeHurt(event);
