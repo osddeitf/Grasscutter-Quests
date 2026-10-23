@@ -224,7 +224,8 @@ public class Scene {
         Optional.ofNullable(this.dungeonManager).ifPresent(m -> m.triggerEvent(conditionType, params));
     }
 
-    private boolean isInScene(GameEntity entity) {
+    /** Whether the entity is spawned in this scene, unlike {@link #getEntityById} also finding the team avatars off the field */
+    public boolean isInScene(GameEntity entity) {
         return this.entities.containsKey(entity.getId());
     }
 
@@ -281,13 +282,18 @@ public class Scene {
     }
 
     private void setupPlayerAvatars(@NotNull Player player) {
-        // Clear entities from old team
         val activeTeam = player.getTeamManager().getActiveTeam();
+        // Re-entering this scene, e.g. a teleport within it: the official server keeps the avatar entities and their
+        // ids, so the client keeps their ability state (e.g. Hu Tao's C6 cooldown) instead of re-initializing them
+        val kept = activeTeam.stream().filter(entity -> entity.getScene() == this)
+            .collect(Collectors.toMap(entity -> entity.getAvatar().getAvatarId(), entity -> entity, (a, b) -> a));
+        // Clear entities from old team
         activeTeam.clear();
         Optional.ofNullable(player.getTeamManager().getCurrentTeamInfo()).map(TeamInfo::getAvatars).stream()
             .flatMap(List::stream).map(player.getAvatars()::getAvatarById)
             .filter(Objects::nonNull)
-            .map(avatar -> new EntityAvatar(player.getScene(), avatar)).forEach(activeTeam::add);
+            .map(avatar -> Optional.ofNullable(kept.get(avatar.getAvatarId())).orElseGet(() -> new EntityAvatar(player.getScene(), avatar)))
+            .forEach(activeTeam::add);
     }
 
     private synchronized void removePlayerAvatars(@NotNull Player player) {
