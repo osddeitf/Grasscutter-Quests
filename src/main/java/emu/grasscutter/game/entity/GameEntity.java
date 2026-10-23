@@ -18,6 +18,7 @@ import emu.grasscutter.server.event.entity.EntityDeathEvent;
 import emu.grasscutter.server.packet.send.PacketEntityFightPropUpdateNotify;
 import emu.grasscutter.server.packet.send.PacketEntityTagChangeNotify;
 import emu.grasscutter.utils.Position;
+import teyvat.ability.config.enums.AbilityState;
 import it.unimi.dsi.fastutil.ints.Int2FloatMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
@@ -60,6 +61,10 @@ public abstract class GameEntity<T extends CreateEntityConfig<?>> {
     @Getter private Map<String, Float> globalAbilityValues = new HashMap<>();
     @Getter private Set<String> entityTags = new HashSet<>();
     private final Map<EntityAbilityProperty, StackedValue> abilityPropertyMap = new HashMap<>();
+    /** The states of the attached modifiers, by modifier, see {@link #hasAbilityState} */
+    private final Map<Object, Long> abilityStates = new java.util.concurrent.ConcurrentHashMap<>();
+    /** The states held by any attached modifier: or-ed rather than xor-ed, as two modifiers may hold the same state */
+    private volatile long abilityStateMask;
 
     public float getAbilityProperty(EntityAbilityProperty prop) {
         var value = abilityPropertyMap.get(prop);
@@ -422,6 +427,23 @@ public abstract class GameEntity<T extends CreateEntityConfig<?>> {
             return entityController.onClientExecuteRequest(this, param1, param2, param3);
         }
         return 0;
+    }
+
+    public void addAbilityState(Object key, AbilityState state) {
+        this.abilityStates.put(key, state.value);
+        updateAbilityStateMask();
+    }
+
+    public void removeAbilityState(Object key) {
+        if (this.abilityStates.remove(key) != null) updateAbilityStateMask();
+    }
+
+    public boolean hasAbilityState(AbilityState state) {
+        return (this.abilityStateMask & state.value) != 0;
+    }
+
+    private void updateAbilityStateMask() {
+        this.abilityStateMask = this.abilityStates.values().stream().reduce(0L, (a, b) -> a | b);
     }
 
     /**
