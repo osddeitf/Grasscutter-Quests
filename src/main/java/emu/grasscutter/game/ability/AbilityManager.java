@@ -104,7 +104,12 @@ public final class AbilityManager extends BasePlayerManager {
             logger.error("[BUG] Action {}: executed without an ability", actionType);
             return;
         }
-        var handler = actionHandlers.get(action.getClass());
+        // a subclass without a handler of its own runs its base's, e.g. CreateMovingPlatform's is CreateGadget's
+        AbilityActionHandler found = null;
+        for (Class<?> type = action.getClass(); found == null && type != null; type = type.getSuperclass()) {
+            found = actionHandlers.get(type);
+        }
+        val handler = found;
         if (handler == null) {
             logger.warn("[UNIMPLEMENTED] Action {}: no handler, at {}", actionType, ability.getName());
             return;
