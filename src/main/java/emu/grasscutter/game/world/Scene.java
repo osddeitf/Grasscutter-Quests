@@ -460,7 +460,11 @@ public class Scene {
             .toList();
     }
 
-    public void showOtherEntities(Player player) {
+    /**
+     * Synchronized like adding and removing entities: an entity removed meanwhile (e.g. by a group's load script) would
+     * otherwise be shown again after its disappear notify, and linger on the client
+     */
+    public synchronized void showOtherEntities(Player player) {
         val entities = this.entities.values().stream().filter(entity ->
             entity != player.getTeamManager().getCurrentAvatarEntity()).toList();
 
