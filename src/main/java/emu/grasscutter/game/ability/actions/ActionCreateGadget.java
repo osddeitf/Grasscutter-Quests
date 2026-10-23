@@ -32,9 +32,8 @@ public class ActionCreateGadget extends AbilityActionHandler<CreateGadget> {
             return false;
         }
 
-        val config = new CreateGadgetEntityConfig(action, createGadget)
+        val config = new CreateGadgetEntityConfig(action, action.gadgetID, createGadget)
             .setOwner(action.ownerIsTarget ? target : entity)
-            .setGadgetId(action.gadgetID)
             .setCampId(action.campID)
             .setCampType(CampTargetType.getTypeByName(action.campTargetType).getValue());
 

@@ -128,13 +128,11 @@ public class CreateGadgetEntityConfig extends CreateEntityConfig<CreateGadgetEnt
         initBaseData();
     }
 
-    public CreateGadgetEntityConfig(ConfigAbilityAction action, AbilityActionCreateGadget createGadgetInfo){
+    public CreateGadgetEntityConfig(ConfigAbilityAction action, int gadgetId, AbilityActionCreateGadget createGadgetInfo){
         super(action);
-//        this.gadgetId = action.getGadgetID();
+        this.gadgetId = gadgetId;
         setBornPos(new Position(createGadgetInfo.getPos()));
         setBornRot(new Position(createGadgetInfo.getRot()));
-//        this.campId = action.getCampID();
-//        this.campType = CampTargetType.getTypeByName(action.getCampTargetType()).getValue();
         initBaseData();
     }
 
