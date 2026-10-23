@@ -278,6 +278,11 @@ public class EntityGadget extends EntityBaseGadget implements ConfigAbilityDataA
         routeConfig.stopRoute(getScene());
         getScene().broadcastPacket(new PacketPlatformStopRouteNotify(this));
 
+        val routeId = routeConfig instanceof ConfigRoute configRoute ? configRoute.getRouteId() : 0;
+        getScene().getScriptManager().callEvent(new ScriptArgs(getGroupId(), EventType.EVENT_PLATFORM_ARRIVAL, getConfigId(), routeId)
+            .setParam3(routeConfig.getStartIndex())
+            .setEventSource(getConfigId()));
+
         return true;
     }
 
