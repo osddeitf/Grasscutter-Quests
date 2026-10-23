@@ -90,6 +90,9 @@ public abstract class EntityBaseGadget extends GameEntity<CreateGadgetEntityConf
         this.interactId = gadgetCreateConfig.getInteractId();
         this.arguments = gadgetCreateConfig.getArguments();
         this.owner = gadgetCreateConfig.getPlayerOwner();
+        if (gadgetCreateConfig.getOwner() != null) {
+            this.ownerEntityId = gadgetCreateConfig.getOwner().getId();
+        }
         this.propOwnerEntityId = gadgetCreateConfig.getPropOwnerEntityId();
         this.targetEntityId = gadgetCreateConfig.getTargetEntityId();
 
