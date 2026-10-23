@@ -70,8 +70,6 @@ public final class AbilityManager extends BasePlayerManager {
         registerHandlers();
     }
 
-    @Getter private boolean abilityInvulnerable = false;
-
     public AbilityManager(Player player) {
         super(player);
     }
@@ -106,7 +104,12 @@ public final class AbilityManager extends BasePlayerManager {
             logger.error("[BUG] Action {}: executed without an ability", actionType);
             return;
         }
-        var handler = actionHandlers.get(action.getClass());
+        // a subclass without a handler of its own runs its base's, e.g. CreateMovingPlatform's is CreateGadget's
+        AbilityActionHandler found = null;
+        for (Class<?> type = action.getClass(); found == null && type != null; type = type.getSuperclass()) {
+            found = actionHandlers.get(type);
+        }
+        val handler = found;
         if (handler == null) {
             logger.warn("[UNIMPLEMENTED] Action {}: no handler, at {}", actionType, ability.getName());
             return;
@@ -359,56 +362,6 @@ public final class AbilityManager extends BasePlayerManager {
 
         logger.warn("[MISSING] {}: no action nor mixin at local id {} of {}, on {}", invoke.getArgumentType(),
             head.getLocalId(), ability.getName(), getEntityIdentity(entity));
-    }
-
-    /**
-     * Invoked when a player starts a skill.
-     * @param player The player who started the skill.
-     * @param skillId The skill ID.
-     * @param casterId The caster ID.
-     */
-    public void onSkillStart(Player player, int skillId, int casterId) {
-        // Check if the player matches this player.
-        if (player.getUid() != this.player.getUid()) {
-            return;
-        }
-
-        // Check if the caster matches the player.
-        if (player.getTeamManager().getCurrentAvatarEntity().getId() != casterId) {
-            return;
-        }
-
-        var skillData = GameData.getAvatarSkillDataMap().get(skillId);
-        if (skillData == null) {
-            return;
-        }
-
-        // Check if the skill is an elemental burst.
-        if (skillData.getCostElemVal() <= 0) {
-            return;
-        }
-
-        // Set the player as invulnerable.
-        this.abilityInvulnerable = true;
-    }
-
-    /**
-     * Invoked when a player ends a skill.
-     * @param player The player who started the skill.
-     */
-    public void onSkillEnd(Player player) {
-        // Check if the player matches this player.
-        if (player.getUid() != this.player.getUid()) {
-            return;
-        }
-
-        // Check if the player is invulnerable.
-        if (!this.abilityInvulnerable) {
-            return;
-        }
-
-        // Set the player as not invulnerable.
-        this.abilityInvulnerable = false;
     }
 
     // multi proto dynamic runtime only
@@ -695,10 +648,12 @@ public final class AbilityManager extends BasePlayerManager {
         }
 
         var instancedAbilityId = meta.getAbility().getInstancedAbilityId();
-        var ability = entity.getInstancedAbilities().computeIfAbsent(
-            instancedAbilityId,
-            (id) -> new Ability(abilityData, entity, player)
-        );
+        var existing = entity.getInstancedAbilities().get(instancedAbilityId);
+        var ability = existing != null ? existing : new Ability(abilityData, entity, player);
+        if (existing == null) {
+            entity.getInstancedAbilities().put(instancedAbilityId, ability);
+            ability.attach();
+        }
 
         meta.getAbility().getOverrideMap()
             .forEach(entry -> setAbilityOverrideValue(ability, entry));
@@ -712,7 +667,8 @@ public final class AbilityManager extends BasePlayerManager {
         if (entity == null) return;
         Optional.ofNullable(invoke.getHead())
             .map(AbilityInvokeEntryHead::getInstancedAbilityId)
-            .ifPresent(id -> entity.getInstancedAbilities().remove((int)id));
+            .map(id -> entity.getInstancedAbilities().remove((int)id))
+            .ifPresent(Ability::detach);
     }
 
     /**
@@ -739,7 +695,9 @@ public final class AbilityManager extends BasePlayerManager {
             var abilityData = GameData.getAbilityConfigs().ability(abilityName);
             if (abilityData == null) continue;  // skip missing. TODO: logging
             var ability = new Ability(abilityData, entity, this.player);
-            entity.getInstancedAbilities().put(id, ability);
+            var replaced = entity.getInstancedAbilities().put(id, ability);
+            if (replaced != null) replaced.detach();
+            ability.attach();
         }
     }
 }

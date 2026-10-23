@@ -12,9 +12,6 @@ public class HandlerClientAbilitiesInitFinishCombineNotify extends TypedPacketHa
     public void handle(GameSession session, byte[] header, ClientAbilitiesInitFinishCombineNotify notif) throws Exception {
         Player player = session.getPlayer();
 
-        // Call skill end in the player's ability manager.
-        player.getAbilityManager().onSkillEnd(player);
-
         for(val entry : notif.getEntityInvokeList()) {
             for (val ability : entry.getInvokes()) {
                 player.getAbilityManager().onAbilityInvoke(ability);

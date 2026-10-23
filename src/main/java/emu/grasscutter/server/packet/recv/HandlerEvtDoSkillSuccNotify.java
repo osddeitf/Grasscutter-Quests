@@ -11,10 +11,6 @@ public class HandlerEvtDoSkillSuccNotify extends TypedPacketHandler<EvtDoSkillSu
     public void handle(GameSession session, byte[] header, EvtDoSkillSuccNotify notify) throws Exception {
         var player = session.getPlayer();
         int skillId = notify.getSkillId();
-        int casterId = notify.getCasterId();
-
-        // Call skill perform in the player's ability manager.
-        player.getAbilityManager().onSkillStart(session.getPlayer(), skillId, casterId);
 
         // Handle skill notify in other managers.
         player.getQuestManager().queueEvent(QuestContent.QUEST_CONTENT_SKILL, skillId);

@@ -22,6 +22,8 @@ public abstract class CreateEntityConfig<T extends CreateEntityConfig<T>> {
     private int configId;
     private int groupId;
     private int level = 1;
+    /** The group script's mark_flag, sent to the client */
+    private int markFlag;
 
     protected CreateEntityConfig(Object initDataSource){
         this.pos = new Position();
@@ -45,8 +47,10 @@ public abstract class CreateEntityConfig<T extends CreateEntityConfig<T>> {
         this.blockId = object.getBlockId();
         this.configId = object.getConfigId();
         this.groupId = object.getGroupId();
-        if(object instanceof SceneCreature creature)
+        if(object instanceof SceneCreature creature) {
             this.level = creature.getLevel();
+            this.markFlag = creature.getMarkFlag();
+        }
         this.bornPos = object.getPos()!= null ? new Position(object.getPos()) : new Position();
         this.bornRot = object.getRot()!= null ? new Position(object.getRot()) : new Position();
         this.pos = bornPos.clone();

@@ -78,6 +78,10 @@ public class EntityMonster extends GameEntity<CreateMonsterEntityConfig> impleme
 
 
         this.configEntityMonster = config.getConfigEntity();
+        if (configEntityMonster != null && configEntityMonster.getCombat() != null && configEntityMonster.getCombat().getProperty() != null) {
+            // e.g. a boss losing HP only from its own abilities, not from hits
+            setCombatLockHP(configEntityMonster.getCombat().getProperty().isLockHP());
+        }
         this.affixes = buildAffixes(scene.getGroupManager().getSceneMonster(this));
 
         // Monster weapon
@@ -216,12 +220,12 @@ public class EntityMonster extends GameEntity<CreateMonsterEntityConfig> impleme
     }
 
     @Override
-    public void damage(float amount, int killerId, ElementType attackType) {
+    public void damage(float amount, int killerId, ElementType attackType, boolean ignoreLockHP) {
         // Get HP before damage.
         float hpBeforeDamage = this.getFightProperty(FightProperty.FIGHT_PROP_CUR_HP);
 
         // Apply damage.
-        super.damage(amount, killerId, attackType);
+        super.damage(amount, killerId, attackType, ignoreLockHP);
 
         // Get HP after damage.
         float hpAfterDamage = this.getFightProperty(FightProperty.FIGHT_PROP_CUR_HP);
@@ -346,6 +350,7 @@ public class EntityMonster extends GameEntity<CreateMonsterEntityConfig> impleme
 
         monsterInfo.setTitleId(getTitleId());
         monsterInfo.setSpecialNameId(getSpecialNameId());
+        monsterInfo.setMarkFlag(this.getSpawnConfig().getMarkFlag());
 
         if (this.getWeaponId() > 0) {
             val entityId = this.getWeaponEntity() != null ? this.getWeaponEntity().getId() : 0;

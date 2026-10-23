@@ -44,6 +44,10 @@ public class CreateGadgetEntityConfig extends CreateEntityConfig<CreateGadgetEnt
     private int pointType;
     private Player playerOwner = null;
     private GameEntity<?> owner;
+    /** The entity this gadget takes its properties from with useCreatorProperty, e.g. a killed monster no longer in the scene */
+    private GameEntity<?> creator;
+    /** Created by an ability action, sent with its camp and target as an ability gadget */
+    private boolean abilityGadget = false;
     private boolean isPersistent = false;
     private boolean enableInteract = true;
     private boolean forbidGuest = false;
@@ -126,13 +130,11 @@ public class CreateGadgetEntityConfig extends CreateEntityConfig<CreateGadgetEnt
         initBaseData();
     }
 
-    public CreateGadgetEntityConfig(ConfigAbilityAction action, AbilityActionCreateGadget createGadgetInfo){
+    public CreateGadgetEntityConfig(ConfigAbilityAction action, int gadgetId, AbilityActionCreateGadget createGadgetInfo){
         super(action);
-//        this.gadgetId = action.getGadgetID();
+        this.gadgetId = gadgetId;
         setBornPos(new Position(createGadgetInfo.getPos()));
         setBornRot(new Position(createGadgetInfo.getRot()));
-//        this.campId = action.getCampID();
-//        this.campType = CampTargetType.getTypeByName(action.getCampTargetType()).getValue();
         initBaseData();
     }
 

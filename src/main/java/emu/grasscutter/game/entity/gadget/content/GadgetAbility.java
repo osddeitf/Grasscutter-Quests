@@ -1,6 +1,5 @@
 package emu.grasscutter.game.entity.gadget.content;
 
-import emu.grasscutter.game.entity.EntityBaseGadget;
 import emu.grasscutter.game.entity.EntityGadget;
 import emu.grasscutter.game.player.Player;
 import lombok.val;
@@ -8,13 +7,11 @@ import org.anime_game_servers.multi_proto.gi.messages.gadget.GadgetInteractReq;
 import org.anime_game_servers.multi_proto.gi.messages.scene.entity.AbilityGadgetInfo;
 import org.anime_game_servers.multi_proto.gi.messages.scene.entity.SceneGadgetInfo;
 
+/** A gadget created by an ability action, e.g. Albedo's elevator by CreateMovingPlatform */
 public class GadgetAbility extends GadgetContent {
-    private EntityBaseGadget parent;
 
-
-    public GadgetAbility(EntityGadget gadget, EntityBaseGadget parent) {
+    public GadgetAbility(EntityGadget gadget) {
         super(gadget);
-        this.parent = parent;
     }
 
     public boolean onInteract(Player player, GadgetInteractReq req) {
@@ -23,14 +20,8 @@ public class GadgetAbility extends GadgetContent {
 
     @Override
     public void onBuildProto(SceneGadgetInfo gadgetInfo) {
-        if (this.parent == null) {
-            return;
-        }
-
-        val abilityGadgetInfo = new AbilityGadgetInfo(parent.getCampId(), parent.getCampType(), parent.getId());
-        abilityGadgetInfo.setTargetEntityId(getGadget().getTargetEntityId());
-        abilityGadgetInfo.setCampId(getGadget().getCampId());
-        abilityGadgetInfo.setCampTargetType(getGadget().getCampType());
+        val gadget = getGadget();
+        val abilityGadgetInfo = new AbilityGadgetInfo(gadget.getCampId(), gadget.getCampType(), gadget.getTargetEntityId());
         gadgetInfo.setContent(new SceneGadgetInfo.Content.AbilityGadget(abilityGadgetInfo));
     }
 

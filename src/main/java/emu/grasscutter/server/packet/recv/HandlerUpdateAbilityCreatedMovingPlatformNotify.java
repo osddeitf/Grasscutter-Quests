@@ -17,7 +17,11 @@ public class HandlerUpdateAbilityCreatedMovingPlatformNotify extends TypedPacket
 
         switch (req.getOpType()) {
             case OP_ACTIVATE -> entityGadget.startPlatform();
-            case OP_DEACTIVATE -> entityGadget.stopPlatform();
+            case OP_DEACTIVATE -> {
+                // inactive in the stop notify, else the client keeps deactivating it and can't activate it again
+                entityGadget.getRouteConfig().setActive(false);
+                entityGadget.stopPlatform();
+            }
         }
     }
 }

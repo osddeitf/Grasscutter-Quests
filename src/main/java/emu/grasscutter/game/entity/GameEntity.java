@@ -18,6 +18,7 @@ import emu.grasscutter.server.event.entity.EntityDeathEvent;
 import emu.grasscutter.server.packet.send.PacketEntityFightPropUpdateNotify;
 import emu.grasscutter.server.packet.send.PacketEntityTagChangeNotify;
 import emu.grasscutter.utils.Position;
+import teyvat.ability.config.enums.AbilityState;
 import it.unimi.dsi.fastutil.ints.Int2FloatMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
@@ -46,7 +47,7 @@ public abstract class GameEntity<T extends CreateEntityConfig<?>> {
     @Getter @Setter private int lastMoveSceneTimeMs;
     @Getter @Setter private int lastMoveReliableSeq;
 
-    @Getter @Setter private boolean lockHP;
+    @Getter @Setter private boolean combatLockHP;
     @Getter @Setter private int level = 0;
 
     // Lua controller for specific actions
@@ -60,6 +61,14 @@ public abstract class GameEntity<T extends CreateEntityConfig<?>> {
     @Getter private Map<String, Float> globalAbilityValues = new HashMap<>();
     @Getter private Set<String> entityTags = new HashSet<>();
     private final Map<EntityAbilityProperty, StackedValue> abilityPropertyMap = new HashMap<>();
+    /** Run when this entity is killed, e.g. the ServerCreateGadgetOnKillMixins of its attached modifiers, by owner */
+    private final Map<Object, Runnable> onKillEvents = new java.util.concurrent.ConcurrentHashMap<>();
+    /** Entities alive only while this one is, e.g. gadgets created with lifeByOwnerIsAlive, see {@link #addLifeBoundEntity} */
+    private final Set<GameEntity<?>> lifeBoundEntities = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    /** The states of the attached modifiers, by modifier, see {@link #hasAbilityState} */
+    private final Map<Object, Long> abilityStates = new java.util.concurrent.ConcurrentHashMap<>();
+    /** The states held by any attached modifier: or-ed rather than xor-ed, as two modifiers may hold the same state */
+    private volatile long abilityStateMask;
 
     public float getAbilityProperty(EntityAbilityProperty prop) {
         var value = abilityPropertyMap.get(prop);
@@ -215,8 +224,22 @@ public abstract class GameEntity<T extends CreateEntityConfig<?>> {
     }
 
     public void damage(float amount, int killerId, ElementType attackType) {
+        damage(amount, killerId, attackType, false);
+    }
+
+    /** Whether the HP is locked: by the entity's config, or by an attached modifier's LockHP state */
+    public boolean isHpLocked() {
+        return this.combatLockHP || hasAbilityState(AbilityState.LockHP);
+    }
+
+    /** @param ignoreLockHP e.g. a LoseHP not respecting the lock, like a boss's HP loss at its stage end */
+    public void damage(float amount, int killerId, ElementType attackType, boolean ignoreLockHP) {
         // Check if the entity has properties.
         if (!hasFightProperty(FightProperty.FIGHT_PROP_CUR_HP)) {
+            return;
+        }
+        // e.g. during an avatar's elemental burst, the client reports the hits and leaves the immunity to the server
+        if (hasAbilityState(AbilityState.Invincible)) {
             return;
         }
 
@@ -228,7 +251,8 @@ public abstract class GameEntity<T extends CreateEntityConfig<?>> {
         }
 
         float curHp = getFightProperty(FightProperty.FIGHT_PROP_CUR_HP);
-        if (curHp != Float.POSITIVE_INFINITY && !lockHP || lockHP && curHp <= event.getDamage()) {
+        // A locked HP never changes, e.g. the platforms the boss lands on must not die
+        if (curHp != Float.POSITIVE_INFINITY && (ignoreLockHP || !isHpLocked())) {
             // Add negative HP to the current HP property.
             this.addFightProperty(FightProperty.FIGHT_PROP_CUR_HP, -(event.getDamage()));
         }
@@ -238,8 +262,13 @@ public abstract class GameEntity<T extends CreateEntityConfig<?>> {
         // Check if dead
         boolean isDead = false;
         if (this.getFightProperty(FightProperty.FIGHT_PROP_CUR_HP) <= 0f) {
-            this.setFightProperty(FightProperty.FIGHT_PROP_CUR_HP, 0f);
-            isDead = true;
+            // a modifier's Limbo state survives the fatal hit at 1 HP, the client then removes the modifier
+            if (hasAbilityState(AbilityState.Limbo)) {
+                this.setFightProperty(FightProperty.FIGHT_PROP_CUR_HP, 1f);
+            } else {
+                this.setFightProperty(FightProperty.FIGHT_PROP_CUR_HP, 0f);
+                isDead = true;
+            }
         }
         callLuaHPEvent(event);
         callAbilityBeHurt(event);
@@ -424,6 +453,50 @@ public abstract class GameEntity<T extends CreateEntityConfig<?>> {
         return 0;
     }
 
+    public void addAbilityState(Object key, AbilityState state) {
+        this.abilityStates.put(key, state.value);
+        updateAbilityStateMask();
+    }
+
+    public void removeAbilityState(Object key) {
+        if (this.abilityStates.remove(key) != null) updateAbilityStateMask();
+    }
+
+    public boolean hasAbilityState(AbilityState state) {
+        return (this.abilityStateMask & state.value) != 0;
+    }
+
+    private void updateAbilityStateMask() {
+        this.abilityStateMask = this.abilityStates.values().stream().reduce(0L, (a, b) -> a | b);
+    }
+
+    public void addOnKillEvent(Object key, Runnable event) {
+        this.onKillEvents.put(key, event);
+    }
+
+    public void removeOnKillEvent(Object key) {
+        this.onKillEvents.remove(key);
+    }
+
+    /** Binds the entity's life to this one's: it's killed when this one dies, or leaves the scene other than by an avatar switch */
+    public void addLifeBoundEntity(GameEntity<?> entity) {
+        // those already gone, e.g. killed on their own, would otherwise pile up on a long-lived owner
+        this.lifeBoundEntities.removeIf(bound -> !bound.isInScene());
+        this.lifeBoundEntities.add(entity);
+    }
+
+    /** Kills the entities whose life is bound to this one's, those still in the scene */
+    public void killLifeBoundEntities() {
+        val bound = List.copyOf(this.lifeBoundEntities);
+        this.lifeBoundEntities.clear();
+        bound.stream().filter(GameEntity::isInScene).forEach(entity -> entity.getScene().killEntity(entity));
+    }
+
+    /** Whether this very entity is in its scene, not removed or replaced by another of the same id */
+    public boolean isInScene() {
+        return getScene() != null && getScene().getEntityById(getId()) == this;
+    }
+
     /**
      * Called when this entity dies
      *
@@ -433,6 +506,9 @@ public abstract class GameEntity<T extends CreateEntityConfig<?>> {
         // Invoke entity death event.
         EntityDeathEvent event = new EntityDeathEvent(this, killerId);
         event.call();
+
+        this.onKillEvents.values().forEach(Runnable::run);
+        killLifeBoundEntities();
 
         if (entityController != null) {
             entityController.onDie(this, getLastAttackType());

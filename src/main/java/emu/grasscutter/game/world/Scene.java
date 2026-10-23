@@ -391,6 +391,10 @@ public class Scene {
     public GameEntity removeEntityDirectly(GameEntity entity) {
         val removed = this.entities.remove(entity.getId());
         Optional.ofNullable(removed).ifPresent(GameEntity::onRemoved); //Call entity remove event
+        // an avatar leaves the scene on a switch, still alive: its bound entities die with it, on death
+        if (removed != null && !(removed instanceof EntityAvatar)) {
+            removed.killLifeBoundEntities();
+        }
 
         //if(entity instanceof EntityWeapon) {
         //    Grasscutter.getLogger().warn("Weapon removed {}: ", entity.getId());

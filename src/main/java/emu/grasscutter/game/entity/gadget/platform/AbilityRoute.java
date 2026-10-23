@@ -8,7 +8,7 @@ import org.anime_game_servers.multi_proto.gi.messages.scene.entity.MovingPlatfor
 import org.anime_game_servers.multi_proto.gi.messages.scene.entity.PlatformInfo;
 
 /**
- * TODO mostly hardcoded for EntitySolarIsotomaElevatorPlatform, should be more generic
+ * The route of a platform created by an ability action, e.g. CreateMovingPlatform, started and stopped by the client
  */
 public class AbilityRoute extends BaseRoute {
 

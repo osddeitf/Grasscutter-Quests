@@ -4,7 +4,9 @@ import emu.grasscutter.data.common.AbilityMath;
 import emu.grasscutter.game.entity.GameEntity;
 import emu.grasscutter.game.managers.climate.ClimateManager;
 import lombok.Getter;
+import lombok.val;
 import teyvat.ability.config.ConfigAbilityModifier;
+import teyvat.ability.config.enums.AbilityState;
 import teyvat.ability.config.mixins.ResistClimateMixin;
 
 import java.util.HashMap;
@@ -37,6 +39,11 @@ public class AbilityModifierController {
                 AbilityManager.getLogger().warn("ResistClimateMixin on {} isn't on an avatar nor a team, at {}", entity, ability.getName());
             }
         }
+
+        Ability.addOnKillMixins(entity, this, modifierData.getMixins(), ability);
+
+        val state = modifierData.getState();
+        if (state != null && state != AbilityState.None) entity.addAbilityState(this, state);
     }
 
     public void detach(GameEntity<?> entity) {
@@ -46,5 +53,8 @@ public class AbilityModifierController {
 
         var player = ClimateManager.getAffectedPlayer(entity);
         if (player != null) player.getClimateManager().removeResists(this);
+
+        entity.removeOnKillEvent(this);
+        entity.removeAbilityState(this);
     }
 }

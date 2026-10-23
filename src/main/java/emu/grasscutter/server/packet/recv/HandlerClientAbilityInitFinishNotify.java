@@ -12,9 +12,6 @@ public class HandlerClientAbilityInitFinishNotify extends TypedPacketHandler<Cli
     public void handle(GameSession session, byte[] header, ClientAbilityInitFinishNotify notif) throws Exception {
         Player player = session.getPlayer();
 
-        // Call skill end in the player's ability manager.
-        player.getAbilityManager().onSkillEnd(player);
-
         for (val entry : notif.getInvokes()) {
             player.getAbilityManager().onAbilityInvoke(entry);
             player.getClientAbilityInitFinishHandler().addEntry(entry.getForwardType(), entry);

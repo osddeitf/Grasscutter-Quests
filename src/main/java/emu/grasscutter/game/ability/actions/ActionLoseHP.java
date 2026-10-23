@@ -4,6 +4,7 @@ import emu.grasscutter.data.common.AbilityMath;
 import emu.grasscutter.game.ability.Ability;
 import emu.grasscutter.game.entity.EntityClientGadget;
 import emu.grasscutter.game.entity.GameEntity;
+import emu.grasscutter.game.props.ElementType;
 import emu.grasscutter.game.props.FightProperty;
 import teyvat.ability.config.actions.LoseHP;
 
@@ -19,13 +20,10 @@ public class ActionLoseHP extends AbilityActionHandler<LoseHP> {
         //handle client gadgets, that the effective caster is the current local avatar
         if(owner instanceof EntityClientGadget ownerGadget) {
             owner = ownerGadget.getScene().getEntityById(ownerGadget.getOwnerEntityId()); //Caster for EntityClientGadget
-
-            //TODO: Do this per entity, not just the player
-            if(ownerGadget.getOwner().getAbilityManager().isAbilityInvulnerable()) return true;
         }
         if(owner == null || target == null) return false;
 
-        if(action.enableLockHP && target.isLockHP()) {
+        if(action.enableLockHP && target.isHpLocked()) {
             return true;
         }
 
@@ -54,13 +52,19 @@ public class ActionLoseHP extends AbilityActionHandler<LoseHP> {
         amountToLose += amountByTargetCurrentHPRatio * currentHp;
         amountToLose += amountByTargetMaxHPRatio * maxHp;
 
-        if(limboByTargetMaxHPRatio > 1.192093e-07)
-            amountToLose = (float)Math.min(Math.max(currentHp -  Math.max(limboByTargetMaxHPRatio * maxHp, 1.0), 0.0), amountToLose);
+        if(limboByTargetMaxHPRatio > 1.192093e-07) {
+            // the target keeps at least this ratio of its max HP, and at least 1 HP
+            float hpToKeep = Math.max(limboByTargetMaxHPRatio * maxHp, 1f);
+            float maxLoss = Math.max(currentHp - hpToKeep, 0f);
+            amountToLose = Math.min(amountToLose, maxLoss);
+        }
 
         if(currentHp < (amountToLose + 0.01) && !action.lethal)
             amountToLose = 0;
 
-        target.damage(amountToLose);
+        // not a hit: the lock is respected above only with enableLockHP. Inferred, not confirmed: the Oceanid boss is
+        //  HP-locked (its config and a LockHP state), yet officially loses HP at each stage end through a LoseHP without it
+        target.damage(amountToLose, 0, ElementType.None, true);
 
         return true;
     }

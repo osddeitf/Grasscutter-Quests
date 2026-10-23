@@ -88,6 +88,11 @@ public class EntityGadget extends EntityBaseGadget implements ConfigAbilityDataA
     // TODO refactor
     @Override
     public GadgetContent buildContent(CreateGadgetEntityConfig config) {
+        if (config.isAbilityGadget()) {
+            // TODO unverified for all of them: only seen on Albedo's elevator (CreateMovingPlatform), a gadget created by
+            //  a server CreateGadget may well need its type's content instead, e.g. a chest or worktop
+            return new GadgetAbility(this);
+        }
         if (this.getGadgetData() == null || this.getGadgetData().getType() == null) {
             return null;
         }
@@ -298,6 +303,7 @@ public class EntityGadget extends EntityBaseGadget implements ConfigAbilityDataA
         if (this.draftId > 0) {
             gadgetInfo.setDraftId(this.draftId);
         }
+        gadgetInfo.setMarkFlag(this.getSpawnConfig().getMarkFlag());
 
         if(getOwnerEntity() != null){
             gadgetInfo.setOwnerEntityId(getOwnerEntity().getId());

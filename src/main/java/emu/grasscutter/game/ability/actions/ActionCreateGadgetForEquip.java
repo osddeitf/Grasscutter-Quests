@@ -33,7 +33,7 @@ public class ActionCreateGadgetForEquip extends AbilityActionHandler<TriggerCrea
             return false;
         }
 
-        val config = new CreateGadgetEntityConfig(action, createGadget);
+        val config = new CreateGadgetEntityConfig(action, action.gadgetID, createGadget);
 //            .setOwner(action.ownerIsTarget ? target : entity);    // TriggerCreateGadgetToEquipPart doesn't have the field
 
         var entityCreated = new EntityWeapon(entity.getScene(), config);
