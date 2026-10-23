@@ -3,11 +3,11 @@ package emu.grasscutter.server.packet.recv;
 import emu.grasscutter.Grasscutter;
 import emu.grasscutter.game.entity.GameEntity;
 import emu.grasscutter.game.player.Player;
+import emu.grasscutter.game.props.ElementType;
 import emu.grasscutter.game.props.FightProperty;
 import emu.grasscutter.net.packet.TypedPacketHandler;
 import emu.grasscutter.server.event.entity.EntityMoveEvent;
 import emu.grasscutter.server.game.GameSession;
-import emu.grasscutter.server.packet.send.PacketEntityFightPropUpdateNotify;
 import emu.grasscutter.utils.Position;
 import lombok.val;
 import org.anime_game_servers.multi_proto.gi.messages.battle.CombatInvocationsNotify;
@@ -138,20 +138,15 @@ public class HandlerCombatInvocationsNotify extends TypedPacketHandler<CombatInv
             damageFactor = 1f;
         }
         float damage = maxHP * damageFactor;
-        float newHP = currentHP - damage;
-        if (newHP < 0) {
-            newHP = 0;
-        }
         if (damageFactor > 0) {
             Grasscutter.getLogger().debug(currentHP + "/" + maxHP + "\tLandingSpeed: " + cachedLandingSpeed +
-                    "\tDamageFactor: " + damageFactor + "\tDamage: " + damage + "\tNewHP: " + newHP);
+                    "\tDamageFactor: " + damageFactor + "\tDamage: " + damage);
+            // the normal damage flow, e.g. a Limbo state survives the fall, but dying of a fall
+            if (entity.applyDamage(damage, 0, ElementType.None, false)) {
+                session.getPlayer().getStaminaManager().killAvatar(entity, PlayerDieType.PLAYER_DIE_FALL);
+            }
         } else {
             Grasscutter.getLogger().trace(currentHP + "/" + maxHP + "\tLandingSpeed: 0\tNo damage");
-        }
-        entity.setFightProperty(FightProperty.FIGHT_PROP_CUR_HP, newHP);
-        entity.getWorld().broadcastPacket(new PacketEntityFightPropUpdateNotify(entity, FightProperty.FIGHT_PROP_CUR_HP));
-        if (newHP == 0) {
-            session.getPlayer().getStaminaManager().killAvatar(entity, PlayerDieType.PLAYER_DIE_FALL);
         }
         cachedLandingSpeed = 0;
     }

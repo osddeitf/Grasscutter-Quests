@@ -234,20 +234,30 @@ public abstract class GameEntity<T extends CreateEntityConfig<?>> {
 
     /** @param ignoreLockHP e.g. a LoseHP not respecting the lock, like a boss's HP loss at its stage end */
     public void damage(float amount, int killerId, ElementType attackType, boolean ignoreLockHP) {
+        if (applyDamage(amount, killerId, attackType, ignoreLockHP)) {
+            this.getScene().killEntity(this, killerId);
+        }
+    }
+
+    /**
+     * Damages this entity, leaving the kill to the caller, e.g. a fall killing an avatar with its own die type
+     * @return whether the damage is fatal
+     */
+    public boolean applyDamage(float amount, int killerId, ElementType attackType, boolean ignoreLockHP) {
         // Check if the entity has properties.
         if (!hasFightProperty(FightProperty.FIGHT_PROP_CUR_HP)) {
-            return;
+            return false;
         }
         // e.g. during an avatar's elemental burst, the client reports the hits and leaves the immunity to the server
         if (hasAbilityState(AbilityState.Invincible)) {
-            return;
+            return false;
         }
 
         // Invoke entity damage event.
         EntityDamageEvent event = new EntityDamageEvent(this, amount, attackType, this.getScene().getEntityById(killerId));
         event.call();
         if (event.isCanceled()) {
-            return; // If the event is canceled, do not damage the entity.
+            return false; // If the event is canceled, do not damage the entity.
         }
 
         float curHp = getFightProperty(FightProperty.FIGHT_PROP_CUR_HP);
@@ -276,10 +286,7 @@ public abstract class GameEntity<T extends CreateEntityConfig<?>> {
         // Packets
         this.getScene().broadcastPacket(new PacketEntityFightPropUpdateNotify(this, FightProperty.FIGHT_PROP_CUR_HP));
 
-        // Check if dead.
-        if (isDead) {
-            this.getScene().killEntity(this, killerId);
-        }
+        return isDead;
     }
 
     public void callLuaHPEvent(EntityDamageEvent event) {
