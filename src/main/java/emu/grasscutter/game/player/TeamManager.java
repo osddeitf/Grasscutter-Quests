@@ -550,7 +550,8 @@ public class TeamManager extends BasePlayerDataManager {
         }
         // Set index and spawn replacement member
         setCurrentCharacterIndex(replaceIndex);
-        getPlayer().getScene().addEntity(replacement);
+        // as a replacement, a plain born makes the monsters fighting the team leave combat
+        getPlayer().getScene().replaceDeadAvatar(deadAvatar, replacement);
     }
 
     public boolean reviveAvatar(Avatar avatar) {

@@ -1,6 +1,7 @@
 package emu.grasscutter.server.packet.recv;
 
 import emu.grasscutter.Grasscutter;
+import emu.grasscutter.game.entity.EntityAvatar;
 import emu.grasscutter.game.entity.GameEntity;
 import emu.grasscutter.game.player.Player;
 import emu.grasscutter.game.props.FightProperty;
@@ -42,6 +43,11 @@ public class HandlerCombatInvocationsNotify extends TypedPacketHandler<CombatInv
                     val moveInfo = EntityMoveInfo.parseBy(entry.getCombatData(), session.getVersion());
                     val scene = session.getPlayer().getScene();
                     GameEntity entity = scene != null ? scene.getEntityById(moveInfo.getEntityId()) : null;
+                    // an avatar not spawned, e.g. a late move of the previous position while re-entering the scene
+                    // with the same avatar entities, which would move the player back
+                    if (entity instanceof EntityAvatar && !scene.isInScene(entity)) {
+                        entity = null;
+                    }
                     if (entity != null) {
                         // Move player
                         val motionInfo = moveInfo.getMotionInfo();

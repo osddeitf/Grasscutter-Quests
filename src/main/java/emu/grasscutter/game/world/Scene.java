@@ -224,7 +224,8 @@ public class Scene {
         Optional.ofNullable(this.dungeonManager).ifPresent(m -> m.triggerEvent(conditionType, params));
     }
 
-    private boolean isInScene(GameEntity entity) {
+    /** Whether the entity is spawned in this scene, unlike {@link #getEntityById} also finding the team avatars off the field */
+    public boolean isInScene(GameEntity entity) {
         return this.entities.containsKey(entity.getId());
     }
 
@@ -281,13 +282,18 @@ public class Scene {
     }
 
     private void setupPlayerAvatars(@NotNull Player player) {
-        // Clear entities from old team
         val activeTeam = player.getTeamManager().getActiveTeam();
+        // Re-entering this scene, e.g. a teleport within it: the official server keeps the avatar entities and their
+        // ids, so the client keeps their ability state (e.g. Hu Tao's C6 cooldown) instead of re-initializing them
+        val kept = activeTeam.stream().filter(entity -> entity.getScene() == this)
+            .collect(Collectors.toMap(entity -> entity.getAvatar().getAvatarId(), entity -> entity, (a, b) -> a));
+        // Clear entities from old team
         activeTeam.clear();
         Optional.ofNullable(player.getTeamManager().getCurrentTeamInfo()).map(TeamInfo::getAvatars).stream()
             .flatMap(List::stream).map(player.getAvatars()::getAvatarById)
             .filter(Objects::nonNull)
-            .map(avatar -> new EntityAvatar(player.getScene(), avatar)).forEach(activeTeam::add);
+            .map(avatar -> Optional.ofNullable(kept.get(avatar.getAvatarId())).orElseGet(() -> new EntityAvatar(player.getScene(), avatar)))
+            .forEach(activeTeam::add);
     }
 
     private synchronized void removePlayerAvatars(@NotNull Player player) {
@@ -431,6 +437,12 @@ public class Scene {
         broadcastPacket(new PacketSceneEntityAppearNotify(newEntity, VisionType.VISION_REPLACE, oldEntity.getId()));
     }
 
+    /** Adds the avatar replacing one that died, which was already removed on death */
+    public synchronized void replaceDeadAvatar(EntityAvatar deadEntity, EntityAvatar newEntity) {
+        addEntityDirectly(newEntity);
+        broadcastPacket(new PacketSceneEntityAppearNotify(newEntity, VisionType.VISION_REPLACE_DIE, deadEntity.getId()));
+    }
+
     /** Adds a vehicle, kept by the world beyond this scene for some types: the vehicles it evicts are removed */
     public void addVehicle(EntityVehicle vehicle) {
         // e.g. the owner's previous skiff, or the oldest saurians over the limit
@@ -454,7 +466,11 @@ public class Scene {
             .toList();
     }
 
-    public void showOtherEntities(Player player) {
+    /**
+     * Synchronized like adding and removing entities: an entity removed meanwhile (e.g. by a group's load script) would
+     * otherwise be shown again after its disappear notify, and linger on the client
+     */
+    public synchronized void showOtherEntities(Player player) {
         val entities = this.entities.values().stream().filter(entity ->
             entity != player.getTeamManager().getCurrentAvatarEntity()).toList();
 

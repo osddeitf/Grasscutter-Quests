@@ -27,6 +27,9 @@ public class PacketSceneTeamUpdateNotify extends BaseTypedPacket<SceneTeamUpdate
                 avatarProto.setWeaponEntityId(entityAvatar.getWeaponEntityId());
                 avatarProto.setPlayerCurAvatar(p.getTeamManager().getCurrentAvatarEntity() == entityAvatar);
                 avatarProto.setOnScene(p.getTeamManager().getCurrentAvatarEntity() == entityAvatar);
+                // TODO the official server sends these empty on login, but filled on re-entering a scene (seen on a
+                //  teleport within it): the avatar's applied abilities, modifiers and dynamic values, the weapon's just
+                //  is_inited. Avatar entities are kept on re-entering the same scene, but the state isn't sent yet
                 avatarProto.setAvatarAbilityInfo(new AbilitySyncStateInfo());
                 avatarProto.setWeaponAbilityInfo(new AbilitySyncStateInfo());
                 avatarProto.setAbilityControlBlock(entityAvatar.getAvatar().getAbilities().toProto());

@@ -4,6 +4,7 @@ import emu.grasscutter.data.GameData;
 import emu.grasscutter.data.excels.DungeonData;
 import emu.grasscutter.data.excels.SceneData;
 import emu.grasscutter.game.entity.EntityTeam;
+import emu.grasscutter.game.entity.GameEntity;
 import emu.grasscutter.game.entity.EntityWorld;
 import emu.grasscutter.game.modules.widget.manager.WidgetAnchorPointManager;
 import emu.grasscutter.game.player.Player;
@@ -25,6 +26,7 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import lombok.*;
 import org.anime_game_servers.multi_proto.gi.messages.scene.EnterType;
+import org.anime_game_servers.multi_proto.gi.messages.scene.VisionType;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -304,14 +306,22 @@ public class World implements Iterable<Player> {
         }
 
         Scene oldScene = null;
+        // the avatars the player sees itself, to hide before they reappear in the scene re-entered, see below
+        List<GameEntity> shownAvatars = List.of();
 
         if (player.getScene() != null) {
             oldScene = player.getScene();
+            shownAvatars = player.getTeamManager().getActiveTeam().stream()
+                .filter(oldScene::isInScene).map(GameEntity.class::cast).toList();
 
             // Don't deregister scenes if the player is going to tp back into them
             if (oldScene.getId() == teleportProperties.getSceneId()) {
                 oldScene.setDontDestroyWhenEmpty(true);
             }
+            // TODO a teleport within the scene is a full leave and re-enter here, keeping only the avatar entities.
+            //  Officially seen on one: no PlayerEnterSceneInfoNotify, only the current avatar disappearing and
+            //  reappearing with the same id, and the client not re-adding abilities. Leaving also fails the challenge,
+            //  ejects from vehicles and removes the player's gadgets, unverified for a teleport within the scene
 
             oldScene.removePlayer(player);
         }
@@ -342,6 +352,12 @@ public class World implements Iterable<Player> {
 
         // Teleport packet
         player.sendPacket(new PacketPlayerEnterSceneNotify(player, teleportProperties));
+        // Re-entering the same scene keeps the avatar entities and their ids: leaving the scene removed them without
+        // telling the player, no longer in it, and the client would ignore them appearing again with the same ids.
+        // Officially seen sent after EnterSceneReadyReq, with the other entities out of sight
+        if (newScene == oldScene && !shownAvatars.isEmpty()) {
+            player.sendPacket(new PacketSceneEntityDisappearNotify(shownAvatars, VisionType.VISION_MISS));
+        }
         player.updateWeather(newScene);
 
         if(teleportProperties.getTeleportType() != TeleportType.INTERNAL && teleportProperties.getTeleportType() != SCRIPT) {
