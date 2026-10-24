@@ -7,7 +7,6 @@ import emu.grasscutter.game.entity.EntityRegion;
 import emu.grasscutter.game.entity.GameEntity;
 import emu.grasscutter.game.entity.create_config.CreateRegionEntityConfig;
 import emu.grasscutter.game.player.Player;
-import emu.grasscutter.game.props.EntityType;
 import emu.grasscutter.game.quest.enums.QuestCond;
 import emu.grasscutter.game.world.Scene;
 import org.anime_game_servers.gi_lua.models.ScriptArgs;
@@ -69,18 +68,22 @@ public class ScriptRegionManager {
             return;
         }
 
+        // the players' current avatars, the only avatars in the scene, once spawned in it
+        var avatars = scene.getPlayers().stream()
+            .map(player -> player.getTeamManager().getCurrentAvatarEntity())
+            .filter(avatar -> avatar != null && scene.isInScene(avatar))
+            .toList();
+
         for (var region : this.regions.values()) {
             region.clearDeadEntities();
 
-            scene.getEntities().values().stream()
-                .filter(e -> e.getEntityType() == EntityType.Avatar)
-                .filter(e -> region.isPosInRegion(e.getPosition()) && !region.getEntities().contains(e))
-                .forEach(region::addEntity);
-
-            scene.getEntities().values().stream()
-                .filter(e -> e.getEntityType() == EntityType.Avatar)
-                .filter(e -> !region.isPosInRegion(e.getPosition()) && !region.getNotContainEntities().contains(e))
-                .forEach(region::removeEntity);
+            for (var avatar : avatars) {
+                if (region.isPosInRegion(avatar.getPosition())) {
+                    if (!region.getEntities().contains(avatar)) region.addEntity(avatar);
+                } else if (!region.getNotContainEntities().contains(avatar)) {
+                    region.removeEntity(avatar);
+                }
+            }
 
             // call enter region events for new entities
             region.getNewEntities().forEach(entity -> callRegionEvent(region, EventType.EVENT_ENTER_REGION, entity));
