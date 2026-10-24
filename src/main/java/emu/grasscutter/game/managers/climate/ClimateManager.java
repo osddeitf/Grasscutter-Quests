@@ -254,8 +254,8 @@ public class ClimateManager extends BasePlayerManager {
     }
 
     private ClimateAreaData findArea(Position position) {
-        var areas = GameData.getSceneClimateAreas().get(player.getSceneId());
-        if (areas == null) return null;
-        return areas.stream().filter(area -> area.isInside(position)).findFirst().orElse(null);
+        var areaGrid = GameData.getSceneClimateAreas().get(player.getSceneId());
+        if (areaGrid == null) return null;
+        return areaGrid.get(position).stream().filter(area -> area.isInside(position)).findFirst().orElse(null);
     }
 }

@@ -24,6 +24,11 @@ public class WeatherAreaPointData {
         public float y;
     }
 
+    /** The bounding box of the polygon, for the scene's AreaGrid */
+    public AreaGrid.Bounds boundingBox() {
+        return AreaGrid.Bounds.of(points, p -> p.x, p -> p.y);
+    }
+
     public boolean isInside(Position position) {
         if (isUseHeightBorder) {
             if (bottom != null && position.getY() < bottom) return false;

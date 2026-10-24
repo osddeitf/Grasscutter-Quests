@@ -733,13 +733,14 @@ public class Scene {
      */
     @Nullable
     public WeatherArea getWeatherArea(Position position) {
-        val data = GameData.getWeatherAreaPointData().get(getId());
-        if(data == null) return null;
+        val areaGrid = GameData.getSceneWeatherAreas().get(getId());
+        if(areaGrid == null) return null;
 
         WeatherData found = null;
-        for (val points : data) {
-            if (!points.isInside(position)) continue;
-            val config = GameData.getWeatherDataMap().get(points.getArea_id());
+        // the areas of the position's grid tile, in the files' order
+        for (val area : areaGrid.get(position)) {
+            if (!area.isInside(position)) continue;
+            val config = GameData.getWeatherDataMap().get(area.getArea_id());
             if (config == null || !isWeatherAreaEnabled(config) || !config.isUnderMaxHeight(position.getY())) continue;
             if (found == null || config.getPriority() > found.getPriority()) found = config;
         }
