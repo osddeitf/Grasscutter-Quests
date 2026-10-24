@@ -37,6 +37,7 @@ import org.anime_game_servers.multi_proto.gi.messages.scene.entity.*;
 
 import javax.annotation.Nullable;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.anime_game_servers.gi_lua.models.constants.EventType.EVENT_SPECIFIC_MONSTER_HP_CHANGE;
 
@@ -59,6 +60,8 @@ public class EntityMonster extends GameEntity<CreateMonsterEntityConfig> impleme
     private final Position bornRot;
     /** The weapons, one per weapon in the excel's equips, in its order, e.g. a shield hilichurl's club and shield */
     private final List<EntityWeapon> weapons = new ArrayList<>();
+    /** The gadgets held at equip parts, e.g. the slime a hilichurl digs up to throw, see ActionCreateGadgetForEquip */
+    private final Map<String, EntityWeapon> equipPartGadgets = new ConcurrentHashMap<>();
     @Setter private int poseId;
     @Setter private int aiId;
     private final int titleId;
@@ -327,6 +330,23 @@ public class EntityMonster extends GameEntity<CreateMonsterEntityConfig> impleme
         this.setFightProperty(FightProperty.FIGHT_PROP_CUR_HP, this.getFightProperty(FightProperty.FIGHT_PROP_MAX_HP) * hpPercent);
     }
 
+    /**
+     * Holds a gadget at an equip part, in place of the one held there: on official, a hilichurl digging up another slime
+     * without throwing the first, the first is no longer referenced
+     */
+    public void setEquipPartGadget(String equipPart, EntityWeapon gadget) {
+        val previous = this.equipPartGadgets.put(equipPart, gadget);
+        if (previous != null) getScene().getWeaponEntities().remove(previous.getId());
+    }
+
+    /** Releases the gadget held at an equip part, e.g. thrown; null if none */
+    @Nullable
+    public EntityWeapon removeEquipPartGadget(String equipPart) {
+        val gadget = this.equipPartGadgets.remove(equipPart);
+        if (gadget != null) getScene().getWeaponEntities().remove(gadget.getId());
+        return gadget;
+    }
+
     @Override
     public SceneEntityInfo toProto() {
         val bornPosProto = getBornPos().toProto();
@@ -360,6 +380,9 @@ public class EntityMonster extends GameEntity<CreateMonsterEntityConfig> impleme
         monsterInfo.setSpecialNameId(getSpecialNameId());
         monsterInfo.setMarkFlag(this.getSpawnConfig().getMarkFlag());
 
+        // TODO the gadgets held at equip parts aren't sent, only announced once by TriggerCreateGadgetToEquipPartNotify:
+        //  a client seeing the monster later, e.g. a joining co-op player or on re-entering vision, doesn't have them.
+        //  Unknown from the captures whether official sends them here, sends the notify again, or neither
         if (!this.weapons.isEmpty()) {
             monsterInfo.setWeaponList(this.weapons.stream().map(weapon -> {
                 val weaponInfo = new SceneWeaponInfo(weapon.getId(), weapon.getGadgetId());
