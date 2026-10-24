@@ -1,6 +1,7 @@
 package emu.grasscutter.game.entity;
 
 import emu.grasscutter.Grasscutter;
+import emu.grasscutter.data.GameData;
 import emu.grasscutter.data.binout.config.ConfigEntityGadget;
 import emu.grasscutter.data.binout.config.fields.ConfigAbilityData;
 import emu.grasscutter.data.excels.GadgetData;
@@ -27,6 +28,7 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 
 import static org.anime_game_servers.gi_lua.models.constants.EventType.EVENT_SPECIFIC_GADGET_HP_CHANGE;
 
@@ -210,10 +212,41 @@ public abstract class EntityBaseGadget extends GameEntity<CreateGadgetEntityConf
      * Ability Related
      */
 
-    //TODO: handle predynamic, static and dynamic here
+    /**
+     * The gadget's abilities, in the order the client instances them: the default non-humanoid move abilities, for a gadget
+     * moving non-humanoidly, then its config's own.
+     * TODO gadget affixes, from the spawn, would come first, all pre-add
+     */
     @Override
     public Collection<ConfigAbilityData> getAbilityData() {
-        return this.configGadget != null ? this.configGadget.getAbilities() : null;
+        if (this.configGadget == null) return null;
+        val abilities = new ArrayList<ConfigAbilityData>();
+        if (hasNonHumanoidMove()) {
+            for (val name : GameData.getConfigGlobalCombat().getDefaultAbilities().getNonHumanoidMoveAbilities()) {
+                val entry = new ConfigAbilityData();
+                entry.abilityName = name;
+                abilities.add(entry);
+            }
+        }
+        if (this.configGadget.getAbilities() != null) abilities.addAll(this.configGadget.getAbilities());
+        return abilities;
+    }
+
+    /**
+     * The move types the client treats as non-humanoid, the 3.2 list, as matched on official captures up to 7.0. In 7.0,
+     * ConfigSimpleMove isn't in the configs by name: it may be one of their obfuscated move types
+     */
+    private static final Set<String> NON_HUMANOID_MOVE_TYPES = Set.of(
+        "ConfigSimpleMove", "ConfigRigidbodyMove", "ConfigAnimatorMove", "ConfigMixinDriveMove");
+
+    /**
+     * A move component, by the excel's hasMove, of a non-humanoid type. A move block in the config isn't enough: some
+     * gadgets have one with hasMove false, and get no non-humanoid move abilities
+     */
+    private boolean hasNonHumanoidMove() {
+        if (this.gadgetData == null || !this.gadgetData.isHasMove()) return false;
+        val move = this.configGadget.getMove();
+        return move != null && move.getType() != null && NON_HUMANOID_MOVE_TYPES.contains(move.getType());
     }
 
     @Override

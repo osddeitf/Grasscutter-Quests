@@ -19,4 +19,6 @@ public class GadgetData extends GameResource {
     private long nameTextMapHash;
     private int campID;
     private String visionLevel;
+    /** Whether the gadget has a move component, absent when false */
+    private boolean hasMove;
 }
