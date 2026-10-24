@@ -120,6 +120,8 @@ public class GameData {
     @Getter private static final Int2ObjectMap<ForgeData> forgeDataMap = new Int2ObjectOpenHashMap<>();
     @Getter private static final Int2ObjectMap<FurnitureMakeConfigData> furnitureMakeConfigDataMap = new Int2ObjectOpenHashMap<>();
     @Getter private static final Int2ObjectMap<GadgetData> gadgetDataMap = new Int2ObjectOpenHashMap<>();
+    @Getter private static final Int2ObjectMap<GadgetPropData> gadgetPropDataMap = new Int2ObjectOpenHashMap<>();
+    @Getter private static final Int2ObjectMap<GadgetCurveData> gadgetCurveDataMap = new Int2ObjectOpenHashMap<>();
     @Getter private static final Int2ObjectMap<GadgetInteractData> gadgetInteractDataMap = new Int2ObjectOpenHashMap<>();
     @Getter private static final Int2ObjectMap<GadgetChainData> gadgetChainDataMap = new Int2ObjectOpenHashMap<>();
     @Getter private static final Int2ObjectMap<GatherData> gatherDataMap = new Int2ObjectOpenHashMap<>();

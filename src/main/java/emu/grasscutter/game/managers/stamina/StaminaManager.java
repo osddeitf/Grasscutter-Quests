@@ -340,6 +340,14 @@ public class StaminaManager extends BasePlayerManager {
         costFightStamina("DeductStamina", cost);
     }
 
+    /** The reverse of DeductStamina, e.g. Mavuika's and Xilonen's special sprints: not delaying the stamina recovery */
+    public void handleReviveStamina(float value) {
+        if (value <= 0) return;
+        int amount = Math.round(value * 100);
+        logger.debug("ReviveStamina revives stamina {}", amount);
+        updateStaminaRelative(new Consumption(ConsumptionType.FIGHT, amount), true);
+    }
+
     // Phlogiston lives in the team's server global value, in points; the player property (hundredths) persists it
     public static final String PHLOGISTON_SGV = "SGV_PlayerTeam_Phlogiston";
     public static final float MAX_PHLOGISTON = PlayerProperty.PROP_CUR_PHLOGISTON.getMax() / 100f;

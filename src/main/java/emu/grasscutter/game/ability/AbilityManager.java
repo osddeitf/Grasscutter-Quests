@@ -111,6 +111,13 @@ public final class AbilityManager extends BasePlayerManager {
             found = actionHandlers.get(type);
         }
         val handler = found;
+        // Observed handled by the client, so left unhandled; more investigation needed. Each is sent FORWARD_ONLY_SERVER
+        // without data:
+        // - SetOverrideMapValue: e.g. Regisvine's FruitReviveTime, its result not seen sent; it would only matter to the
+        //   server's own evaluations of the key
+        // - SetCrystalShieldHpToOverrideMap: the crystallize shield's HP, sent by the client in ABILITY_META_OVERRIDE_PARAM,
+        //   as on official
+        // - CopyGlobalValue: e.g. Raiden's _ABILITY_Shougun_LocalAvatarEnergy_Temp, sent in ABILITY_META_GLOBAL_FLOAT_VALUE
         if (handler == null) {
             logger.warn("[UNIMPLEMENTED] Action {}: no handler, at {}", actionType, ability.getName());
             return;
