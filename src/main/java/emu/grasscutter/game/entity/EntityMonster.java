@@ -52,6 +52,8 @@ public class EntityMonster extends GameEntity<CreateMonsterEntityConfig> impleme
     private final MonsterData monsterData;
     /** The affix ids, see {@link #buildAffixes} */
     private final List<Integer> affixes;
+    /** Elite by its group, sent to the client, which adds the elite ability for it as the server does */
+    private final boolean elite;
     private final ConfigEntityMonster configEntityMonster;
     private final Position bornPos;
     private final Position bornRot;
@@ -82,7 +84,9 @@ public class EntityMonster extends GameEntity<CreateMonsterEntityConfig> impleme
             // e.g. a boss losing HP only from its own abilities, not from hits
             setCombatLockHP(configEntityMonster.getCombat().getProperty().isLockHP());
         }
-        this.affixes = buildAffixes(scene.getGroupManager().getSceneMonster(this));
+        val sceneMonster = scene.getGroupManager().getSceneMonster(this);
+        this.affixes = buildAffixes(sceneMonster);
+        this.elite = sceneMonster != null && sceneMonster.isElite();
 
         this.weaponId = config.getWeaponId();
         this.aiId = config.getAiId();
@@ -140,7 +144,6 @@ public class EntityMonster extends GameEntity<CreateMonsterEntityConfig> impleme
         ArrayList<String> abilityNames = new ArrayList<>();
         val defaultAbilities = GameData.getConfigGlobalCombat().getDefaultAbilities();
         //Affix abilities
-        var monster = getScene().getGroupManager().getSceneMonster(this);
         var affixes = getAffixData();
 
         // first add pre add affix abilities
@@ -162,7 +165,7 @@ public class EntityMonster extends GameEntity<CreateMonsterEntityConfig> impleme
             );
         }
 
-        if(monster != null && monster.isElite()) {
+        if(elite) {
             abilityNames.add(defaultAbilities.getMonterEliteAbilityName());
         }
 
@@ -345,6 +348,7 @@ public class EntityMonster extends GameEntity<CreateMonsterEntityConfig> impleme
         var monsterInfo = new SceneMonsterInfo(getMonsterId(), getGroupId(), getConfigId());
 
         monsterInfo.setAffixList(this.affixes);
+        monsterInfo.setElite(this.elite);
         monsterInfo.setAuthorityPeerId(getWorld().getHostPeerId());
         monsterInfo.setPoseId(this.getPoseId());
         monsterInfo.setBlockId(getScene().getId());
