@@ -30,6 +30,7 @@ import teyvat.ability.config.actions.LoseHP;
 import javax.annotation.Nullable;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
@@ -688,9 +689,16 @@ public final class AbilityManager extends BasePlayerManager {
             .ifPresent(sceneChallenge -> sceneChallenge.onElementReaction(targetEntity, reactionType));
     }
 
+    /**
+     * Instances an entity's abilities, an ability's position in the list being its instancedAbilityId. A name listed twice,
+     * e.g. by two affixes with overlapping abilities, takes one slot, the first, as the client does on official captures;
+     * a name not found still takes its slot.
+     */
     public void initEntityAbilities(GameEntity<?> entity, Collection<String> abilityNames) {
         int id = 0;
+        val seen = new HashSet<String>();
         for (var abilityName : abilityNames) {
+            if (!seen.add(abilityName)) continue;
             ++id;
             var abilityData = GameData.getAbilityConfigs().ability(abilityName);
             if (abilityData == null) continue;  // skip missing. TODO: logging
