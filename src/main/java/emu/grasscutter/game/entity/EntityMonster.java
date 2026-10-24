@@ -52,6 +52,8 @@ public class EntityMonster extends GameEntity<CreateMonsterEntityConfig> impleme
     private final MonsterData monsterData;
     /** The affix ids, see {@link #buildAffixes} */
     private final List<Integer> affixes;
+    /** Elite by its group, sent to the client, which adds the elite ability for it as the server does */
+    private final boolean elite;
     private final ConfigEntityMonster configEntityMonster;
     private final Position bornPos;
     private final Position bornRot;
@@ -82,21 +84,25 @@ public class EntityMonster extends GameEntity<CreateMonsterEntityConfig> impleme
             // e.g. a boss losing HP only from its own abilities, not from hits
             setCombatLockHP(configEntityMonster.getCombat().getProperty().isLockHP());
         }
-        this.affixes = buildAffixes(scene.getGroupManager().getSceneMonster(this));
+        val sceneMonster = scene.getGroupManager().getSceneMonster(this);
+        this.affixes = buildAffixes(sceneMonster);
+        this.elite = sceneMonster != null && sceneMonster.isElite();
 
-        // Monster weapon
         this.weaponId = config.getWeaponId();
-        if (weaponId > 0) {
-            val weaponConfig = new CreateGadgetEntityConfig(weaponId);
-            this.weaponEntity = new EntityWeapon(scene, weaponConfig);
-            scene.getWeaponEntities().put(this.weaponEntity.getId(), this.weaponEntity);
-        }
         this.aiId = config.getAiId();
         this.poseId = config.getPoseId();
         this.titleId = config.getTitleId();
         this.specialNameId = config.getSpecialNameId();
 
         this.recalcStats();
+
+        // Monster weapon, after the stats: a weapon with useCreatorProperty takes the monster's, e.g. a hilichurl's shield
+        // its HP. TODO the weapon keeps them as they were here, not updated by a later recalcStats, e.g. on a level change
+        if (weaponId > 0) {
+            val weaponConfig = new CreateGadgetEntityConfig(weaponId).setCreator(this);
+            this.weaponEntity = new EntityWeapon(scene, weaponConfig);
+            scene.getWeaponEntities().put(this.weaponEntity.getId(), this.weaponEntity);
+        }
 
         initAbilities();
     }
@@ -138,7 +144,6 @@ public class EntityMonster extends GameEntity<CreateMonsterEntityConfig> impleme
         ArrayList<String> abilityNames = new ArrayList<>();
         val defaultAbilities = GameData.getConfigGlobalCombat().getDefaultAbilities();
         //Affix abilities
-        var monster = getScene().getGroupManager().getSceneMonster(this);
         var affixes = getAffixData();
 
         // first add pre add affix abilities
@@ -160,7 +165,7 @@ public class EntityMonster extends GameEntity<CreateMonsterEntityConfig> impleme
             );
         }
 
-        if(monster != null && monster.isElite()) {
+        if(elite) {
             abilityNames.add(defaultAbilities.getMonterEliteAbilityName());
         }
 
@@ -171,8 +176,10 @@ public class EntityMonster extends GameEntity<CreateMonsterEntityConfig> impleme
             abilityNames.addAll(List.of(affix.getAbilityName()));
         }
 
+        // partners don't get the level entity's monster abilities
         val sceneData = getScene().getSceneData();
-        if(sceneData!=null) {
+        val isPartner = monsterData != null && monsterData.getType() == MonsterType.MONSTER_PARTNER;
+        if(sceneData!=null && !isPartner) {
             val config = GameData.getConfigLevelEntityDataMap().get(sceneData.getLevelEntityConfig());
             if(config != null && config.getMonsterAbilities() != null) {
                 val configAbilitiesList = config.getMonsterAbilities().stream()
@@ -343,6 +350,7 @@ public class EntityMonster extends GameEntity<CreateMonsterEntityConfig> impleme
         var monsterInfo = new SceneMonsterInfo(getMonsterId(), getGroupId(), getConfigId());
 
         monsterInfo.setAffixList(this.affixes);
+        monsterInfo.setElite(this.elite);
         monsterInfo.setAuthorityPeerId(getWorld().getHostPeerId());
         monsterInfo.setPoseId(this.getPoseId());
         monsterInfo.setBlockId(getScene().getId());
