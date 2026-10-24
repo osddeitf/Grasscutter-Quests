@@ -5,10 +5,17 @@ import emu.grasscutter.game.entity.EntityMonster;
 import emu.grasscutter.game.entity.EntityWeapon;
 import emu.grasscutter.game.entity.GameEntity;
 import emu.grasscutter.game.entity.create_config.CreateGadgetEntityConfig;
+import emu.grasscutter.server.packet.send.PacketTriggerCreateGadgetToEquipPartNotify;
 import lombok.val;
-import org.anime_game_servers.multi_proto.gi.messages.ability.action.AbilityActionCreateGadget;
 import teyvat.ability.config.actions.TriggerCreateGadgetToEquipPart;
 
+/**
+ * A gadget held at an equip part of the ability's owner, e.g. the slime a hilichurl digs up to throw (Hili_Fire_BombCreate,
+ * gadget 42101012 at equip03). As the official server: a weapon entity, not appearing in the scene, sent in
+ * TriggerCreateGadgetToEquipPartNotify, from which the clients create it. The invoke carries no data.
+ * The throw is the client's, creating the thrown gadget by EvtCreateGadgetNotify, see ActionThrowEquipPart.
+ * TODO the held gadget isn't removed on its owner's death: not seen in the captures
+ */
 public class ActionCreateGadgetForEquip extends AbilityActionHandler<TriggerCreateGadgetToEquipPart> {
 
     @Override
@@ -18,39 +25,14 @@ public class ActionCreateGadgetForEquip extends AbilityActionHandler<TriggerCrea
 
     @Override
     public boolean execute(Ability ability, TriggerCreateGadgetToEquipPart action, byte[] abilityData, GameEntity<?> target) {
-       // if(!action.byServer) {
-        //    logger.debug("Action not executed by server");
-
-          //  return true;
-        //}
-
-        // TODO not working yet
-        var entity = ability.getOwner();
-        AbilityActionCreateGadget createGadget;
-        try {
-            createGadget = AbilityActionCreateGadget.parseBy(abilityData, ability.getPlayerOwner().getSession().getVersion());
-        } catch (Exception e) {
-            return false;
-        }
-
-        val config = new CreateGadgetEntityConfig(action, action.gadgetID, createGadget);
-//            .setOwner(action.ownerIsTarget ? target : entity);    // TriggerCreateGadgetToEquipPart doesn't have the field
-
-        var entityCreated = new EntityWeapon(entity.getScene(), config);
-
-        /*if(action.ownerIsTarget)
-            entityCreated.par(target);
-        else
-        entityCreated.setOwner(entity);*/
-
-
-        entity.getScene().addEntity(entityCreated);
-        if(target instanceof EntityMonster monster){
-            //monster.setWeaponEntity(entityCreated);
-        }
-
-        logger.info("Gadget {} created at pos {} rot {}", action.gadgetID, entityCreated.getPosition(), entityCreated.getRotation());
-
+        val owner = ability.getOwner();
+        val scene = owner.getScene();
+        // the creator, as for a monster's weapon, for a gadget with useCreatorProperty
+        val config = new CreateGadgetEntityConfig(action.gadgetID).setCreator(owner);
+        val gadget = new EntityWeapon(scene, config);
+        scene.getWeaponEntities().put(gadget.getId(), gadget);
+        if (owner instanceof EntityMonster monster) monster.setEquipPartGadget(action.equipPart, gadget);
+        scene.broadcastPacket(new PacketTriggerCreateGadgetToEquipPartNotify(owner, gadget, action.equipPart));
         return true;
     }
 

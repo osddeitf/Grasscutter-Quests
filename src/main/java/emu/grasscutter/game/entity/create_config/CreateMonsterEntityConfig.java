@@ -13,6 +13,8 @@ import lombok.val;
 import org.anime_game_servers.gi_lua.models.scene.group.SceneMonster;
 import org.anime_game_servers.multi_proto.gi.messages.general.entity.CreateEntityInfo;
 
+import java.util.List;
+
 @Getter @Setter @AllArgsConstructor @Accessors(chain = true)
 public class CreateMonsterEntityConfig extends CreateEntityConfig<CreateMonsterEntityConfig> {
     private int monsterId;
@@ -24,7 +26,7 @@ public class CreateMonsterEntityConfig extends CreateEntityConfig<CreateMonsterE
     private int campId = 0;
     private int titleId = 0;
     private int specialNameId = 0;
-    private int weaponId = 0;
+    private List<Integer> weaponIds = List.of();
     private int killScore = 0;
     //TODO
 
@@ -107,8 +109,8 @@ public class CreateMonsterEntityConfig extends CreateEntityConfig<CreateMonsterE
         if(campId == 0) {
             this.campId = this.monsterData.getCampID();
         }
-        if(weaponId == 0) {
-            this.weaponId = this.monsterData.getWeaponId();
+        if(weaponIds.isEmpty()) {
+            this.weaponIds = this.monsterData.getWeaponIds();
         }
         if(monsterData.getDescribeData() != null && specialNameId == 0){
             this.titleId = monsterData.getDescribeData().getTitleId();
