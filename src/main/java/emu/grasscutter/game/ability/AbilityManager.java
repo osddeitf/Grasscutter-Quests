@@ -265,8 +265,17 @@ public final class AbilityManager extends BasePlayerManager {
             var data = clientGadget.getGadgetData();
             return new EntityIdentity("ClientGadget", entity.getId(), data == null? 0: data.getId());
         }
+        if (entity instanceof EntityWeapon weapon) {
+            return new EntityIdentity("Weapon", entity.getId(), weapon.getGadgetId());
+        }
         if (entity instanceof EntityTeam team) {
             return new EntityIdentity("Team", team.getId(), 0);
+        }
+        if (entity instanceof EntityScene scene) {
+            return new EntityIdentity("Scene", entity.getId(), scene.getScene().getId());
+        }
+        if (entity instanceof EntityWorld) {
+            return new EntityIdentity("World", entity.getId(), 0);
         }
         if (entity != null) {
             return new EntityIdentity("Unknown", entity.getId(), 0);
