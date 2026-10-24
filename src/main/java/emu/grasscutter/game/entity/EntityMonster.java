@@ -176,8 +176,10 @@ public class EntityMonster extends GameEntity<CreateMonsterEntityConfig> impleme
             abilityNames.addAll(List.of(affix.getAbilityName()));
         }
 
+        // partners don't get the level entity's monster abilities
         val sceneData = getScene().getSceneData();
-        if(sceneData!=null) {
+        val isPartner = monsterData != null && monsterData.getType() == MonsterType.MONSTER_PARTNER;
+        if(sceneData!=null && !isPartner) {
             val config = GameData.getConfigLevelEntityDataMap().get(sceneData.getLevelEntityConfig());
             if(config != null && config.getMonsterAbilities() != null) {
                 val configAbilitiesList = config.getMonsterAbilities().stream()
