@@ -176,9 +176,12 @@ public abstract class EntityBaseGadget extends GameEntity<CreateGadgetEntityConf
     }
 
     /**
-     * The creator's properties, e.g. its attack for the gadget's damage, but the gadget's own HP: the creator may be dead.
-     * TODO may not be complete: which properties are taken from the creator, and which are kept, is assumed. A client
-     *  gadget creator has no properties on the server, e.g. Albedo's Solar Isotoma for its elevator: its owner's are needed
+     * The creator's properties, e.g. its attack for the gadget's damage. The gadget keeps its own HP when it has one: the
+     * creator may be dead, e.g. for a gadget created on its kill. Without one, it takes the creator's max HP, at full, e.g. a
+     * hilichurl's shield (MonEquip_Shield_01, whose combat property is only useCreatorProperty), else broken by any hit.
+     * TODO may not be complete: which properties are taken from the creator, and which are kept, is assumed, as is the
+     *  shield's HP being its monster's max HP. A client gadget creator has no properties on the server, e.g. Albedo's
+     *  Solar Isotoma for its elevator: its owner's are needed
      */
     private void useCreatorProperties() {
         val creator = getCreator();
@@ -189,7 +192,11 @@ public abstract class EntityBaseGadget extends GameEntity<CreateGadgetEntityConf
         val hpProps = List.of(FightProperty.FIGHT_PROP_MAX_HP, FightProperty.FIGHT_PROP_BASE_HP, FightProperty.FIGHT_PROP_CUR_HP);
         val ownHp = hpProps.stream().map(this::getFightProperty).toList();
         getFightProperties().putAll(creator.getFightProperties());
-        for (int i = 0; i < hpProps.size(); i++) setFightProperty(hpProps.get(i), ownHp.get(i));
+        if (ownHp.get(0) > 0) {
+            for (int i = 0; i < hpProps.size(); i++) setFightProperty(hpProps.get(i), ownHp.get(i));
+        } else {
+            setFightProperty(FightProperty.FIGHT_PROP_CUR_HP, getFightProperty(FightProperty.FIGHT_PROP_MAX_HP));
+        }
     }
 
     /** The entity this gadget was created by: given by its create config, e.g. a killed monster, else its prop owner */

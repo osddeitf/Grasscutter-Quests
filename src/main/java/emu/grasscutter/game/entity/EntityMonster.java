@@ -84,19 +84,21 @@ public class EntityMonster extends GameEntity<CreateMonsterEntityConfig> impleme
         }
         this.affixes = buildAffixes(scene.getGroupManager().getSceneMonster(this));
 
-        // Monster weapon
         this.weaponId = config.getWeaponId();
-        if (weaponId > 0) {
-            val weaponConfig = new CreateGadgetEntityConfig(weaponId);
-            this.weaponEntity = new EntityWeapon(scene, weaponConfig);
-            scene.getWeaponEntities().put(this.weaponEntity.getId(), this.weaponEntity);
-        }
         this.aiId = config.getAiId();
         this.poseId = config.getPoseId();
         this.titleId = config.getTitleId();
         this.specialNameId = config.getSpecialNameId();
 
         this.recalcStats();
+
+        // Monster weapon, after the stats: a weapon with useCreatorProperty takes the monster's, e.g. a hilichurl's shield
+        // its HP. TODO the weapon keeps them as they were here, not updated by a later recalcStats, e.g. on a level change
+        if (weaponId > 0) {
+            val weaponConfig = new CreateGadgetEntityConfig(weaponId).setCreator(this);
+            this.weaponEntity = new EntityWeapon(scene, weaponConfig);
+            scene.getWeaponEntities().put(this.weaponEntity.getId(), this.weaponEntity);
+        }
 
         initAbilities();
     }
