@@ -8,6 +8,7 @@ import emu.grasscutter.data.binout.AbilityModifier.AbilityModifierAction;
 import emu.grasscutter.data.binout.config.*;
 import emu.grasscutter.data.binout.routes.SceneRoutes;
 import emu.grasscutter.data.common.PointData;
+import emu.grasscutter.data.common.AreaGrid;
 import emu.grasscutter.data.common.ClimateAreaData;
 import emu.grasscutter.data.common.ScenePointArrayData;
 import emu.grasscutter.data.common.WeatherAreaPointData;
@@ -322,10 +323,8 @@ public class ResourceLoader {
                         }
 
                         if (config == null) return;
-
-                        config.forEach((area) -> {
-                            GameData.getWeatherAreaPointData().put(sceneId, config);
-                        });
+                        val grid = GameData.getSceneWeatherAreas().computeIfAbsent(sceneId, k -> new AreaGrid<>());
+                        config.forEach(area -> grid.add(area, area.boundingBox()));
                     });
                 } catch (IOException e) {
                     logger.error("Weather area files cannot be found in {}", dirPath);
@@ -349,7 +348,10 @@ public class ResourceLoader {
 
                         try {
                             val areas = JsonUtils.loadToList(path, ClimateAreaData.class);
-                            if (areas != null) GameData.getSceneClimateAreas().put(sceneId, areas);
+                            if (areas == null) return;
+                            val grid = new AreaGrid<ClimateAreaData>();
+                            areas.forEach(area -> grid.add(area, area.boundingBox()));
+                            GameData.getSceneClimateAreas().put(sceneId, grid);
                         } catch (Exception e) {
                             logger.error("Error loading climate area file: {}", path, e);
                         }

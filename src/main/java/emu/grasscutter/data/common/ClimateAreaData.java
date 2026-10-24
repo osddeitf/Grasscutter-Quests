@@ -20,6 +20,11 @@ public class ClimateAreaData {
         public float y;  // the world z
     }
 
+    /** The bounding box of the polygon, for the scene's AreaGrid */
+    public AreaGrid.Bounds boundingBox() {
+        return AreaGrid.Bounds.of(points, p -> p.x, p -> p.y);
+    }
+
     public boolean isInside(Position position) {
         if (points == null || position.getY() < bottom || position.getY() > top) return false;
 
