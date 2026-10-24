@@ -76,7 +76,8 @@ public class MonsterData extends GameResource {
     private long combatConfigHash;
 
     // Transient
-    private int weaponId;
+    /** The equips which are monster weapons, in the excel's order, as the client is sent them */
+    private List<Integer> weaponIds = List.of();
     private MonsterDescribeData describeData;
     @Nullable private transient ConfigEntityMonster config;
 
@@ -86,6 +87,7 @@ public class MonsterData extends GameResource {
 	public void onLoad() {
 		this.config = resolveConfig();
 
+		val weaponIds = new ArrayList<Integer>();
 		for (int id : this.equips) {
 			if (id == 0) {
 				continue;
@@ -95,9 +97,10 @@ public class MonsterData extends GameResource {
 				continue;
 			}
 			if (gadget.getItemJsonName().equals("Default_MonsterWeapon")) {
-				this.weaponId = id;
+				weaponIds.add(id);
 			}
 		}
+		this.weaponIds = List.copyOf(weaponIds);
 
 		this.describeData = GameData.getMonsterDescribeDataMap().get(this.getDescribeId());
 

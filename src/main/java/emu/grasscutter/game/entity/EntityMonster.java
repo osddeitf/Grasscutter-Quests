@@ -57,12 +57,12 @@ public class EntityMonster extends GameEntity<CreateMonsterEntityConfig> impleme
     private final ConfigEntityMonster configEntityMonster;
     private final Position bornPos;
     private final Position bornRot;
-    private EntityWeapon weaponEntity;
+    /** The weapons, one per weapon in the excel's equips, in its order, e.g. a shield hilichurl's club and shield */
+    private final List<EntityWeapon> weapons = new ArrayList<>();
     @Setter private int poseId;
     @Setter private int aiId;
     private final int titleId;
     private final int specialNameId;
-    private int weaponId;
 
     private List<Player> playerOnBattle;
 
@@ -88,7 +88,6 @@ public class EntityMonster extends GameEntity<CreateMonsterEntityConfig> impleme
         this.affixes = buildAffixes(sceneMonster);
         this.elite = sceneMonster != null && sceneMonster.isElite();
 
-        this.weaponId = config.getWeaponId();
         this.aiId = config.getAiId();
         this.poseId = config.getPoseId();
         this.titleId = config.getTitleId();
@@ -96,12 +95,13 @@ public class EntityMonster extends GameEntity<CreateMonsterEntityConfig> impleme
 
         this.recalcStats();
 
-        // Monster weapon, after the stats: a weapon with useCreatorProperty takes the monster's, e.g. a hilichurl's shield
+        // Monster weapons, after the stats: a weapon with useCreatorProperty takes the monster's, e.g. a hilichurl's shield
         // its HP. TODO the weapon keeps them as they were here, not updated by a later recalcStats, e.g. on a level change
-        if (weaponId > 0) {
+        for (int weaponId : config.getWeaponIds()) {
             val weaponConfig = new CreateGadgetEntityConfig(weaponId).setCreator(this);
-            this.weaponEntity = new EntityWeapon(scene, weaponConfig);
-            scene.getWeaponEntities().put(this.weaponEntity.getId(), this.weaponEntity);
+            val weapon = new EntityWeapon(scene, weaponConfig);
+            scene.getWeaponEntities().put(weapon.getId(), weapon);
+            this.weapons.add(weapon);
         }
 
         initAbilities();
@@ -360,12 +360,12 @@ public class EntityMonster extends GameEntity<CreateMonsterEntityConfig> impleme
         monsterInfo.setSpecialNameId(getSpecialNameId());
         monsterInfo.setMarkFlag(this.getSpawnConfig().getMarkFlag());
 
-        if (this.getWeaponId() > 0) {
-            val entityId = this.getWeaponEntity() != null ? this.getWeaponEntity().getId() : 0;
-            val weaponInfo = new SceneWeaponInfo(entityId, this.getWeaponId());
-            weaponInfo.setAbilityInfo(new AbilitySyncStateInfo());
-
-            monsterInfo.setWeaponList(List.of(weaponInfo));
+        if (!this.weapons.isEmpty()) {
+            monsterInfo.setWeaponList(this.weapons.stream().map(weapon -> {
+                val weaponInfo = new SceneWeaponInfo(weapon.getId(), weapon.getGadgetId());
+                weaponInfo.setAbilityInfo(new AbilitySyncStateInfo());
+                return weaponInfo;
+            }).toList());
         }
         if (this.aiId > 0) {
             monsterInfo.setAiConfigId(aiId);
