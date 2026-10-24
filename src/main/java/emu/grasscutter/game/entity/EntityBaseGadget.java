@@ -155,6 +155,19 @@ public abstract class EntityBaseGadget extends GameEntity<CreateGadgetEntityConf
         var combatProperties = combatData.getProperty();
 
         var targetHp = combatProperties.getHP();
+        var atk = combatProperties.getAttack();
+        var def = combatProperties.getDefence();
+
+        // The gadget's prop excel row, grown to its level, in place of the config's, e.g. an electro crystal ore's attack,
+        // 0 in its config. As official: matched exactly for gadget 70510005 at levels 84, 90 and 98
+        val prop = GameData.getGadgetPropDataMap().get(this.gadgetId);
+        val curve = GameData.getGadgetCurveDataMap().get(getLevel());
+        if (prop != null && curve != null) {
+            targetHp = prop.getHp() * curve.getMultByProp(prop.getHpCurve());
+            atk = prop.getAttack() * curve.getMultByProp(prop.getAttackCurve());
+            def = prop.getDefense() * curve.getMultByProp(prop.getDefenseCurve());
+        }
+
         setFightProperty(FightProperty.FIGHT_PROP_MAX_HP, targetHp);
         setFightProperty(FightProperty.FIGHT_PROP_BASE_HP, targetHp);
         if (combatProperties.isInvincible()) {
@@ -162,11 +175,9 @@ public abstract class EntityBaseGadget extends GameEntity<CreateGadgetEntityConf
         }
         setFightProperty(FightProperty.FIGHT_PROP_CUR_HP, targetHp);
 
-        var atk = combatProperties.getAttack();
         setFightProperty(FightProperty.FIGHT_PROP_BASE_ATTACK, atk);
         setFightProperty(FightProperty.FIGHT_PROP_CUR_ATTACK, atk);
 
-        var def = combatProperties.getDefence();
         setFightProperty(FightProperty.FIGHT_PROP_BASE_DEFENSE, def);
         setFightProperty(FightProperty.FIGHT_PROP_CUR_DEFENSE, def);
 
